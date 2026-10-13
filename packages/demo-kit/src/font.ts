@@ -43,6 +43,11 @@ const EXTRA_GLYPHS: Record<string, readonly Polyline[]> = {
   ...accentedGlyphs(),
 };
 
+// The glyphs getDemoFont adds to the arcade font.
+export function getDemoFontGlyphs(): Readonly<Record<string, readonly Polyline[]>> {
+  return EXTRA_GLYPHS;
+}
+
 let sharedFont: VectorFont | null = null;
 
 // The arcade font plus square brackets and accented capitals (Ü, É, Ç, Å, Ñ, Ø…).

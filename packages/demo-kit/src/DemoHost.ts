@@ -109,6 +109,10 @@ export class DemoHost {
     this.applyLineStyle();
   }
 
+  public setOverlayLineStyle(lineStyle: Partial<LineStyle>): void {
+    Object.assign(this.overlayLineStyleCss, lineStyle);
+  }
+
   public stepOnce(): void {
     this.pendingSingleSteps++;
   }

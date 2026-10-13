@@ -25,6 +25,7 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/meshes` | Feature Edges: the teapot, the bunny and other meshes as line drawings, with hidden lines removed |
 | `demos/docs` | Live Guide: documentation for the `@vector-display` packages in which every example is editable and running |
 | `demos/vector-os` | Vector OS: a desktop drawn by one beam, with windows that run the other demos, a terminal, a clock and a beam control panel |
+| `demos/type-specimen` | Type Specimen: the Hershey stroke fonts (`StrokeFont` and `getHersheyFont` in `demo-kit`) at small sizes, to judge readability. At `/type-specimen/` on the dev server; not in the catalog, so not in the menu or the build |
 | `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots. `--chrome-flags` passes extra switches, e.g. `--autoplay-policy=no-user-gesture-required` to test audio |
 
 Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay` and `resize`), which is what lets Vector OS run them all in windows, unchanged. Every demo returns to the index with Escape.
