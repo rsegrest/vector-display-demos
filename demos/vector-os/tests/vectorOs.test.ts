@@ -259,9 +259,9 @@ describe("WindowManager", () => {
 function fakeServices(overrides: Partial<OsServices> = {}): OsServices & { launched: string[]; rebooted: number } {
   const state = { launched: [] as string[], rebooted: 0 };
   const entries: AppEntry[] = [
-    { id: "terminal", title: "Terminal", kind: "tool", size: { width: 400, height: 300 }, create: () => ({ demo: { update() {}, draw() {} }, worldHeight: null }) },
-    { id: "lenia", title: "Lenia", kind: "demo", size: { width: 400, height: 300 }, create: () => ({ demo: { update() {}, draw() {} }, worldHeight: 1000 }) },
-    { id: "slime-mold", title: "Slime Mold", kind: "demo", size: { width: 400, height: 300 }, create: () => ({ demo: { update() {}, draw() {} }, worldHeight: 1000 }) },
+    { id: "terminal", title: "Terminal", kind: "tool", category: "utilities", size: { width: 400, height: 300 }, create: () => ({ demo: { update() {}, draw() {} }, worldHeight: null }) },
+    { id: "lenia", title: "Lenia", kind: "demo", category: "alife", size: { width: 400, height: 300 }, create: () => ({ demo: { update() {}, draw() {} }, worldHeight: 1000 }) },
+    { id: "slime-mold", title: "Slime Mold", kind: "demo", category: "alife", size: { width: 400, height: 300 }, create: () => ({ demo: { update() {}, draw() {} }, worldHeight: 1000 }) },
   ];
   return Object.assign(state, {
     beam: new BeamSettingsStore(),
@@ -285,6 +285,10 @@ describe("terminal commands", () => {
     expect(runCommand("ls", services)).toHaveLength(2);
     expect(runCommand("ls demos", services)!.join(" ")).not.toContain("TERMINAL");
     expect(runCommand("LS TOOLS", services)!.join(" ").trim()).toBe("TERMINAL");
+    expect(runCommand("ls artificial life", services)!.join(" ")).toMatch(/^LENIA\s+SLIME-MOLD\s*$/);
+    expect(runCommand("ls util", services)!.join(" ").trim()).toBe("TERMINAL");
+    expect(runCommand("ls arcade", services)).toEqual([]);
+    expect(runCommand("ls nonsense", services)![0]).toContain("NO GROUP CALLED NONSENSE");
   });
 
   it("runs a program by its name, the start of it, or its title", () => {
@@ -478,6 +482,7 @@ function probeEntry(id: string, worldHeight: number | null, record: { resized: [
     id,
     title: id.toUpperCase(),
     kind: worldHeight === null ? "tool" : "demo",
+    category: "creative",
     size: { width: 500, height: 336 },
     create: () => ({
       demo,
@@ -581,6 +586,56 @@ describe("VectorOsDemo", () => {
     expect(back.rect.x).toBeLessThan(frontRect.x);
   });
 
+  it("folds a category away when its heading is clicked, and opens it out again", async () => {
+    const { os } = createOs(["one"]);
+    await settleOs(os);
+    // Rows: a heading, ONE, then SPARE.
+    const headingY = MENU_BAR_HEIGHT + 22 + 10;
+    const spareY = headingY + 31 * 2;
+    const before = drawOs(os).length;
+    expect(os.cursorAt(60, headingY)).toBe("pointer");
+    os.pointer("down", 60, headingY);
+    os.pointer("up", 60, headingY);
+    expect(os.collapsedCategories).toEqual(["creative"]);
+    // The programs' names are gone, and so is anything to click where they were.
+    expect(drawOs(os).length).toBeLessThan(before);
+    expect(os.cursorAt(60, spareY)).toBe("default");
+    os.pointer("down", 60, spareY);
+    await settleOs(os);
+    expect(os.openTitles).toEqual(["ONE"]);
+    // A folded category's programs can still be started by name; nothing unfolds.
+    expect(os.launch("spare")).toBe(true);
+    await settleOs(os);
+    expect(os.openTitles).toEqual(["ONE", "SPARE"]);
+    expect(os.collapsedCategories).toEqual(["creative"]);
+    os.pointer("down", 60, headingY);
+    expect(os.collapsedCategories).toEqual([]);
+    expect(os.cursorAt(60, spareY)).toBe("pointer");
+  });
+
+  it("lists each category that has programs, in order, and leaves out the empty ones", async () => {
+    const record = { resized: [], pointers: [], keys: [], disposed: 0 };
+    const entries: AppEntry[] = [
+      { ...probeEntry("life", 1000, record), category: "alife" },
+      { ...probeEntry("tool", null, record), category: "utilities" },
+    ];
+    const os = new VectorOsDemo({ skipBoot: true, entries, startup: [] });
+    os.resize(FRAME.width, FRAME.height);
+    // Utilities comes first whatever the order of the entries: heading, TOOL, a gap, heading, LIFE.
+    const toolY = MENU_BAR_HEIGHT + 22 + 31 + 10;
+    const lifeY = toolY + 31 * 2 + 31 * 0.4;
+    os.pointer("down", 60, toolY);
+    await settleOs(os);
+    expect(os.openTitles).toEqual(["TOOL"]);
+    os.pointer("down", 60, lifeY);
+    await settleOs(os);
+    expect(os.openTitles).toEqual(["TOOL", "LIFE"]);
+    // Folding Utilities moves Artificial Life up by one row.
+    os.toggleCategory("utilities");
+    expect(os.cursorAt(60, lifeY - 31)).toBe("pointer");
+    expect(os.cursorAt(60, lifeY)).toBe("default");
+  });
+
   it("launches from the list on the left, once, and marks it running", async () => {
     const { os } = createOs(["one"]);
     await settleOs(os);
@@ -657,7 +712,7 @@ describe("VectorOsDemo", () => {
     const original = console.error;
     console.error = () => {};
     try {
-      const broken: AppEntry = { id: "broken", title: "Broken", kind: "demo", size: { width: 400, height: 300 }, create: () => Promise.reject(new Error("offline")) };
+      const broken: AppEntry = { id: "broken", title: "Broken", kind: "demo", category: "alife", size: { width: 400, height: 300 }, create: () => Promise.reject(new Error("offline")) };
       const os = new VectorOsDemo({ skipBoot: true, entries: [broken], startup: ["broken"] });
       await settleOs(os);
       expect(os.openTitles).toEqual(["Broken"]);
@@ -673,6 +728,11 @@ describe("the real programs", () => {
     expect(new Set(APP_ENTRIES.map((entry) => entry.id)).size).toBe(APP_ENTRIES.length);
     expect(APP_ENTRIES.filter((entry) => entry.kind === "tool").map((entry) => entry.id)).toEqual(["terminal", "clock", "beam", "calc"]);
     expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(15);
+    const inCategory = (category: string): string[] => APP_ENTRIES.filter((entry) => entry.category === category).map((entry) => entry.id);
+    expect(inCategory("utilities")).toEqual(["terminal", "clock", "beam", "calc"]);
+    expect(inCategory("alife")).toEqual(["particle-life", "lenia", "life", "boids", "slime-mold", "ca-terrain", "biomorphs", "gray-scott"]);
+    expect(inCategory("creative")).toEqual(["attractors", "polytopes", "oscilloscope", "text-crawl", "epicycles", "live-earth", "meshes"]);
+    expect(inCategory("arcade")).toEqual([]);
   });
 
   // Lenia needs a Web Worker and Live Earth fetches from the network, so those two are left to the browser.
@@ -712,8 +772,8 @@ describe("the text layer", () => {
       },
     };
     const entries: AppEntry[] = [
-      { id: "reader", title: "Reader", kind: "tool", size: { width: 400, height: 300 }, create: () => ({ demo: reader, worldHeight: null }) },
-      { id: "plain", title: "Plain", kind: "tool", size: { width: 400, height: 300 }, create: () => ({ demo: { update: () => {}, draw: () => {} }, worldHeight: null }) },
+      { id: "reader", title: "Reader", kind: "tool", category: "utilities", size: { width: 400, height: 300 }, create: () => ({ demo: reader, worldHeight: null }) },
+      { id: "plain", title: "Plain", kind: "tool", category: "utilities", size: { width: 400, height: 300 }, create: () => ({ demo: { update: () => {}, draw: () => {} }, worldHeight: null }) },
     ];
     const os = new VectorOsDemo({ skipBoot: true, entries, startup: ["plain"] });
     os.resize(FRAME.width, FRAME.height);

@@ -23,11 +23,23 @@ export interface OsApp {
   dispose?(): void;
 }
 
+export type AppCategory = "utilities" | "creative" | "alife" | "arcade";
+
+// The launcher's groups, in the order it lists them. A group with no programs is left out.
+export const APP_CATEGORIES: readonly { readonly id: AppCategory; readonly title: string }[] = [
+  { id: "utilities", title: "Utilities" },
+  { id: "creative", title: "Creative" },
+  { id: "alife", title: "Artificial Life" },
+  { id: "arcade", title: "Arcade" },
+];
+
 export interface AppEntry {
   // The name typed at the terminal, and for demos the path of their own page.
   readonly id: string;
   readonly title: string;
   readonly kind: "demo" | "tool";
+  // The group the launcher lists it under.
+  readonly category: AppCategory;
   readonly size: { readonly width: number; readonly height: number };
   // Demos are loaded only when first launched.
   readonly create: (services: OsServices) => Promise<OsApp> | OsApp;

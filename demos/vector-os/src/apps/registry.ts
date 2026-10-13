@@ -16,14 +16,15 @@ const DEMO_BRIGHTNESS = 0.75;
 // A few demos are given the pointer, where what a click means is simple. The rest
 // are for watching; the box at the right of the title bar opens the real thing.
 export const APP_ENTRIES: readonly AppEntry[] = [
-  { id: "terminal", title: "Terminal", kind: "tool", size: { width: 560, height: 380 }, create: createTerminal },
-  { id: "clock", title: "Clock", kind: "tool", size: { width: 300, height: 340 }, create: createClock },
-  { id: "beam", title: "Beam Settings", kind: "tool", size: { width: 520, height: 350 }, create: createBeamPanel },
-  { id: "calc", title: "Calculator", kind: "tool", size: { width: 500, height: 430 }, create: createCalculator },
+  { id: "terminal", title: "Terminal", kind: "tool", category: "utilities", size: { width: 560, height: 380 }, create: createTerminal },
+  { id: "clock", title: "Clock", kind: "tool", category: "utilities", size: { width: 300, height: 340 }, create: createClock },
+  { id: "beam", title: "Beam Settings", kind: "tool", category: "utilities", size: { width: 520, height: 350 }, create: createBeamPanel },
+  { id: "calc", title: "Calculator", kind: "tool", category: "utilities", size: { width: 500, height: 430 }, create: createCalculator },
   {
     id: "particle-life",
     title: "Particle Life",
     kind: "demo",
+    category: "alife",
     size: DEMO_SIZE,
     create: async () => {
       const { ParticleLifeDemo } = await import("@vector-demos/particle-life");
@@ -34,6 +35,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "lenia",
     title: "Lenia",
     kind: "demo",
+    category: "alife",
     size: DEMO_SIZE,
     create: async () => {
       const { LeniaDemo } = await import("@vector-demos/lenia");
@@ -44,6 +46,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "life",
     title: "Life on the Beam",
     kind: "demo",
+    category: "alife",
     size: DEMO_SIZE,
     create: async () => {
       const { LifeDemo } = await import("@vector-demos/life");
@@ -54,6 +57,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "boids",
     title: "Boids on the Beam",
     kind: "demo",
+    category: "alife",
     size: DEMO_SIZE,
     create: async () => {
       const { BoidsDemo } = await import("@vector-demos/boids");
@@ -64,6 +68,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "slime-mold",
     title: "Slime Mold",
     kind: "demo",
+    category: "alife",
     size: DEMO_SIZE,
     create: async () => {
       const { SlimeMoldDemo } = await import("@vector-demos/slime-mold");
@@ -76,6 +81,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "ca-terrain",
     title: "Cellular Terrain",
     kind: "demo",
+    category: "alife",
     size: DEMO_SIZE,
     create: async () => {
       const { CaTerrainDemo } = await import("@vector-demos/ca-terrain");
@@ -86,6 +92,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "biomorphs",
     title: "Biomorphs",
     kind: "demo",
+    category: "alife",
     size: { width: 520, height: 520 },
     create: async () => {
       const { BiomorphDemo } = await import("@vector-demos/biomorphs");
@@ -105,6 +112,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "attractors",
     title: "Strange Attractors",
     kind: "demo",
+    category: "creative",
     size: DEMO_SIZE,
     create: async () => {
       const { AttractorsDemo } = await import("@vector-demos/attractors");
@@ -115,6 +123,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "gray-scott",
     title: "Gray-Scott",
     kind: "demo",
+    category: "alife",
     size: DEMO_SIZE,
     create: async () => {
       const { GrayScottDemo } = await import("@vector-demos/gray-scott");
@@ -126,6 +135,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "polytopes",
     title: "4D Polytopes",
     kind: "demo",
+    category: "creative",
     size: { width: 520, height: 460 },
     create: async () => {
       const { PolytopesDemo } = await import("@vector-demos/polytopes");
@@ -136,6 +146,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "oscilloscope",
     title: "Oscilloscope",
     kind: "demo",
+    category: "creative",
     size: { width: 480, height: 460 },
     create: async () => {
       const { OscilloscopeDemo } = await import("@vector-demos/oscilloscope");
@@ -147,6 +158,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "text-crawl",
     title: "Text Crawl",
     kind: "demo",
+    category: "creative",
     size: DEMO_SIZE,
     create: async () => {
       const { DEFAULT_PAGES, TextCrawlDemo } = await import("@vector-demos/text-crawl");
@@ -158,6 +170,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "epicycles",
     title: "Fourier Epicycles",
     kind: "demo",
+    category: "creative",
     size: DEMO_SIZE,
     create: async () => {
       const { EpicyclesDemo } = await import("@vector-demos/epicycles");
@@ -177,6 +190,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "live-earth",
     title: "Live Earth",
     kind: "demo",
+    category: "creative",
     size: { width: 600, height: 480 },
     create: async () => {
       const { createLiveEarth } = await import("@vector-demos/live-earth");
@@ -188,6 +202,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "meshes",
     title: "Feature Edges",
     kind: "demo",
+    category: "creative",
     size: { width: 520, height: 460 },
     create: async () => {
       const { MeshesDemo } = await import("@vector-demos/meshes");

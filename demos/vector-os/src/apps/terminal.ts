@@ -1,6 +1,6 @@
 import type { BeamColor, DisplayList } from "@vector-display/core";
 import { BEAM_SETTING_RANGES, fontSafeText, getDemoFont, type BeamSettings, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
-import type { OsApp, OsServices } from "./OsApp.js";
+import { APP_CATEGORIES, type OsApp, type OsServices } from "./OsApp.js";
 
 const TEXT_COLOR: BeamColor = { red: 0.45, green: 1, blue: 0.6 };
 const TEXT_SIZE = 14;
@@ -21,7 +21,7 @@ const SETTING_NAMES: Readonly<Record<string, keyof BeamSettings>> = {
 };
 
 const HELP: readonly string[] = [
-  "LS               LIST PROGRAMS",
+  "LS               LIST PROGRAMS, OR ONE GROUP: LS CREATIVE",
   "RUN NAME         OPEN A PROGRAM, E.G. RUN LENIA",
   "PS               LIST OPEN WINDOWS",
   "CLOSE NAME       CLOSE A WINDOW, OR CLOSE ALL",
@@ -49,8 +49,11 @@ export function runCommand(line: string, services: OsServices): string[] | null 
       return [...HELP];
     case "LS":
     case "DIR": {
-      const wanted = rest[0] === "DEMOS" ? "demo" : rest[0] === "TOOLS" ? "tool" : null;
-      const names = services.entries.filter((entry) => !wanted || entry.kind === wanted).map((entry) => entry.id.toUpperCase());
+      // All of them, one kind (DEMOS or TOOLS), or one of the launcher's categories by its name or the start of it.
+      const kind = rest[0] === "DEMOS" ? "demo" : rest[0] === "TOOLS" ? "tool" : null;
+      const category = argument && !kind ? APP_CATEGORIES.find((candidate) => candidate.title.toUpperCase().startsWith(argument) || candidate.id.toUpperCase() === argument) : undefined;
+      if (argument && !kind && !category) return [`NO GROUP CALLED ${argument}. TRY ${APP_CATEGORIES.map((candidate) => candidate.title.toUpperCase()).join(", ")}.`];
+      const names = services.entries.filter((entry) => (!kind || entry.kind === kind) && (!category || entry.category === category.id)).map((entry) => entry.id.toUpperCase());
       return inColumns(names, 2);
     }
     case "RUN":

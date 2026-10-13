@@ -1,6 +1,6 @@
 import { DisplayList, SCREEN_SPACE_PLACEMENT, type BeamColor } from "@vector-display/core";
 import { BeamSettingsStore, DynamicGeometry, getDemoFont, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
-import type { AppEntry, OsApp, OsServices, PointerKind } from "./apps/OsApp.js";
+import { APP_CATEGORIES, type AppCategory, type AppEntry, type OsApp, type OsServices, type PointerKind } from "./apps/OsApp.js";
 import { APP_ENTRIES } from "./apps/registry.js";
 import { BootSequence } from "./Boot.js";
 import { SegmentBlitter } from "./SegmentBlitter.js";
@@ -12,6 +12,8 @@ export const LAUNCHER_WIDTH = 300;
 const LAUNCHER_ROW = 31;
 const LAUNCHER_TOP = MENU_BAR_HEIGHT + 22;
 const LAUNCHER_TEXT = 13;
+// How far a program's name is set in from its category's.
+const LAUNCHER_INDENT = 14;
 // Opening one more window than this closes the one at the back.
 export const MAXIMUM_WINDOWS = 8;
 // The programs opened when the desktop first appears.
@@ -34,8 +36,10 @@ interface Running {
   worldHeight: number;
 }
 
+// A row of the launcher: a category's heading (entry is null), or one of its programs.
 interface LauncherRow {
   readonly rect: Rect;
+  readonly category: AppCategory;
   readonly entry: AppEntry | null;
   readonly text: string;
 }
@@ -78,6 +82,8 @@ export class VectorOsDemo implements Demo {
   private height = VECTOR_OS_WORLD_HEIGHT;
   private seconds = 0;
   private hoveredRow = -1;
+  // The launcher's categories that are folded away, showing their heading alone.
+  private readonly collapsed = new Set<AppCategory>();
   // The window that has the pointer while its button is held in that window's contents.
   private captured: OsWindow<Running> | null = null;
   private segmentCount = 0;
@@ -217,6 +223,15 @@ export class VectorOsDemo implements Demo {
     return this.launcherRowAt(x, y) >= 0 ? "pointer" : "default";
   }
 
+  public get collapsedCategories(): AppCategory[] {
+    return APP_CATEGORIES.map((category) => category.id).filter((id) => this.collapsed.has(id));
+  }
+
+  // Folds a category of the launcher away, or opens it out again.
+  public toggleCategory(category: AppCategory): void {
+    if (!this.collapsed.delete(category)) this.collapsed.add(category);
+  }
+
   // Opens a program by id, or brings its window to the front if it is already open.
   public launch(id: string, origin?: Rect): boolean {
     const entry = this.entries.find((candidate) => candidate.id === id);
@@ -228,7 +243,10 @@ export class VectorOsDemo implements Demo {
     }
     const live = this.windows.windows.filter((window) => window.state !== "closing");
     if (live.length >= MAXIMUM_WINDOWS) this.windows.close(live[0]);
-    const from = origin ?? this.launcherRows().find((row) => row.entry === entry)?.rect ?? { x: this.width / 2, y: this.height / 2, width: 0, height: 0 };
+    // The window zooms out of the program's row, or of its category's heading if that is folded away.
+    const rows = this.launcherRows();
+    const row = rows.find((candidate) => candidate.entry === entry) ?? rows.find((candidate) => candidate.entry === null && candidate.category === entry.category);
+    const from = origin ?? row?.rect ?? { x: this.width / 2, y: this.height / 2, width: 0, height: 0 };
     const running: Running = { entry, app: null, failed: false, list: new DisplayList(), worldWidth: 0, worldHeight: 0 };
     this.windows.open(entry.title, running, entry.size, from, entry.kind === "demo");
     // Tools are ready at once; demos arrive when their code has loaded.
@@ -295,6 +313,7 @@ export class VectorOsDemo implements Demo {
     if (!hit) {
       const row = this.launcherRows()[this.launcherRowAt(x, y)];
       if (row?.entry) this.launch(row.entry.id, row.rect);
+      else if (row) this.toggleCategory(row.category);
       return;
     }
     this.windows.bringToFront(hit.window);
@@ -337,17 +356,21 @@ export class VectorOsDemo implements Demo {
     app.onPointer(kind, (x - content.x) / scale, (y - content.y) / scale, shiftKey);
   }
 
-  // The launcher's rows: a heading for each kind of program, then its programs.
+  // The launcher's rows: a heading for each category that has programs, then, unless
+  // the category is folded away, its programs.
   private launcherRows(): LauncherRow[] {
     const rows: LauncherRow[] = [];
     let y = LAUNCHER_TOP;
-    for (const [kind, heading] of [["tool", "TOOLS"], ["demo", "DEMOS"]] as const) {
-      const entries = this.entries.filter((entry) => entry.kind === kind);
+    for (const category of APP_CATEGORIES) {
+      const entries = this.entries.filter((entry) => entry.category === category.id);
       if (entries.length === 0) continue;
-      rows.push({ rect: { x: 0, y, width: LAUNCHER_WIDTH, height: LAUNCHER_ROW }, entry: null, text: heading });
+      const isCollapsed = this.collapsed.has(category.id);
+      // A folded category says how many programs it is holding.
+      const heading = isCollapsed ? `+ ${category.title} (${entries.length})` : `- ${category.title}`;
+      rows.push({ rect: { x: 0, y, width: LAUNCHER_WIDTH, height: LAUNCHER_ROW }, category: category.id, entry: null, text: heading.toUpperCase() });
       y += LAUNCHER_ROW;
-      for (const entry of entries) {
-        rows.push({ rect: { x: 0, y, width: LAUNCHER_WIDTH, height: LAUNCHER_ROW }, entry, text: entry.title.toUpperCase() });
+      for (const entry of isCollapsed ? [] : entries) {
+        rows.push({ rect: { x: 0, y, width: LAUNCHER_WIDTH, height: LAUNCHER_ROW }, category: category.id, entry, text: entry.title.toUpperCase() });
         y += LAUNCHER_ROW;
       }
       y += LAUNCHER_ROW * 0.4;
@@ -355,8 +378,9 @@ export class VectorOsDemo implements Demo {
     return rows;
   }
 
+  // The row under a point: a program to open, or a heading to fold.
   private launcherRowAt(x: number, y: number): number {
-    return this.launcherRows().findIndex((row) => row.entry !== null && contains(row.rect, x, y));
+    return this.launcherRows().findIndex((row) => contains(row.rect, x, y));
   }
 
   private drawDesktop(list: DisplayList, frame: DemoFrame): void {
@@ -373,15 +397,18 @@ export class VectorOsDemo implements Demo {
 
     const open = new Set(this.windows.windows.filter((window) => window.state !== "closing").map((window) => window.payload.entry));
     this.launcherRows().forEach((row, index) => {
+      const isHovered = index === this.hoveredRow;
       if (!row.entry) {
+        // A folded category holding a running program is marked, as the program's own row would be.
+        const isRunning = this.collapsed.has(row.category) && [...open].some((entry) => entry.category === row.category);
         list.setColor(HEADING_COLOR);
-        font.addText(list, { text: row.text, x: 18, y: row.rect.y + 8, size: LAUNCHER_TEXT - 1, intensity: 0.8 });
+        font.addText(list, { text: `${row.text}${isRunning ? " >" : ""}`, x: 18, y: row.rect.y + 8, size: LAUNCHER_TEXT - 1, intensity: isHovered ? 1.3 : 0.8 });
         return;
       }
       list.setColor(DESKTOP_COLOR);
       // A program that is running is marked, and the row under the pointer is brighter.
       const marker = open.has(row.entry) ? "> " : "  ";
-      font.addText(list, { text: `${marker}${row.text}`, x: 18, y: row.rect.y + 8, size: LAUNCHER_TEXT, intensity: index === this.hoveredRow ? 1.3 : 0.65 });
+      font.addText(list, { text: `${marker}${row.text}`, x: 18 + LAUNCHER_INDENT, y: row.rect.y + 8, size: LAUNCHER_TEXT, intensity: isHovered ? 1.3 : 0.65 });
     });
   }
 
