@@ -57,4 +57,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Gray-Scott",
     description: "Reaction-diffusion growing coral, mazes and dividing spots, drawn as contour lines",
   },
+  {
+    path: "polytopes",
+    title: "4D Polytopes",
+    description: "The tesseract, 24-cell, 600-cell and their kin, rotating through the fourth dimension",
+  },
 ];

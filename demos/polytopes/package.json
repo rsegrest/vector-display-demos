@@ -1,0 +1,18 @@
+{
+  "name": "@vector-demos/polytopes",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The six regular four-dimensional polytopes, rotating through 4D and projected down to a vector display.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

@@ -21,6 +21,7 @@
     "@vector-demos/lenia": "*",
     "@vector-demos/life": "*",
     "@vector-demos/particle-life": "*",
+    "@vector-demos/polytopes": "*",
     "@vector-demos/slime-mold": "*",
     "@vector-demos/travel-globe": "*",
     "@vector-display/core": "^0.1.0"
