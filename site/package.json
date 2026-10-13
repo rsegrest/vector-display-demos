@@ -1,0 +1,26 @@
+{
+  "name": "@vector-demos/site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The demo website: a vector-font index at / and one route per demo.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/biomorphs": "*",
+    "@vector-demos/boids": "*",
+    "@vector-demos/ca-terrain": "*",
+    "@vector-demos/demo-kit": "*",
+    "@vector-demos/lenia": "*",
+    "@vector-demos/life": "*",
+    "@vector-demos/particle-life": "*",
+    "@vector-demos/slime-mold": "*",
+    "@vector-demos/travel-globe": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

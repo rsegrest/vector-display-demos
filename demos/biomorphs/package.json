@@ -1,0 +1,18 @@
+{
+  "name": "@vector-demos/biomorphs",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Dawkins' biomorphs: breed recursive line creatures by choosing one of a parent's eight mutant children.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

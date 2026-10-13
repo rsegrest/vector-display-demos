@@ -1,0 +1,18 @@
+{
+  "name": "@vector-demos/life",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Life on the Beam: Conway's Game of Life traced cell by cell by a vector beam.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

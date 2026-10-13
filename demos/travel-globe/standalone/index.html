@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Rick Segrest's travels on a vector globe: countries and US states visited, seen and lived in, drawn like an old vector display." />
+    <title>Rick's World</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      #screen {
+        display: block;
+        background: #000;
+        touch-action: none;
+      }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="screen" tabindex="0" aria-label="A rotating vector globe. Countries and US states Rick has visited are filled with colored lines; the full list of places follows as text."></canvas>
+    <p class="visually-hidden">Keys: arrows rotate, plus and minus zoom, left and right brackets step through places, P tour, W world globe, U United States map, Enter opens the selected place's blog post, space toggles auto-rotation, H help, F fullscreen, Escape clears the selection. Double-click a place to focus it.</p>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

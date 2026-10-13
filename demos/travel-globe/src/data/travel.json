@@ -1,0 +1,515 @@
+{
+  "version": 1,
+  "profile": {
+    "displayName": "Rick",
+    "title": "Rick's World",
+    "homeBase": "Huntsville, AL (lived in Auburn, AL 1996–2001)"
+  },
+  "places": {
+    "countries": {
+      "FR": {
+        "name": "France",
+        "status": "visited",
+        "years": [
+          1999,
+          2024
+        ],
+        "cities": [
+          {
+            "name": "Paris",
+            "lat": 48.8566,
+            "lng": 2.3522,
+            "kind": "visited"
+          }
+        ]
+      },
+      "GB": {
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "JM": {
+        "status": "visited",
+        "years": [
+          1997,
+          2022,
+          2023,
+          2024,
+          2025
+        ],
+        "cities": []
+      },
+      "MX": {
+        "status": "visited",
+        "years": [
+          1991,
+          1995,
+          1998,
+          2021,
+          2022,
+          2023
+        ],
+        "cities": []
+      },
+      "DE": {
+        "status": "visited",
+        "years": [
+          2024,
+          2026
+        ],
+        "cities": []
+      },
+      "SE": {
+        "status": "visited",
+        "years": [
+          2005,
+          2026
+        ],
+        "cities": []
+      },
+      "EE": {
+        "status": "visited",
+        "years": [
+          2026
+        ],
+        "cities": []
+      },
+      "NL": {
+        "status": "visited",
+        "years": [
+          1999,
+          2024
+        ],
+        "cities": []
+      },
+      "FI": {
+        "status": "visited",
+        "years": [
+          2026
+        ],
+        "cities": []
+      },
+      "DK": {
+        "status": "visited",
+        "years": [
+          2026
+        ],
+        "cities": []
+      },
+      "DO": {
+        "status": "visited",
+        "years": [
+          2009
+        ],
+        "cities": []
+      },
+      "CA": {
+        "status": "visited",
+        "years": [
+          1992,
+          1993
+        ],
+        "cities": []
+      },
+      "CU": {
+        "status": "visited",
+        "years": [
+          2004
+        ],
+        "cities": []
+      },
+      "BS": {
+        "status": "visited",
+        "years": [
+          2022
+        ],
+        "cities": []
+      },
+      "VG": {
+        "status": "visited",
+        "years": [
+          2019
+        ],
+        "cities": []
+      },
+      "VI": {
+        "status": "visited",
+        "years": [
+          2019
+        ],
+        "cities": []
+      },
+      "ES": {
+        "status": "visited",
+        "years": [
+          2005
+        ],
+        "cities": []
+      },
+      "MY": {
+        "status": "visited",
+        "years": [
+          2025
+        ],
+        "cities": [],
+        "post": {
+          "title": "Malaysia: My Surprising Sanctuary"
+        },
+        "blogPostSlug": "malaysia-surprising-sanctuary"
+      },
+      "AE": {
+        "status": "visited",
+        "years": [
+          2025
+        ],
+        "cities": []
+      },
+      "GR": {
+        "status": "visited",
+        "years": [
+          2025
+        ],
+        "cities": []
+      },
+      "TR": {
+        "status": "visited",
+        "years": [
+          2025
+        ],
+        "cities": []
+      },
+      "KY": {
+        "status": "visited",
+        "years": [
+          2019
+        ],
+        "cities": []
+      },
+      "BE": {
+        "status": "visited",
+        "years": [
+          1999,
+          2024
+        ],
+        "cities": []
+      },
+      "HN": {
+        "status": "visited",
+        "years": [
+          2023
+        ],
+        "cities": []
+      },
+      "BZ": {
+        "status": "visited",
+        "years": [
+          2023
+        ],
+        "cities": []
+      },
+      "US": {
+        "status": "lived",
+        "years": [],
+        "cities": []
+      },
+      "TC": {
+        "name": "Turks and Caicos Islands",
+        "status": "visited",
+        "years": [
+          2026
+        ],
+        "cities": []
+      }
+    },
+    "states": {
+      "US-AL": {
+        "name": "Alabama",
+        "status": "lived",
+        "years": [
+          1996,
+          1997,
+          1998,
+          1999,
+          2000,
+          2001
+        ],
+        "cities": [
+          {
+            "name": "Huntsville",
+            "lat": 34.7304,
+            "lng": -86.5861,
+            "kind": "lived"
+          },
+          {
+            "name": "Auburn",
+            "lat": 32.6099,
+            "lng": -85.4808,
+            "kind": "lived"
+          }
+        ]
+      },
+      "US-AZ": {
+        "name": "Arizona",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-AR": {
+        "name": "Arkansas",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-CA": {
+        "name": "California",
+        "status": "visited",
+        "years": [
+          2019
+        ],
+        "cities": [
+          {
+            "name": "San Francisco",
+            "lat": 37.7749,
+            "lng": -122.4194,
+            "kind": "visited"
+          }
+        ]
+      },
+      "US-CO": {
+        "name": "Colorado",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-DE": {
+        "name": "Delaware",
+        "status": "seen",
+        "years": [],
+        "cities": []
+      },
+      "US-DC": {
+        "name": "District of Columbia",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-FL": {
+        "name": "Florida",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-GA": {
+        "name": "Georgia",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-HI": {
+        "name": "Hawaii",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-IL": {
+        "name": "Illinois",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-IN": {
+        "name": "Indiana",
+        "status": "seen",
+        "years": [],
+        "cities": []
+      },
+      "US-IA": {
+        "name": "Iowa",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-KS": {
+        "name": "Kansas",
+        "status": "seen",
+        "years": [],
+        "cities": []
+      },
+      "US-KY": {
+        "name": "Kentucky",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-LA": {
+        "name": "Louisiana",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-MD": {
+        "name": "Maryland",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-MA": {
+        "name": "Massachusetts",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-MI": {
+        "name": "Michigan",
+        "status": "seen",
+        "years": [],
+        "cities": []
+      },
+      "US-MN": {
+        "name": "Minnesota",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-MS": {
+        "name": "Mississippi",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-MO": {
+        "name": "Missouri",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-NE": {
+        "name": "Nebraska",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-NV": {
+        "name": "Nevada",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-NJ": {
+        "name": "New Jersey",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-NM": {
+        "name": "New Mexico",
+        "status": "seen",
+        "years": [],
+        "cities": []
+      },
+      "US-NY": {
+        "name": "New York",
+        "status": "visited",
+        "years": [
+          2026
+        ],
+        "cities": [
+          {
+            "name": "New York City",
+            "lat": 40.7128,
+            "lng": -74.006,
+            "kind": "visited"
+          }
+        ]
+      },
+      "US-NC": {
+        "name": "North Carolina",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-OH": {
+        "name": "Ohio",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-OK": {
+        "name": "Oklahoma",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-PA": {
+        "name": "Pennsylvania",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-RI": {
+        "name": "Rhode Island",
+        "status": "seen",
+        "years": [],
+        "cities": []
+      },
+      "US-SC": {
+        "name": "South Carolina",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-TN": {
+        "name": "Tennessee",
+        "status": "lived",
+        "years": [],
+        "cities": [
+          {
+            "name": "Nashville",
+            "lat": 36.1627,
+            "lng": -86.7816,
+            "kind": "lived"
+          }
+        ]
+      },
+      "US-TX": {
+        "name": "Texas",
+        "status": "lived",
+        "years": [
+          1995
+        ],
+        "cities": [
+          {
+            "name": "Abilene",
+            "lat": 32.4487,
+            "lng": -99.7331,
+            "kind": "lived"
+          }
+        ]
+      },
+      "US-VA": {
+        "name": "Virginia",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-WA": {
+        "name": "Washington",
+        "status": "visited",
+        "years": [],
+        "cities": []
+      },
+      "US-WV": {
+        "name": "West Virginia",
+        "status": "seen",
+        "years": [],
+        "cities": []
+      },
+      "US-WI": {
+        "name": "Wisconsin",
+        "status": "seen",
+        "years": [],
+        "cities": []
+      }
+    }
+  }
+}

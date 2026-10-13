@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Conway's Game of Life drawn the way a vector monitor draws: the beam traces a square around every live cell, and the phosphor keeps glowing after it moves on." />
+    <title>Life on the Beam</title>
+  </head>
+  <body>
+    <canvas id="screen" tabindex="0" aria-label="Conway's Game of Life drawn the way a vector monitor draws: the beam traces a square around every live cell, and the phosphor keeps glowing after it moves on."></canvas>
+    <p class="visually-hidden">Keys: space pause, period single step, R randomize, G launch gliders, C clear, minus and plus change speed, T persistence, B bloom, H toggle overlay, F fullscreen, Escape back to the menu. Drag to paint live cells.</p>
+    <script type="module" src="../src/pages/life.ts"></script>
+  </body>
+</html>

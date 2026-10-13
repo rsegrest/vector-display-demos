@@ -1,0 +1,20 @@
+{
+  "name": "@vector-demos/demo-kit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Shared host loop, renderer setup and helpers for vector-display demos.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vector-display/beam-fx": "^0.1.0",
+    "@vector-display/core": "^0.1.0",
+    "@vector-display/font": "^0.1.0",
+    "@vector-display/webgl": "^0.1.0"
+  }
+}

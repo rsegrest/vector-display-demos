@@ -1,0 +1,18 @@
+{
+  "name": "@vector-demos/slime-mold",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Physarum slime mold: agents leave a chemical trail and follow each other, so the phosphor itself becomes the network.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

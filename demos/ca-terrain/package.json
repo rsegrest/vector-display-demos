@@ -1,0 +1,18 @@
+{
+  "name": "@vector-demos/ca-terrain",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "One-dimensional cellular automata extruded as ridgelines you fly over, Tempest-style.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

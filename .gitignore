@@ -1,0 +1,5 @@
+node_modules
+dist
+*.tsbuildinfo
+dist-standalone
+demos/travel-globe/src/data/backups

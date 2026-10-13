@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Elementary cellular automata extruded as terrain: Rule 30, Rule 90 and Rule 110 scroll toward the camera as ridgelines you fly over." />
+    <title>Cellular Terrain</title>
+  </head>
+  <body>
+    <canvas id="screen" tabindex="0" aria-label="One-dimensional cellular automata drawn in perspective as ridgelines scrolling toward the viewer."></canvas>
+    <p class="visually-hidden">Keys: N and B change rule, R random initial row, G single cell, A auto-advance, minus and plus change speed, C camera height, L walls, left and right brackets change ridge height, T persistence, space pause, period single step, H toggle overlay, F fullscreen, Escape back to the menu.</p>
+    <script type="module" src="../src/pages/ca-terrain.ts"></script>
+  </body>
+</html>
