@@ -23,6 +23,12 @@ export interface PhysarumSettings {
   readonly diffuseAmount: number;
   // Random steering wobble, so perfectly straight runs of uniform trail break up.
   readonly jitter: number;
+  // Most agents one grid cell can hold; 0 means no limit. Without a limit every
+  // strand is free to merge with its neighbour, and the whole dish drains into a
+  // single line. With one, a vein can only carry so much, so the network stays wide.
+  readonly cellCapacity: number;
+  // Ceiling on the trail in any cell, so a busy junction cannot out-shout the rest.
+  readonly trailLimit: number;
 }
 
 export const DEFAULT_PHYSARUM_SETTINGS: PhysarumSettings = {
@@ -34,6 +40,8 @@ export const DEFAULT_PHYSARUM_SETTINGS: PhysarumSettings = {
   decayFactor: 0.945,
   diffuseAmount: 0.4,
   jitter: 0.12,
+  cellCapacity: 1,
+  trailLimit: 1,
 };
 
 export interface PhysarumOptions {
@@ -44,8 +52,23 @@ export interface PhysarumOptions {
   readonly settings?: Partial<PhysarumSettings>;
 }
 
+export interface FoodSource {
+  readonly x: number;
+  readonly y: number;
+}
+
+// How far a food source can be smelled, in grid cells, and how strongly at its
+// centre, as a multiple of the trail limit (so food out-smells the busiest vein).
+export const FOOD_REACH = 30;
+export const FOOD_STRENGTH = 1.6;
+export const MINIMUM_FOOD_SPACING = 10;
+export const MAXIMUM_FOOD_SOURCES = 48;
+
 export function wrapCoordinate(value: number, size: number): number {
-  return ((value % size) + size) % size;
+  const wrapped = ((value % size) + size) % size;
+  // A hair below zero wraps to a hair below `size`, which rounds up to `size`
+  // itself once stored as a 32-bit float; that is the same place as 0.
+  return Math.fround(wrapped) >= size ? 0 : wrapped;
 }
 
 // The grid is a torus: an agent that crawls off the right edge comes back on the
@@ -56,6 +79,8 @@ export class PhysarumWorld {
   public readonly rows: number;
   public settings: PhysarumSettings;
   public trail: Float32Array;
+  // A standing smell that never fades: food, 0..1. Agents sense it on top of the trail.
+  public readonly food: Float32Array;
   public agentX: Float32Array;
   public agentY: Float32Array;
   public heading: Float32Array;
@@ -64,11 +89,10 @@ export class PhysarumWorld {
   public maximumTrail = 1;
 
   private scratchTrail: Float32Array;
-  private nextX: Float32Array;
-  private nextY: Float32Array;
-  private nextHeading: Float32Array;
+  private readonly occupancy: Uint16Array;
+  private readonly foodList: FoodSource[] = [];
   private agentCountValue: number;
-  private readonly random: RandomSource;
+  private random: RandomSource;
 
   public constructor(options: PhysarumOptions) {
     this.columns = options.columns;
@@ -78,13 +102,12 @@ export class PhysarumWorld {
     const cellCount = this.columns * this.rows;
     this.trail = new Float32Array(cellCount);
     this.scratchTrail = new Float32Array(cellCount);
+    this.food = new Float32Array(cellCount);
+    this.occupancy = new Uint16Array(cellCount);
     this.agentCountValue = options.agentCount;
     this.agentX = new Float32Array(options.agentCount);
     this.agentY = new Float32Array(options.agentCount);
     this.heading = new Float32Array(options.agentCount);
-    this.nextX = new Float32Array(options.agentCount);
-    this.nextY = new Float32Array(options.agentCount);
-    this.nextHeading = new Float32Array(options.agentCount);
     this.scatter();
   }
 
@@ -92,9 +115,15 @@ export class PhysarumWorld {
     return this.agentCountValue;
   }
 
+  public get foodSources(): readonly FoodSource[] {
+    return this.foodList;
+  }
+
   // Fresh positions and headings for every agent, and a blank petri dish. The same
   // seed reproduces the same start, so "the network emerged" is a checkable claim.
-  public scatter(): void {
+  // Passing a new random source restarts the dish from that source's seed.
+  public scatter(random: RandomSource = this.random): void {
+    this.random = random;
     for (let agent = 0; agent < this.agentCountValue; agent++) {
       this.agentX[agent] = this.random() * this.columns;
       this.agentY[agent] = this.random() * this.rows;
@@ -128,28 +157,27 @@ export class PhysarumWorld {
     this.agentX = grownX;
     this.agentY = grownY;
     this.heading = grownHeading;
-    this.nextX = new Float32Array(count);
-    this.nextY = new Float32Array(count);
-    this.nextHeading = new Float32Array(count);
     this.agentCountValue = count;
   }
 
-  // One tick: the old trail diffuses and fades, every agent senses it and crawls,
-  // and the new positions are swapped in. Agents read only the old trail, so the
-  // order they are visited in cannot matter.
+  // One tick: the old trail diffuses and fades, then every agent senses it and
+  // crawls. Agents smell only the old trail, but they do see each other: a cell that
+  // is already full turns the next arrival away, and it tries a new direction.
   public step(): void {
     this.diffuseAndDecay();
-    const { sensorAngle, turnAngle, moveDistance, depositAmount, jitter } = this.settings;
+    this.countOccupancy();
+    const { sensorAngle, turnAngle, moveDistance, depositAmount, jitter, cellCapacity } = this.settings;
     const columns = this.columns;
     const rows = this.rows;
+    const occupancy = this.occupancy;
 
     for (let agent = 0; agent < this.agentCountValue; agent++) {
       const x = this.agentX[agent];
       const y = this.agentY[agent];
       const angle = this.heading[agent];
-      const ahead = this.sensorTrail(x, y, angle);
-      const left = this.sensorTrail(x, y, angle + sensorAngle);
-      const right = this.sensorTrail(x, y, angle - sensorAngle);
+      const ahead = this.sensorScent(x, y, angle);
+      const left = this.sensorScent(x, y, angle + sensorAngle);
+      const right = this.sensorScent(x, y, angle - sensorAngle);
 
       // If both feelers beat straight ahead, pick a side at random; ties (a blank
       // field, or an even ridge) also break at random so agents do not all run
@@ -170,21 +198,22 @@ export class PhysarumWorld {
         turn -= turnAngle;
       }
       const nextAngle = angle + turn;
-      this.nextHeading[agent] = nextAngle;
-      this.nextX[agent] = wrapCoordinate(x + Math.cos(nextAngle) * moveDistance, columns);
-      this.nextY[agent] = wrapCoordinate(y + Math.sin(nextAngle) * moveDistance, rows);
-      this.deposit(this.nextX[agent], this.nextY[agent], depositAmount);
+      const nextX = wrapCoordinate(x + Math.cos(nextAngle) * moveDistance, columns);
+      const nextY = wrapCoordinate(y + Math.sin(nextAngle) * moveDistance, rows);
+      const fromCell = Math.floor(y) * columns + Math.floor(x);
+      const toCell = Math.floor(nextY) * columns + Math.floor(nextX);
+      if (cellCapacity > 0 && toCell !== fromCell && occupancy[toCell] >= cellCapacity) {
+        // Blocked. Stay put, leave nothing, and face somewhere new for the next try.
+        this.heading[agent] = this.random() * Math.PI * 2;
+        continue;
+      }
+      occupancy[fromCell]--;
+      occupancy[toCell]++;
+      this.heading[agent] = nextAngle;
+      this.agentX[agent] = nextX;
+      this.agentY[agent] = nextY;
+      this.deposit(nextX, nextY, depositAmount);
     }
-
-    const previousX = this.agentX;
-    const previousY = this.agentY;
-    const previousHeading = this.heading;
-    this.agentX = this.nextX;
-    this.agentY = this.nextY;
-    this.heading = this.nextHeading;
-    this.nextX = previousX;
-    this.nextY = previousY;
-    this.nextHeading = previousHeading;
 
     const previousTrail = this.trail;
     this.trail = this.scratchTrail;
@@ -194,26 +223,17 @@ export class PhysarumWorld {
 
   // Bilinear trail sample at a (possibly wrapped) grid position.
   public trailAt(x: number, y: number): number {
-    const wrappedX = wrapCoordinate(x, this.columns);
-    const wrappedY = wrapCoordinate(y, this.rows);
-    const column = Math.floor(wrappedX);
-    const row = Math.floor(wrappedY);
-    const fractionX = wrappedX - column;
-    const fractionY = wrappedY - row;
-    const left = column;
-    const right = wrapCoordinate(column + 1, this.columns);
-    const top = row;
-    const bottom = wrapCoordinate(row + 1, this.rows);
-    const topLeft = this.trail[top * this.columns + left];
-    const topRight = this.trail[top * this.columns + right];
-    const bottomLeft = this.trail[bottom * this.columns + left];
-    const bottomRight = this.trail[bottom * this.columns + right];
-    const topMix = topLeft + (topRight - topLeft) * fractionX;
-    const bottomMix = bottomLeft + (bottomRight - bottomLeft) * fractionX;
-    return topMix + (bottomMix - topMix) * fractionY;
+    return sampleField(this.trail, x, y, this.columns, this.rows);
   }
 
-  // Adds trail in a soft disc, used when the pointer drops food or erases.
+  // What an agent smells at a position: the trail plus any food there.
+  public scentAt(x: number, y: number): number {
+    const trail = sampleField(this.trail, x, y, this.columns, this.rows);
+    const food = sampleField(this.food, x, y, this.columns, this.rows);
+    return food === 0 ? trail : trail + food * FOOD_STRENGTH * this.settings.trailLimit;
+  }
+
+  // Adds trail in a soft disc (or, with a negative amount, wipes it away).
   public paint(x: number, y: number, radius: number, amount: number): void {
     const centerColumn = Math.floor(x);
     const centerRow = Math.floor(y);
@@ -231,17 +251,87 @@ export class PhysarumWorld {
     }
   }
 
+  // Drops a food source: a smell that stays until it is removed, so the mold grows
+  // toward it and keeps a vein there. Sources too close to an existing one, or past
+  // the limit, are refused.
+  public addFood(x: number, y: number): boolean {
+    if (this.foodList.length >= MAXIMUM_FOOD_SOURCES) return false;
+    const wrappedX = wrapCoordinate(x, this.columns);
+    const wrappedY = wrapCoordinate(y, this.rows);
+    for (const source of this.foodList) {
+      if (this.torusDistance(source.x, source.y, wrappedX, wrappedY) < MINIMUM_FOOD_SPACING) return false;
+    }
+    this.foodList.push({ x: wrappedX, y: wrappedY });
+    this.rebuildFood();
+    return true;
+  }
+
+  // Removes every food source within `radius` cells; returns how many went.
+  public removeFoodNear(x: number, y: number, radius: number): number {
+    const before = this.foodList.length;
+    for (let index = before - 1; index >= 0; index--) {
+      const source = this.foodList[index];
+      if (this.torusDistance(source.x, source.y, wrapCoordinate(x, this.columns), wrapCoordinate(y, this.rows)) <= radius) {
+        this.foodList.splice(index, 1);
+      }
+    }
+    if (this.foodList.length !== before) this.rebuildFood();
+    return before - this.foodList.length;
+  }
+
+  public clearFood(): void {
+    this.foodList.length = 0;
+    this.food.fill(0);
+  }
+
   // --- Internals -----------------------------------------------------------------------------------------
 
-  private sensorTrail(x: number, y: number, angle: number): number {
-    return this.trailAt(x + Math.cos(angle) * this.settings.sensorDistance, y + Math.sin(angle) * this.settings.sensorDistance);
+  private sensorScent(x: number, y: number, angle: number): number {
+    return this.scentAt(x + Math.cos(angle) * this.settings.sensorDistance, y + Math.sin(angle) * this.settings.sensorDistance);
+  }
+
+  private torusDistance(firstX: number, firstY: number, secondX: number, secondY: number): number {
+    let deltaX = Math.abs(firstX - secondX);
+    let deltaY = Math.abs(firstY - secondY);
+    if (deltaX > this.columns / 2) deltaX = this.columns - deltaX;
+    if (deltaY > this.rows / 2) deltaY = this.rows - deltaY;
+    return Math.hypot(deltaX, deltaY);
+  }
+
+  // Counted afresh each step, so positions edited from outside are respected.
+  private countOccupancy(): void {
+    this.occupancy.fill(0);
+    for (let agent = 0; agent < this.agentCountValue; agent++) {
+      this.occupancy[Math.floor(this.agentY[agent]) * this.columns + Math.floor(this.agentX[agent])]++;
+    }
+  }
+
+  // Each source is a smooth hill, steepest near the middle, so a vein passing
+  // within reach is drawn in and then held.
+  private rebuildFood(): void {
+    this.food.fill(0);
+    for (const source of this.foodList) {
+      const centerColumn = Math.floor(source.x);
+      const centerRow = Math.floor(source.y);
+      for (let rowOffset = -FOOD_REACH; rowOffset <= FOOD_REACH; rowOffset++) {
+        for (let columnOffset = -FOOD_REACH; columnOffset <= FOOD_REACH; columnOffset++) {
+          const distance = Math.hypot(rowOffset, columnOffset);
+          if (distance > FOOD_REACH) continue;
+          const column = wrapCoordinate(centerColumn + columnOffset, this.columns);
+          const row = wrapCoordinate(centerRow + rowOffset, this.rows);
+          const cell = row * this.columns + column;
+          const closeness = 1 - distance / FOOD_REACH;
+          this.food[cell] = Math.max(this.food[cell], closeness * closeness);
+        }
+      }
+    }
   }
 
   // A nine-point blur with wrap-around, faded by the decay factor. The blur is
   // what turns individual crawling lines into sheets that fuse and branch.
   private diffuseAndDecay(): void {
     const { columns, rows, trail, scratchTrail } = this;
-    const { diffuseAmount, decayFactor } = this.settings;
+    const { diffuseAmount, decayFactor, trailLimit } = this.settings;
     const keep = 1 - diffuseAmount;
     let maximum = 0;
     for (let row = 0; row < rows; row++) {
@@ -262,7 +352,7 @@ export class PhysarumWorld {
             trail[down + left] +
             trail[down + right]) /
           16;
-        const faded = decayFactor * (trail[middle + column] * keep + blurred * diffuseAmount);
+        const faded = Math.min(trailLimit, decayFactor * (trail[middle + column] * keep + blurred * diffuseAmount));
         scratchTrail[middle + column] = faded;
         if (faded > maximum) maximum = faded;
       }
@@ -272,20 +362,34 @@ export class PhysarumWorld {
 
   // Bilinear deposit, so an agent between cells feeds all four of them.
   private deposit(x: number, y: number, amount: number): void {
-    const wrappedX = wrapCoordinate(x, this.columns);
-    const wrappedY = wrapCoordinate(y, this.rows);
-    const column = Math.floor(wrappedX);
-    const row = Math.floor(wrappedY);
-    const fractionX = wrappedX - column;
-    const fractionY = wrappedY - row;
-    const left = column;
-    const right = wrapCoordinate(column + 1, this.columns);
-    const top = row;
-    const bottom = wrapCoordinate(row + 1, this.rows);
+    const column = Math.floor(x);
+    const row = Math.floor(y);
+    const fractionX = x - column;
+    const fractionY = y - row;
+    const right = column + 1 === this.columns ? 0 : column + 1;
+    const bottom = row + 1 === this.rows ? 0 : row + 1;
     const { scratchTrail, columns } = this;
-    scratchTrail[top * columns + left] += amount * (1 - fractionX) * (1 - fractionY);
-    scratchTrail[top * columns + right] += amount * fractionX * (1 - fractionY);
-    scratchTrail[bottom * columns + left] += amount * (1 - fractionX) * fractionY;
+    scratchTrail[row * columns + column] += amount * (1 - fractionX) * (1 - fractionY);
+    scratchTrail[row * columns + right] += amount * fractionX * (1 - fractionY);
+    scratchTrail[bottom * columns + column] += amount * (1 - fractionX) * fractionY;
     scratchTrail[bottom * columns + right] += amount * fractionX * fractionY;
   }
+}
+
+function sampleField(field: Float32Array, x: number, y: number, columns: number, rows: number): number {
+  const wrappedX = wrapCoordinate(x, columns);
+  const wrappedY = wrapCoordinate(y, rows);
+  const column = Math.floor(wrappedX);
+  const row = Math.floor(wrappedY);
+  const fractionX = wrappedX - column;
+  const fractionY = wrappedY - row;
+  const right = column + 1 === columns ? 0 : column + 1;
+  const bottom = row + 1 === rows ? 0 : row + 1;
+  const topLeft = field[row * columns + column];
+  const topRight = field[row * columns + right];
+  const bottomLeft = field[bottom * columns + column];
+  const bottomRight = field[bottom * columns + right];
+  const topMix = topLeft + (topRight - topLeft) * fractionX;
+  const bottomMix = bottomLeft + (bottomRight - bottomLeft) * fractionX;
+  return topMix + (bottomMix - topMix) * fractionY;
 }

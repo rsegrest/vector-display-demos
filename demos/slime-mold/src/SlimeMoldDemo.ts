@@ -3,11 +3,11 @@ import { DemoHud, DynamicGeometry, createSeededRandom, hslToBeamColor, type Demo
 import { PhysarumWorld, type PhysarumSettings } from "./sim/physarum.js";
 
 export const SLIME_WORLD_HEIGHT = 1000;
-export const GRID_WIDTH = 256;
-export const GRID_HEIGHT = 144;
-export const MIN_AGENTS = 1000;
-export const MAX_AGENTS = 20000;
-export const AGENT_STEP = 1000;
+export const GRID_WIDTH = 384;
+export const GRID_HEIGHT = 216;
+export const MIN_AGENTS = 2000;
+export const MAX_AGENTS = 24000;
+export const AGENT_STEP = 2000;
 export const SPEEDS: readonly number[] = [1, 2, 3, 4];
 
 export const TRAIL_MODES: readonly { readonly name: string; readonly halfLifeMilliseconds: number }[] = [
@@ -22,15 +22,16 @@ export interface SlimePreset {
   readonly settings: Partial<PhysarumSettings>;
 }
 
-// A small zoo of parameter sets. They differ only in how far the mold can smell,
-// how sharply it turns and how quickly the trail fades, yet they grow recognisably
-// different networks: lattices, vines, blobs and webs.
+// A small zoo of parameter sets. They differ in how far the mold can smell, how
+// sharply it turns, how quickly the trail fades and how many agents may share a
+// cell, and they grow recognisably different networks: from a fine froth of small
+// cells to a few long strands spanning the dish.
 export const SLIME_PRESETS: readonly SlimePreset[] = [
-  { name: "LATTICE", settings: { sensorAngle: 0.5, sensorDistance: 12, turnAngle: 0.6, moveDistance: 1.4, decayFactor: 0.95 } },
-  { name: "VINES", settings: { sensorAngle: 0.9, sensorDistance: 22, turnAngle: 1.1, moveDistance: 1.2, decayFactor: 0.97 } },
-  { name: "BLOOMS", settings: { sensorAngle: 0.35, sensorDistance: 7, turnAngle: 0.4, moveDistance: 1.0, decayFactor: 0.93 } },
-  { name: "WEBS", settings: { sensorAngle: 1.2, sensorDistance: 26, turnAngle: 1.4, moveDistance: 1.1, decayFactor: 0.965 } },
-  { name: "DENSE", settings: { sensorAngle: 0.6, sensorDistance: 9, turnAngle: 0.7, moveDistance: 0.9, decayFactor: 0.955 } },
+  { name: "FILIGREE", settings: { sensorAngle: 0.35, sensorDistance: 7, turnAngle: 0.4, moveDistance: 1.0, decayFactor: 0.93, cellCapacity: 3, trailLimit: 3 } },
+  { name: "LATTICE", settings: { sensorAngle: 0.5, sensorDistance: 12, turnAngle: 0.6, moveDistance: 1.4, decayFactor: 0.95, cellCapacity: 2, trailLimit: 2 } },
+  { name: "VINES", settings: { sensorAngle: 0.9, sensorDistance: 22, turnAngle: 1.1, moveDistance: 1.2, decayFactor: 0.97, cellCapacity: 2, trailLimit: 2 } },
+  { name: "FROTH", settings: { sensorAngle: 0.6, sensorDistance: 9, turnAngle: 0.7, moveDistance: 0.9, decayFactor: 0.955, cellCapacity: 1, trailLimit: 1 } },
+  { name: "WEBS", settings: { sensorAngle: 1.2, sensorDistance: 18, turnAngle: 1.4, moveDistance: 1.1, decayFactor: 0.965, cellCapacity: 1, trailLimit: 1 } },
 ];
 
 export interface SlimeMoldOptions {
@@ -43,9 +44,15 @@ const AUTO_EVOLVE_SECONDS = 35;
 const BUCKET_COUNT = 6;
 // Agents are drawn as a short tick along their heading; the phosphor does the rest.
 const AGENT_STROKE_CELLS = 1.7;
+const FOOD_INTENSITY = 0.3;
+
+const FOOD_COLOR: BeamColor = { red: 1, green: 0.72, blue: 0.3 };
+const FOOD_RING_SIDES = 10;
+const FOOD_RING_CELLS = 5;
+const ERASE_RADIUS_CELLS = 12;
 
 const HELP_LINES = [
-  "DRAG DROP FOOD   SHIFT+DRAG ERASE   N NEXT PRESET   R RESEED   C CLEAR TRAIL",
+  "CLICK OR DRAG DROP FOOD   SHIFT+DRAG ERASE   N NEXT PRESET   R RESEED   C CLEAR DISH",
   "[ ] AGENTS   - + SPEED   T PERSISTENCE   E AUTO   SPACE PAUSE   . STEP   H HUD   F FULLSCREEN   ESC MENU",
 ];
 
@@ -58,7 +65,8 @@ interface Bucket {
 // The slime mold demo. It draws only the agents, as short strokes, and lets the
 // display's own phosphor decay be the visible trail -- exactly the idea the demo
 // is meant to show off. The chemical field the agents actually sense lives only in
-// memory; what you see is where the beam has been.
+// memory; what you see is where the beam has been. Food sources are the one thing
+// drawn that is not an agent: small rings marking where the mold is being fed.
 export class SlimeMoldDemo implements Demo {
   public isPaused = false;
   public trailIndex = 2;
@@ -69,6 +77,7 @@ export class SlimeMoldDemo implements Demo {
   private readonly world: PhysarumWorld;
   private readonly hud = new DemoHud();
   private readonly buckets: Bucket[] = [];
+  private readonly foodGeometry = new DynamicGeometry(512);
   private random: RandomSource;
   private seed: number;
   private presetIndex: number;
@@ -118,7 +127,10 @@ export class SlimeMoldDemo implements Demo {
       this.autoEvolveSeconds += deltaSeconds;
       if (this.autoEvolveSeconds >= AUTO_EVOLVE_SECONDS) {
         this.autoEvolveSeconds = 0;
-        this.selectPreset(this.presetIndex + 1, false);
+        // A fresh dish each time: the growth out of noise is the best part, and a
+        // settled network would otherwise only coarsen.
+        this.selectPreset(this.presetIndex + 1, true);
+        this.world.scatter();
         return;
       }
     }
@@ -131,7 +143,7 @@ export class SlimeMoldDemo implements Demo {
     const offsetX = (this.worldWidth - GRID_WIDTH * scale) / 2;
     const offsetY = (this.worldHeight - GRID_HEIGHT * scale) / 2;
     const halfStroke = (AGENT_STROKE_CELLS * scale) / 2;
-    const normalise = 1 / Math.max(0.35 * this.world.maximumTrail, 1e-3);
+    const normalise = 1 / Math.max(0.7 * this.world.maximumTrail, 1e-3);
 
     for (const bucket of this.buckets) bucket.geometry.clear();
     for (let agent = 0; agent < this.world.agentCount; agent++) {
@@ -156,12 +168,29 @@ export class SlimeMoldDemo implements Demo {
     this.buckets.forEach((bucket, index) => {
       if (bucket.geometry.segmentCount === 0) return;
       const amount = index / (BUCKET_COUNT - 1);
-      bucket.color = hslToBeamColor(0.52 - 0.34 * amount, 0.85 - 0.5 * amount, 0.35 + 0.45 * amount);
-      bucket.intensity = 0.22 + 0.85 * amount;
+      bucket.color = hslToBeamColor(0.56 - 0.4 * amount, 0.9 - 0.25 * amount, 0.4 + 0.25 * amount);
+      bucket.intensity = 0.05 + 0.13 * amount;
       this.segmentCount += bucket.geometry.segmentCount;
       displayList.setColor(bucket.color);
       displayList.addShape(bucket.geometry, { ...SCREEN_SPACE_PLACEMENT, intensity: bucket.intensity });
     });
+
+    this.foodGeometry.clear();
+    const ringRadius = FOOD_RING_CELLS * scale;
+    for (const source of this.world.foodSources) {
+      const centreX = offsetX + source.x * scale;
+      const centreY = offsetY + source.y * scale;
+      this.foodGeometry.moveTo(centreX + ringRadius, centreY);
+      for (let side = 1; side < FOOD_RING_SIDES; side++) {
+        const angle = (side / FOOD_RING_SIDES) * Math.PI * 2;
+        this.foodGeometry.lineTo(centreX + Math.cos(angle) * ringRadius, centreY + Math.sin(angle) * ringRadius);
+      }
+      this.foodGeometry.closePath();
+    }
+    if (this.foodGeometry.segmentCount > 0) {
+      displayList.setColor(FOOD_COLOR);
+      displayList.addShape(this.foodGeometry, { ...SCREEN_SPACE_PLACEMENT, intensity: FOOD_INTENSITY });
+    }
   }
 
   public drawOverlay(displayList: DisplayList, frame: DemoFrame): void {
@@ -169,7 +198,7 @@ export class SlimeMoldDemo implements Demo {
       title: "SLIME MOLD",
       statusLines: [
         `${SLIME_PRESETS[this.presetIndex].name}  SEED ${this.seed}  STEP ${this.world.stepCount}`,
-        `AGENTS ${this.world.agentCount}  SPEED ${SPEEDS[this.speedIndex]}/FRAME  TRAIL ${TRAIL_MODES[this.trailIndex].name}  AUTO ${this.autoEvolve ? "ON" : "OFF"}`,
+        `AGENTS ${this.world.agentCount}  FOOD ${this.world.foodSources.length}  SPEED ${SPEEDS[this.speedIndex]}/FRAME  TRAIL ${TRAIL_MODES[this.trailIndex].name}  AUTO ${this.autoEvolve ? "ON" : "OFF"}`,
         `SEGMENTS ${this.segmentCount}${this.isPaused ? "  PAUSED" : ""}`,
       ],
       helpLines: HELP_LINES,
@@ -201,13 +230,15 @@ export class SlimeMoldDemo implements Demo {
   public reseed(): void {
     this.seed = Math.floor(Math.random() * 0x7fffffff);
     this.random = createSeededRandom(this.seed);
-    this.world.scatter();
+    this.world.scatter(this.random);
     this.hud.showBanner(`SLIME MOLD  SEED ${this.seed}`);
   }
 
-  public clearTrail(): void {
+  // Wipes the trail and takes the food away; the agents stay where they are.
+  public clearDish(): void {
     this.world.clearTrail();
-    this.hud.showBanner("TRAIL CLEARED");
+    this.world.clearFood();
+    this.hud.showBanner("DISH CLEARED");
   }
 
   public selectPreset(index: number, announce: boolean): void {
@@ -245,11 +276,17 @@ export class SlimeMoldDemo implements Demo {
     this.hud.showBanner(`AUTO ${this.autoEvolve ? "ON" : "OFF"}`);
   }
 
-  // The pointer drops (or, with a negative amount, erases) food, in grid cells.
-  public paintAt(worldX: number, worldY: number, amount: number): void {
+  // The pointer drops a food source, or with `erase` wipes the trail and any food
+  // under it. World coordinates in, grid cells inside.
+  public pointerAt(worldX: number, worldY: number, erase: boolean): void {
     const scale = Math.max(this.worldWidth / GRID_WIDTH, this.worldHeight / GRID_HEIGHT);
-    const offsetX = (this.worldWidth - GRID_WIDTH * scale) / 2;
-    const offsetY = (this.worldHeight - GRID_HEIGHT * scale) / 2;
-    this.world.paint((worldX - offsetX) / scale, (worldY - offsetY) / scale, 10, amount);
+    const gridX = (worldX - (this.worldWidth - GRID_WIDTH * scale) / 2) / scale;
+    const gridY = (worldY - (this.worldHeight - GRID_HEIGHT * scale) / 2) / scale;
+    if (erase) {
+      this.world.removeFoodNear(gridX, gridY, ERASE_RADIUS_CELLS);
+      this.world.paint(gridX, gridY, ERASE_RADIUS_CELLS, -8);
+    } else {
+      this.world.addFood(gridX, gridY);
+    }
   }
 }

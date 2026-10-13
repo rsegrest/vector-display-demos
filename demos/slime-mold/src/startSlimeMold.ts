@@ -21,7 +21,7 @@ import {
 export function startSlimeMold(canvas: HTMLCanvasElement): void {
   const demo = new SlimeMoldDemo({
     seed: readIntegerParameter("seed", createRandomSeed(), 0, 0x7fffffff),
-    agentCount: readIntegerParameter("agents", 8000, MIN_AGENTS, MAX_AGENTS),
+    agentCount: readIntegerParameter("agents", 10000, MIN_AGENTS, MAX_AGENTS),
     presetIndex: readIntegerParameter("preset", 0, 0, SLIME_PRESETS.length - 1),
   });
 
@@ -33,9 +33,9 @@ export function startSlimeMold(canvas: HTMLCanvasElement): void {
       lineStyle: { beamWidth: 1.2, glowRadius: 2.2, glowStrength: 0.12, endpointBrightness: 0, jointOverlap: 0 },
       phosphor: {
         persistenceHalfLifeMilliseconds: TRAIL_MODES[demo.trailIndex].halfLifeMilliseconds,
-        bloomStrength: 0.28,
+        bloomStrength: 0.35,
         bloomBlurIterations: 2,
-        exposure: 1.15,
+        exposure: 1.0,
         flickerAmount: 0.02,
         flickerFrequencyHz: 12,
       },
@@ -55,7 +55,7 @@ export function startSlimeMold(canvas: HTMLCanvasElement): void {
     switch (event.key) {
       case "n": case "N": demo.nextPreset(); break;
       case "r": case "R": demo.reseed(); break;
-      case "c": case "C": demo.clearTrail(); break;
+      case "c": case "C": demo.clearDish(); break;
       case "[": demo.changeAgentCount(-AGENT_STEP); break;
       case "]": demo.changeAgentCount(AGENT_STEP); break;
       case "-": case "_": case "ArrowDown": demo.changeSpeed(-1); break;
@@ -75,10 +75,10 @@ export function startSlimeMold(canvas: HTMLCanvasElement): void {
   });
 
   let activePointer: number | null = null;
-  let strength = 1;
+  let erasing = false;
   const paint = (event: PointerEvent) => {
     const point = host.clientToWorld(event.clientX, event.clientY);
-    demo.paintAt(point.x, point.y, strength);
+    demo.pointerAt(point.x, point.y, erasing);
   };
   canvas.style.cursor = "crosshair";
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
@@ -86,7 +86,7 @@ export function startSlimeMold(canvas: HTMLCanvasElement): void {
     demo.noteActivity();
     activePointer = event.pointerId;
     canvas.setPointerCapture(event.pointerId);
-    strength = event.button === 2 || event.shiftKey ? -4 : 4;
+    erasing = event.button === 2 || event.shiftKey;
     paint(event);
   });
   canvas.addEventListener("pointermove", (event) => {
