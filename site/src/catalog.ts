@@ -62,4 +62,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "4D Polytopes",
     description: "The tesseract, 24-cell, 600-cell and their kin, rotating through the fourth dimension",
   },
+  {
+    path: "oscilloscope",
+    title: "Oscilloscope",
+    description: "Sound drawn as a beam: left channel across, right channel up, pictures you can hear",
+  },
 ];

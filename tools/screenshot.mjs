@@ -2,6 +2,7 @@
 // Serves a demo, opens it in headless Chrome with software WebGL2, and saves screenshots.
 //
 //   node tools/screenshot.mjs <vite-root> <out-prefix> [--path lenia/] [--query "seed=1"] [--at 3,8,15] [--eval "js"] [--size 1280x800]
+//       [--chrome-flags "--autoplay-policy=no-user-gesture-required"]
 //
 // Prints page errors and any value returned by --eval, and exits non-zero on a page error.
 import { spawn } from "node:child_process";
@@ -24,6 +25,8 @@ const routePath = option("path", "");
 const shotTimes = option("at", "4").split(",").map(Number);
 const evalBeforeShots = option("eval", "");
 const [width, height] = option("size", "1280x800").split("x").map(Number);
+// Extra Chrome switches, space separated: e.g. letting a page start audio without a key press.
+const chromeFlags = option("chrome-flags", "").split(" ").filter(Boolean);
 const port = 5300 + Math.floor(Math.random() * 400);
 const debugPort = 9400 + Math.floor(Math.random() * 400);
 
@@ -54,6 +57,7 @@ try {
       "--headless=new", "--no-sandbox", "--mute-audio",
       "--ignore-gpu-blocklist", "--enable-unsafe-swiftshader", "--use-gl=angle", "--use-angle=gl-egl",
       `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`, `--window-size=${width},${height}`,
+      ...chromeFlags,
       "about:blank",
     ],
     { stdio: "ignore", env: { ...process.env, DISPLAY: display } },

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Oscilloscope music on a vector display: a stereo signal drawn as a beam, left channel across and right channel up, so the picture you see is the sound you hear." />
+    <title>Oscilloscope</title>
+  </head>
+  <body>
+    <canvas id="screen" tabindex="0" aria-label="An XY oscilloscope: a glowing beam traces Lissajous figures and rotating shapes from a stereo audio signal. The page is silent until sound is switched on."></canvas>
+    <p class="visually-hidden">The page starts silent. Keys: S or Enter turns sound on and off, left and right arrows change figure, up and down arrows change pitch, left and right brackets change motion, minus and plus change volume, O opens an audio file to play through the scope, A auto cycle, T trails, K phosphor colour, G grid, space pause, H toggle overlay, F fullscreen, Escape back to the menu.</p>
+    <script type="module" src="../src/pages/oscilloscope.ts"></script>
+  </body>
+</html>

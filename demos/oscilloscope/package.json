@@ -1,0 +1,19 @@
+{
+  "name": "@vector-demos/oscilloscope",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Oscilloscope music: a stereo signal drawn as a beam, left channel across and right channel up, so the picture is the sound.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0",
+    "@vector-display/font": "^0.1.0"
+  }
+}
