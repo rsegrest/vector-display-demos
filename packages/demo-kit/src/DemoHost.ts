@@ -16,6 +16,10 @@ export interface Demo {
   // Optional crisp layer for text and UI, drawn straight onto the canvas after the phosphor pass,
   // so it gets no trails or bloom and does not smear when it changes.
   drawOverlay?(displayList: DisplayList, frame: DemoFrame): void;
+  // Optional layer for text meant to be read at length (the Hershey fonts), drawn last. Its strokes are
+  // plain lines: no glow, no bloom, no trails, no bright dots at corners or crossings. Its look is fixed,
+  // so neither setLineStyle nor a visitor's beam settings change it; only its beam width can be set.
+  drawText?(displayList: DisplayList, frame: DemoFrame): void;
   resize?(width: number, height: number): void;
 }
 
@@ -27,6 +31,8 @@ export interface DemoHostOptions {
   readonly lineStyle?: Partial<LineStyle>;
   // Style for the drawOverlay layer, so HUD text stays legible whatever look the demo itself uses.
   readonly overlayLineStyle?: Partial<LineStyle>;
+  // Beam width of the drawText layer, in CSS pixels.
+  readonly textBeamWidth?: number;
   readonly phosphor?: Partial<PhosphorSettings>;
 }
 
@@ -46,6 +52,18 @@ const DEFAULT_OVERLAY_LINE_STYLE_CSS: LineStyle = {
   jointOverlap: 0.3,
 };
 
+export const DEFAULT_TEXT_BEAM_WIDTH = 1.3;
+
+// The drawText layer: no glow, no brighter endpoints, and joints that do not overlap.
+const TEXT_LINE_STYLE_CSS: LineStyle = {
+  beamWidth: DEFAULT_TEXT_BEAM_WIDTH,
+  // With no glow strength this only sizes the quad drawn around each stroke.
+  glowRadius: 0.5,
+  glowStrength: 0,
+  endpointBrightness: 0,
+  jointOverlap: 0,
+};
+
 // Owns the canvas, renderer and phosphor pipeline, and runs a fixed-step update loop for one demo.
 export class DemoHost {
   public readonly renderer: WebGLVectorRenderer;
@@ -55,6 +73,8 @@ export class DemoHost {
 
   private readonly displayList = new DisplayList();
   private readonly overlayDisplayList = new DisplayList();
+  private readonly textDisplayList = new DisplayList();
+  private textLineStyleCss: LineStyle;
   private readonly fixedStepSeconds: number;
   private readonly maxStepsPerFrame: number;
   private readonly lineStyleCss: LineStyle;
@@ -88,6 +108,7 @@ export class DemoHost {
     this.maxStepsPerFrame = options.maxStepsPerFrame ?? 4;
     this.lineStyleCss = { ...DEFAULT_LINE_STYLE_CSS, ...options.lineStyle };
     this.overlayLineStyleCss = { ...DEFAULT_OVERLAY_LINE_STYLE_CSS, ...options.overlayLineStyle };
+    this.textLineStyleCss = { ...TEXT_LINE_STYLE_CSS, beamWidth: options.textBeamWidth ?? DEFAULT_TEXT_BEAM_WIDTH };
   }
 
   public static start(canvas: HTMLCanvasElement, demo: Demo, options: DemoHostOptions): DemoHost {
@@ -111,6 +132,11 @@ export class DemoHost {
 
   public setOverlayLineStyle(lineStyle: Partial<LineStyle>): void {
     Object.assign(this.overlayLineStyleCss, lineStyle);
+  }
+
+  // Width in CSS pixels of the strokes on the drawText layer; nothing else about that layer can change.
+  public setTextBeamWidth(beamWidth: number): void {
+    this.textLineStyleCss = { ...TEXT_LINE_STYLE_CSS, beamWidth };
   }
 
   public stepOnce(): void {
@@ -167,6 +193,20 @@ export class DemoHost {
     });
   }
 
+  // The renderer adds light, so two strokes that cross burn brighter where they meet. Here the brighter
+  // stroke simply wins. The renderer chooses its blend equation on every draw, so the choice is
+  // intercepted for the length of this one call.
+  private drawWithoutBrightCrossings(displayList: DisplayList): void {
+    const gl = this.renderer.gl;
+    const setBlendEquation = gl.blendEquation;
+    gl.blendEquation = () => setBlendEquation.call(gl, gl.MAX);
+    try {
+      this.renderer.drawDisplayList(displayList);
+    } finally {
+      gl.blendEquation = setBlendEquation;
+    }
+  }
+
   private frame(time: number): void {
     const elapsedMilliseconds = Math.min(250, time - this.previousTime);
     this.previousTime = time;
@@ -194,6 +234,13 @@ export class DemoHost {
       // The phosphor pass leaves the canvas bound, and drawDisplayList adds on top without clearing.
       this.applyLineStyle(this.overlayLineStyleCss);
       this.renderer.drawDisplayList(this.overlayDisplayList);
+      this.applyLineStyle();
+    }
+    if (this.demo.drawText) {
+      this.textDisplayList.clear();
+      this.demo.drawText(this.textDisplayList, demoFrame);
+      this.applyLineStyle(this.textLineStyleCss);
+      this.drawWithoutBrightCrossings(this.textDisplayList);
       this.applyLineStyle();
     }
     this.lastFrameMilliseconds = performance.now() - workStart;

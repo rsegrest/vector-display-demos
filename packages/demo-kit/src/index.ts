@@ -1,4 +1,4 @@
-export { DemoHost } from "./DemoHost.js";
+export { DEFAULT_TEXT_BEAM_WIDTH, DemoHost } from "./DemoHost.js";
 export type { Demo, DemoFrame, DemoHostOptions } from "./DemoHost.js";
 export { DemoHud, HUD_MARGIN, HUD_TEXT_COLOR } from "./DemoHud.js";
 export type { DemoHudContent } from "./DemoHud.js";

@@ -1,5 +1,6 @@
 import { createRandomSeed } from "@vector-demos/demo-kit";
 import { createBeamPanel } from "./beamPanel.js";
+import { createCalculator } from "./calculator/Calculator.js";
 import { createClock } from "./clock.js";
 import type { AppEntry, OsApp } from "./OsApp.js";
 import { createTerminal } from "./terminal.js";
@@ -18,6 +19,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
   { id: "terminal", title: "Terminal", kind: "tool", size: { width: 560, height: 380 }, create: createTerminal },
   { id: "clock", title: "Clock", kind: "tool", size: { width: 300, height: 340 }, create: createClock },
   { id: "beam", title: "Beam Settings", kind: "tool", size: { width: 520, height: 350 }, create: createBeamPanel },
+  { id: "calc", title: "Calculator", kind: "tool", size: { width: 500, height: 430 }, create: createCalculator },
   {
     id: "particle-life",
     title: "Particle Life",

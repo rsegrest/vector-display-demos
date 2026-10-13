@@ -7,15 +7,13 @@ function readNumberParameter(parameters: URLSearchParams, name: string): number 
 }
 
 // Runs the type specimen full screen. The address can set the starting state:
-// ?font=1..7  &crisp=1  &size=<capital height in px>  &beam=<width in px>  &glow=0..1  &color=1..3
+// ?font=1..7  &size=<capital height in px>  &beam=<width in px>  &color=1..3
 export function startTypeSpecimen(canvas: HTMLCanvasElement): void {
   const parameters = new URLSearchParams(location.search);
   const demo = new TypeSpecimenDemo({
     fontIndex: (readNumberParameter(parameters, "font") ?? 1) - 1,
-    isCrisp: parameters.get("crisp") === "1",
     readingSize: readNumberParameter(parameters, "size"),
     beamWidth: readNumberParameter(parameters, "beam"),
-    glow: readNumberParameter(parameters, "glow"),
     colorIndex: (readNumberParameter(parameters, "color") ?? 1) - 1,
   });
 
@@ -23,11 +21,9 @@ export function startTypeSpecimen(canvas: HTMLCanvasElement): void {
   try {
     host = DemoHost.start(canvas, demo, {
       worldHeight: SPECIMEN_WORLD_HEIGHT,
+      textBeamWidth: demo.beamWidth,
       // The text never moves, so there is nothing for trails to show; a short one keeps changes clean.
-      // Glow and bloom are set by applyBeam, from the demo's glow level.
-      lineStyle: { endpointBrightness: 0.08, jointOverlap: 0.4 },
-      overlayLineStyle: { endpointBrightness: 0.06, jointOverlap: 0.4 },
-      phosphor: { persistenceHalfLifeMilliseconds: 30, bloomBlurIterations: 1, exposure: 1.2, flickerAmount: 0 },
+      phosphor: { persistenceHalfLifeMilliseconds: 30, flickerAmount: 0 },
     });
   } catch (error) {
     console.error(error);
@@ -37,11 +33,8 @@ export function startTypeSpecimen(canvas: HTMLCanvasElement): void {
   bindEscapeToIndex();
 
   const applyBeam = (): void => {
-    // At full glow a strong bloom fills in letters this small, so even the top of the range is modest.
-    const glow = demo.glow;
-    host.setLineStyle({ beamWidth: demo.beamWidth, glowRadius: demo.beamWidth * (1 + 0.6 * glow), glowStrength: 0.08 * glow });
-    host.setOverlayLineStyle({ beamWidth: demo.beamWidth, glowRadius: demo.beamWidth * (1 + 0.5 * glow), glowStrength: 0.06 * glow });
-    host.phosphor.setSettings({ bloomStrength: 0.2 * glow });
+    host.setTextBeamWidth(demo.beamWidth);
+    host.setLineStyle({ beamWidth: demo.beamWidth });
   };
   const measure = (): void => {
     demo.unitsPerPixel = SPECIMEN_WORLD_HEIGHT / Math.max(1, canvas.clientHeight || window.innerHeight);
@@ -56,11 +49,8 @@ export function startTypeSpecimen(canvas: HTMLCanvasElement): void {
     switch (event.key) {
       case "ArrowRight": case "n": case "N": case " ": demo.changeFont(1); break;
       case "ArrowLeft": demo.changeFont(-1); break;
-      case "c": case "C": demo.isCrisp = !demo.isCrisp; break;
       case "[": demo.changeBeamWidth(-1); applyBeam(); break;
       case "]": demo.changeBeamWidth(1); applyBeam(); break;
-      case ",": case "<": demo.changeGlow(-1); applyBeam(); break;
-      case ".": case ">": demo.changeGlow(1); applyBeam(); break;
       case "-": case "_": demo.changeReadingSize(-1); break;
       case "=": case "+": demo.changeReadingSize(1); break;
       case "g": case "G": demo.cycleColor(); break;

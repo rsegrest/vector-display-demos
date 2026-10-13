@@ -96,6 +96,7 @@ function buildHersheyFont(id: HersheyFontId): StrokeFont {
 const hersheyFonts = new Map<HersheyFontId, StrokeFont>();
 
 // A Hershey font with lowercase, full ASCII punctuation, dashes, an ellipsis and a bullet.
+// Draw it from Demo.drawText, never from draw: these fonts are for reading, and that layer has no glow.
 export function getHersheyFont(id: HersheyFontId): StrokeFont {
   let font = hersheyFonts.get(id);
   if (!font) {

@@ -671,7 +671,7 @@ describe("VectorOsDemo", () => {
 describe("the real programs", () => {
   it("are all listed, each with its own id", () => {
     expect(new Set(APP_ENTRIES.map((entry) => entry.id)).size).toBe(APP_ENTRIES.length);
-    expect(APP_ENTRIES.filter((entry) => entry.kind === "tool").map((entry) => entry.id)).toEqual(["terminal", "clock", "beam"]);
+    expect(APP_ENTRIES.filter((entry) => entry.kind === "tool").map((entry) => entry.id)).toEqual(["terminal", "clock", "beam", "calc"]);
     expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(15);
   });
 
@@ -697,5 +697,48 @@ describe("the real programs", () => {
     for (const segment of drawn) {
       expect(Number.isFinite(segment.x0 + segment.y0 + segment.x1 + segment.y1)).toBe(true);
     }
+  });
+});
+
+describe("the text layer", () => {
+  it("carries a program's reading text, cut to its window, and nothing from programs without any", () => {
+    // A program whose text is one long stroke, far wider than any window.
+    const reader: Demo = {
+      update: () => {},
+      draw: () => {},
+      drawText: (list) => {
+        list.setColor({ red: 1, green: 1, blue: 1 });
+        list.addShape(Shape.fromSegmentCoordinates([-5000, 40, 5000, 40]), SCREEN_SPACE_PLACEMENT);
+      },
+    };
+    const entries: AppEntry[] = [
+      { id: "reader", title: "Reader", kind: "tool", size: { width: 400, height: 300 }, create: () => ({ demo: reader, worldHeight: null }) },
+      { id: "plain", title: "Plain", kind: "tool", size: { width: 400, height: 300 }, create: () => ({ demo: { update: () => {}, draw: () => {} }, worldHeight: null }) },
+    ];
+    const os = new VectorOsDemo({ skipBoot: true, entries, startup: ["plain"] });
+    os.resize(FRAME.width, FRAME.height);
+    const settle = async (): Promise<void> => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      for (let frame = 0; frame < 90; frame++) os.update(1 / 60);
+    };
+    return settle().then(async () => {
+      const empty = new DisplayList();
+      os.drawText(empty, FRAME);
+      expect(empty.segmentCount).toBe(0);
+
+      os.launch("reader");
+      await settle();
+      const window = os.windowManager.windows.find((candidate) => candidate.title === "Reader")!;
+      const content = os.windowManager.contentRect(window);
+      const text = new DisplayList();
+      os.drawText(text, FRAME);
+      const drawn = segmentsOf(text);
+      expect(drawn.length).toBeGreaterThan(0);
+      for (const segment of drawn) {
+        expect(Math.min(segment.x0, segment.x1)).toBeGreaterThanOrEqual(content.x);
+        expect(Math.max(segment.x0, segment.x1)).toBeLessThanOrEqual(content.x + content.width);
+        expect(segment.y0).toBeCloseTo(content.y + 40);
+      }
+    });
   });
 });

@@ -40,6 +40,11 @@ const EXTRA_GLYPHS: Record<string, readonly Polyline[]> = {
   // The arcade font has no square brackets, which key help needs.
   "[": [{ points: [{ x: 3, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 6 }, { x: 3, y: 6 }], isClosed: false }],
   "]": [{ points: [{ x: 1, y: 0 }, { x: 3, y: 0 }, { x: 3, y: 6 }, { x: 1, y: 6 }], isClosed: false }],
+  // For the calculator: the arcade font has no signs for multiplying, dividing or raising to a power.
+  "×": [{ points: [{ x: 0.5, y: 1.5 }, { x: 3.5, y: 4.5 }], isClosed: false }, { points: [{ x: 3.5, y: 1.5 }, { x: 0.5, y: 4.5 }], isClosed: false }],
+  "÷": [{ points: [{ x: 0, y: 3 }, { x: 4, y: 3 }], isClosed: false }, { points: [{ x: 2, y: 1.2 }], isClosed: false }, { points: [{ x: 2, y: 4.8 }], isClosed: false }],
+  "^": [{ points: [{ x: 0.5, y: 2 }, { x: 2, y: 0 }, { x: 3.5, y: 2 }], isClosed: false }],
+  "π": [{ points: [{ x: 0, y: 2 }, { x: 4, y: 2 }], isClosed: false }, { points: [{ x: 1, y: 2 }, { x: 1, y: 6 }], isClosed: false }, { points: [{ x: 3, y: 2 }, { x: 3, y: 6 }], isClosed: false }],
   ...accentedGlyphs(),
 };
 
@@ -50,7 +55,7 @@ export function getDemoFontGlyphs(): Readonly<Record<string, readonly Polyline[]
 
 let sharedFont: VectorFont | null = null;
 
-// The arcade font plus square brackets and accented capitals (Ü, É, Ç, Å, Ñ, Ø…).
+// The arcade font plus square brackets, × ÷ ^ π, and accented capitals (Ü, É, Ç, Å, Ñ, Ø…).
 export function getDemoFont(): VectorFont {
   sharedFont ??= VectorFont.createArcadeFont(EXTRA_GLYPHS);
   return sharedFont;

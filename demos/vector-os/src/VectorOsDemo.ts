@@ -67,6 +67,7 @@ export class VectorOsDemo implements Demo {
   private readonly blitter = new SegmentBlitter();
   private readonly desktopList = new DisplayList();
   private readonly chromeList = new DisplayList();
+  private readonly textList = new DisplayList();
   private readonly chrome = new DynamicGeometry(64);
   private readonly desktopLines = new DynamicGeometry(16);
   private readonly services: OsServices;
@@ -168,6 +169,22 @@ export class VectorOsDemo implements Demo {
       if (window.state === "open") this.drawContents(displayList, window, frame.seconds, inFront);
     }
     this.segmentCount = displayList.segmentCount;
+  }
+
+  // Reading text from the programs that have any, on the display's plain text layer.
+  // It is cut to its window and by the windows in front, just as the rest of the contents are.
+  public drawText(displayList: DisplayList, frame: DemoFrame): void {
+    if (this.boot) return;
+    for (const window of this.windows.windows) {
+      const running = window.payload;
+      if (window.state !== "open" || !running.app?.demo.drawText) continue;
+      const content = this.windows.contentRect(window);
+      const inside = toClipRect({ x: content.x + 1, y: content.y + 1, width: content.width - 2, height: content.height - 2 });
+      const scale = this.sizeWorld(window);
+      this.textList.clear();
+      running.app.demo.drawText(this.textList, { width: running.worldWidth, height: running.worldHeight, seconds: frame.seconds });
+      this.blitter.blit(this.textList, displayList, { offsetX: content.x, offsetY: content.y, scale, intensity: 1, inside, outside: this.windows.framesInFront(window) });
+    }
   }
 
   // --- Input ---------------------------------------------------------------------------------------------

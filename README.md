@@ -7,7 +7,7 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | Path | What it is |
 | --- | --- |
 | `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`, `/meshes/`, `/docs/`, `/os/`). The demo list lives in `site/src/catalog.ts` |
-| `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), beam paths (`buildPath`, `glyphStrokes`: shapes and font text as strokes for the beam to follow), `BeamSettingsStore` (the visitor's saved beam settings), the demo font, seeded random, page helpers |
+| `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass, and a plain text layer with no glow or joint dots for the Hershey fonts), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), beam paths (`buildPath`, `glyphStrokes`: shapes and font text as strokes for the beam to follow), `BeamSettingsStore` (the visitor's saved beam settings), the demo font, seeded random, page helpers |
 | `demos/particle-life` | Particle Life |
 | `demos/travel-globe` | Rick's travel map on a vector globe; meant to replace ricksegrest.com/globe |
 | `demos/life`, `demos/boids` | Life on the Beam and Boids on the Beam. The rule and beam-geometry modules and their tests are copied unchanged from `~/code/2026/vector-display/examples/demo`; only the full-screen adapters are new |
@@ -24,11 +24,11 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/live-earth` | Live Earth: real satellites, the ISS ground track and recent earthquakes on a wireframe globe |
 | `demos/meshes` | Feature Edges: the teapot, the bunny and other meshes as line drawings, with hidden lines removed |
 | `demos/docs` | Live Guide: documentation for the `@vector-display` packages in which every example is editable and running |
-| `demos/vector-os` | Vector OS: a desktop drawn by one beam, with windows that run the other demos, a terminal, a clock and a beam control panel |
+| `demos/vector-os` | Vector OS: a desktop drawn by one beam, with windows that run the other demos, a terminal, a clock, a beam control panel and a scientific calculator |
 | `demos/type-specimen` | Type Specimen: the Hershey stroke fonts (`StrokeFont` and `getHersheyFont` in `demo-kit`) at small sizes, to judge readability. At `/type-specimen/` on the dev server; not in the catalog, so not in the menu or the build |
 | `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots. `--chrome-flags` passes extra switches, e.g. `--autoplay-policy=no-user-gesture-required` to test audio |
 
-Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay` and `resize`), which is what lets Vector OS run them all in windows, unchanged. Every demo returns to the index with Escape.
+Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay`, `drawText` and `resize`), which is what lets Vector OS run them all in windows, unchanged. Every demo returns to the index with Escape.
 
 ## Commands
 
