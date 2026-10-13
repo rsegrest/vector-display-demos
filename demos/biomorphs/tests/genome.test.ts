@@ -12,6 +12,7 @@ import {
   createRandomGenome,
   genomeKey,
   mutateGenome,
+  pickAutopilotChild,
 } from "../src/sim/genome.js";
 
 describe("clampGene", () => {
@@ -98,5 +99,37 @@ describe("breedChildren", () => {
 
   it("is reproducible for a given seed", () => {
     expect(breedChildren(base, createSeededRandom(9))).toEqual(breedChildren(base, createSeededRandom(9)));
+  });
+});
+
+describe("pickAutopilotChild", () => {
+  const children = [
+    [0, 0, 0, 0, 0, 0, 0, 0, 5],
+    [1, 0, 0, 0, 0, 0, 0, 0, 5],
+    [2, 0, 0, 0, 0, 0, 0, 0, 5],
+  ];
+
+  it("never goes back to a creature already visited while a new one is on offer", () => {
+    const visited = new Set([genomeKey(children[0]), genomeKey(children[2])]);
+    const random = createSeededRandom(5);
+    for (let attempt = 0; attempt < 50; attempt++) expect(pickAutopilotChild(children, visited, random)).toBe(1);
+  });
+
+  it("avoids nearly bare creatures while a leafier one is on offer", () => {
+    const litter = [
+      [0, 0, 0, 0, 0, 0, 0, 0, 3],
+      [1, 0, 0, 0, 0, 0, 0, 0, 4],
+      [2, 0, 0, 0, 0, 0, 0, 0, 3],
+    ];
+    const random = createSeededRandom(5);
+    for (let attempt = 0; attempt < 50; attempt++) expect(pickAutopilotChild(litter, new Set(), random)).toBe(1);
+  });
+
+  it("still picks something when every child has been visited, and spreads its choices", () => {
+    const visited = new Set(children.map(genomeKey));
+    const random = createSeededRandom(5);
+    const picked = new Set<number>();
+    for (let attempt = 0; attempt < 100; attempt++) picked.add(pickAutopilotChild(children, visited, random));
+    expect([...picked].sort()).toEqual([0, 1, 2]);
   });
 });

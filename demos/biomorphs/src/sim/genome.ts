@@ -21,14 +21,15 @@ export function clampGene(gene: number, isDepth: boolean): number {
   return Math.max(low, Math.min(high, gene));
 }
 
-// A modest starting creature: genes near the middle of the range and a few levels
-// of branching, so the first generation has something to look at.
+// A modest starting creature: genes near the middle of the range and enough levels
+// of branching that it is more than a stick figure, so the first generation has
+// something to look at.
 export function createRandomGenome(random: RandomSource): number[] {
   const genome: number[] = [];
   for (let gene = 0; gene < GENE_COUNT - 1; gene++) {
     genome.push(Math.round((random() * 2 - 1) * 5));
   }
-  genome.push(3 + Math.floor(random() * 5));
+  genome.push(5 + Math.floor(random() * 3));
   return genome;
 }
 
@@ -70,4 +71,20 @@ export function breedChildren(parent: Genome, random: RandomSource, count = CHIL
   // If the space is exhausted (small ranges), fill the rest with any mutants.
   while (children.length < count) children.push(mutateGenome(parent, random));
   return children;
+}
+
+// Below this depth a creature is a handful of sticks and its children all look alike.
+export const AUTOPILOT_MINIMUM_DEPTH = 4;
+
+// Which child a hands-off run should breed from. Picking purely at random mostly
+// shuffles back and forth, since half of all mutations undo the last one. So this
+// steers away from creatures already visited, and away from the nearly bare ones,
+// and only then leaves it to chance. Returns an index into `children`.
+export function pickAutopilotChild(children: readonly Genome[], visited: ReadonlySet<string>, random: RandomSource): number {
+  const all = children.map((_child, index) => index);
+  const unvisited = all.filter((index) => !visited.has(genomeKey(children[index])));
+  const fresh = unvisited.length > 0 ? unvisited : all;
+  const leafy = fresh.filter((index) => (children[index][GENE_COUNT - 1] ?? 0) >= AUTOPILOT_MINIMUM_DEPTH);
+  const candidates = leafy.length > 0 ? leafy : fresh;
+  return candidates[Math.min(candidates.length - 1, Math.floor(random() * candidates.length))];
 }

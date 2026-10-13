@@ -1,19 +1,30 @@
 import { SCREEN_SPACE_PLACEMENT, type BeamColor, type DisplayList } from "@vector-display/core";
 import { DemoHud, DynamicGeometry, createSeededRandom, type Demo, type DemoFrame, type RandomSource } from "@vector-demos/demo-kit";
-import { buildBiomorph, describeGenome, type Biomorph } from "./render/biomorph.js";
+import { addBiomorph, blendGenomes, createSegmentBuffer, describeGenome, growSegments, levelsForBlend, segmentCountFor } from "./render/biomorph.js";
 import { centreOf, childIndexAt, layoutBiomorphs, type BiomorphLayout, type Rect } from "./render/layout.js";
-import { breedChildren, createRandomGenome, clampGene, type Genome } from "./sim/genome.js";
+import { CHILD_COUNT, breedChildren, clampGene, createRandomGenome, genomeKey, pickAutopilotChild, type Genome } from "./sim/genome.js";
 
 export const BIOMORPH_WORLD_HEIGHT = 1000;
 const AUTOPILOT_SECONDS = 3;
-const GROW_SECONDS = 0.45;
+// A chosen child first travels to the middle of the grid, then its own children
+// grow out of it into their cells. The two overlap a little so it reads as one move.
+export const ARRIVE_SECONDS = 0.32;
+export const EMERGE_SECONDS = 0.6;
+const EMERGE_OVERLAP_SECONDS = 0.1;
+// Share of a cell's shorter side that a creature fills.
+const CREATURE_FILL = 0.88;
 
-// Famous starting creatures from Dawkins' portfolios: the basic tree and the
-// swept-wing insect. Cycling through them is a quick way to see how much one
-// genome's neighbourhood can hold.
+// Starting creatures to breed from. Cycling through them is a quick way to see how
+// much one genome's neighbourhood can hold.
 export const BIOMORPH_PRESETS: readonly { readonly name: string; readonly genome: readonly number[] }[] = [
   { name: "TREE", genome: [1, -3, 1, -1, 2, 2, 2, 3, 7] },
   { name: "INSECT", genome: [1, 1, -4, 1, -1, -2, 8, -4, 6] },
+  { name: "BRAMBLE", genome: [-1, -1, -4, 2, 3, 3, 1, -2, 8] },
+  { name: "CORAL", genome: [-3, -4, 0, 5, 3, -3, -2, 2, 8] },
+  { name: "MASK", genome: [2, -3, -2, -1, 5, 1, -2, 5, 7] },
+  { name: "TOTEM", genome: [2, -4, 2, 2, 0, -4, 5, 0, 7] },
+  { name: "LANTERN", genome: [-2, 2, 2, -2, -4, -3, 4, 4, 8] },
+  { name: "ANTLERS", genome: [-4, -2, -5, 1, 1, 5, -1, 0, 7] },
 ];
 
 const PARENT_COLOR: BeamColor = { red: 1, green: 0.82, blue: 0.42 };
@@ -31,11 +42,6 @@ export interface BiomorphOptions {
   readonly genome?: Genome | null;
 }
 
-interface PlacedCreature {
-  readonly biomorph: Biomorph;
-  readonly rect: Rect;
-}
-
 // The breeding grid. The parent sits in the middle, its eight mutant children
 // around it; choosing one promotes it and breeds a new litter. Small mutations
 // plus a chooser are the whole of evolution here, and the forms are line drawings
@@ -45,19 +51,26 @@ export class BiomorphDemo implements Demo {
   public selected = 0;
   public autopilot = false;
   public presetIndex = 0;
+  // Called whenever the parent changes, so the page can keep its address shareable.
+  public onParentChange: () => void = () => {};
 
   private readonly hud = new DemoHud();
   private readonly frames = new DynamicGeometry(64);
   private readonly highlight = new DynamicGeometry(16);
+  private readonly parentGeometry = new DynamicGeometry(512);
+  private readonly childGeometries: DynamicGeometry[] = [];
+  private readonly segmentBuffer = createSegmentBuffer();
   private random: RandomSource;
   private seed: number;
-  private parent: number[];
-  private parentBiomorph: Biomorph;
-  private children: number[][];
-  private childBiomorphs: Biomorph[];
-  private readonly history: number[][] = [];
+  private parent: Genome;
+  private children: Genome[];
+  private readonly history: Genome[] = [];
+  // Every creature bred from so far in this lineage, for the autopilot to avoid.
+  private readonly visited = new Set<string>();
   private generation = 0;
-  private generationSeconds = GROW_SECONDS;
+  private transitionSeconds = ARRIVE_SECONDS + EMERGE_SECONDS;
+  // The cell the current parent was chosen from, while it is still on its way in.
+  private arrivingFrom: number | null = null;
   private autopilotSeconds = 0;
   private hovered: number | null = null;
   private worldWidth = 1600;
@@ -67,9 +80,10 @@ export class BiomorphDemo implements Demo {
     this.seed = options.seed;
     this.random = createSeededRandom(options.seed);
     this.parent = options.genome ? [...options.genome] : [...BIOMORPH_PRESETS[0].genome];
-    this.parentBiomorph = buildBiomorph(this.parent);
     this.children = breedChildren(this.parent, this.random);
-    this.childBiomorphs = this.children.map((genome) => buildBiomorph(genome));
+    for (let index = 0; index < CHILD_COUNT; index++) this.childGeometries.push(new DynamicGeometry(512));
+    this.visited.add(genomeKey(this.parent));
+    this.startTransition(null);
     this.hud.showBanner("BIOMORPHS");
   }
 
@@ -81,8 +95,25 @@ export class BiomorphDemo implements Demo {
     return this.parent;
   }
 
+  public get childGenomes(): readonly Genome[] {
+    return this.children;
+  }
+
   public get generationCount(): number {
     return this.generation;
+  }
+
+  // 0 while a chosen child is still where it was picked, 1 once it sits in the middle.
+  public get arriveProgress(): number {
+    if (this.arrivingFrom === null) return 1;
+    return smoothstep(this.transitionSeconds / ARRIVE_SECONDS);
+  }
+
+  // 0 while the litter is still folded into the parent, 1 once every child has
+  // reached its cell and its own shape.
+  public get emergeProgress(): number {
+    const start = this.arrivingFrom === null ? 0 : ARRIVE_SECONDS - EMERGE_OVERLAP_SECONDS;
+    return smoothstep((this.transitionSeconds - start) / EMERGE_SECONDS);
   }
 
   public resize(width: number, height: number): void {
@@ -92,29 +123,51 @@ export class BiomorphDemo implements Demo {
 
   public update(deltaSeconds: number): void {
     this.hud.update(deltaSeconds);
-    this.generationSeconds += deltaSeconds;
+    this.transitionSeconds += deltaSeconds;
     if (this.isPaused) return;
     if (this.autopilot) {
       this.autopilotSeconds += deltaSeconds;
       if (this.autopilotSeconds >= AUTOPILOT_SECONDS) {
         this.autopilotSeconds = 0;
-        this.choose(Math.floor(this.random() * this.children.length));
+        this.choose(pickAutopilotChild(this.children, this.visited, this.random));
       }
     }
   }
 
   public draw(displayList: DisplayList): void {
     const layout = this.layout();
-    const grown = Math.min(1, this.generationSeconds / GROW_SECONDS);
+    const arrive = this.arriveProgress;
+    const emerge = this.emergeProgress;
+    const parentCentre = centreOf(layout.parent);
+    const size = layout.cellSize * CREATURE_FILL;
 
     this.drawFrames(layout, displayList);
-    this.drawCreature(displayList, { biomorph: this.parentBiomorph, rect: layout.parent }, PARENT_COLOR, 1.15 * grown);
 
+    // The parent, on its way in from the cell it was chosen in.
+    const origin = this.arrivingFrom === null ? parentCentre : centreOf(layout.children[this.arrivingFrom]);
+    this.parentGeometry.clear();
+    this.addCreature(this.parentGeometry, this.parent, levelsForBlend(this.parent, this.parent), mix(origin.x, parentCentre.x, arrive), mix(origin.y, parentCentre.y, arrive), size);
+    displayList.setColor(mixColor(HIGHLIGHT_COLOR, PARENT_COLOR, arrive));
+    displayList.addShape(this.parentGeometry, { ...SCREEN_SPACE_PLACEMENT, intensity: 1.15 });
+
+    // The litter, each child growing out of the parent's shape into its own.
+    if (emerge <= 0) return;
     const selectedChild = this.selectedIndex();
-    this.childBiomorphs.forEach((biomorph, index) => {
+    this.children.forEach((child, index) => {
+      const cellCentre = centreOf(layout.children[index]);
+      const geometry = this.childGeometries[index];
+      geometry.clear();
+      this.addCreature(
+        geometry,
+        blendGenomes(this.parent, child, emerge),
+        levelsForBlend(this.parent, child),
+        mix(parentCentre.x, cellCentre.x, emerge),
+        mix(parentCentre.y, cellCentre.y, emerge),
+        size,
+      );
       const chosen = index === selectedChild;
-      const intensity = (chosen ? 1.1 : 0.5) * grown;
-      this.drawCreature(displayList, { biomorph, rect: layout.children[index] }, chosen ? HIGHLIGHT_COLOR : CHILD_COLOR, intensity);
+      displayList.setColor(chosen ? HIGHLIGHT_COLOR : CHILD_COLOR);
+      displayList.addShape(geometry, { ...SCREEN_SPACE_PLACEMENT, intensity: (chosen ? 1.1 : 0.5) * emerge });
     });
   }
 
@@ -123,7 +176,7 @@ export class BiomorphDemo implements Demo {
     this.hud.draw(displayList, {
       title: "BIOMORPHS",
       statusLines: [
-        `GENERATION ${this.generation}  CHILD ${selectedChild + 1}/8  SEGMENTS ${this.parentBiomorph.segmentCount}`,
+        `GENERATION ${this.generation}  CHILD ${selectedChild + 1}/8  SEGMENTS ${segmentCountFor(this.parent[8] ?? 0)}`,
         `PARENT  ${describeGenome(this.parent)}`,
         `CHILD   ${describeGenome(this.children[selectedChild])}${this.autopilot ? "   AUTOPILOT" : ""}${this.isPaused ? "   PAUSED" : ""}`,
       ],
@@ -162,9 +215,9 @@ export class BiomorphDemo implements Demo {
     if (index < 0 || index >= this.children.length) return;
     this.history.push(this.parent);
     this.parent = this.children[index];
-    this.parentBiomorph = this.childBiomorphs[index];
-    this.breed();
+    this.visited.add(genomeKey(this.parent));
     this.generation++;
+    this.breed(index);
     this.hud.showBanner(`GENERATION ${this.generation}`);
   }
 
@@ -172,8 +225,8 @@ export class BiomorphDemo implements Demo {
     const previous = this.history.pop();
     if (!previous) return;
     this.parent = previous;
-    this.parentBiomorph = buildBiomorph(previous);
-    this.breed();
+    this.generation--;
+    this.breed(null);
     this.hud.showBanner("BACK ONE GENERATION");
   }
 
@@ -181,28 +234,20 @@ export class BiomorphDemo implements Demo {
   public randomize(): void {
     this.seed = Math.floor(Math.random() * 0x7fffffff);
     this.random = createSeededRandom(this.seed);
-    this.parent = createRandomGenome(this.random);
-    this.parentBiomorph = buildBiomorph(this.parent);
-    this.history.length = 0;
-    this.generation = 0;
-    this.breed();
+    this.startLineage(createRandomGenome(this.random));
     this.hud.showBanner(`RANDOM  SEED ${this.seed}`);
   }
 
-  // One of Dawkins' starting creatures, freshly bred.
+  // The next starting creature, freshly bred.
   public nextPreset(): void {
     this.presetIndex = (this.presetIndex + 1) % BIOMORPH_PRESETS.length;
-    this.parent = [...BIOMORPH_PRESETS[this.presetIndex].genome];
-    this.parentBiomorph = buildBiomorph(this.parent);
-    this.history.length = 0;
-    this.generation = 0;
-    this.breed();
+    this.startLineage([...BIOMORPH_PRESETS[this.presetIndex].genome]);
     this.hud.showBanner(BIOMORPH_PRESETS[this.presetIndex].name);
   }
 
   // New mutations of the same parent.
   public reroll(): void {
-    this.breed();
+    this.breed(null);
     this.hud.showBanner("NEW CHILDREN");
   }
 
@@ -223,28 +268,37 @@ export class BiomorphDemo implements Demo {
     return this.hovered !== null && this.hovered >= 0 ? this.hovered : this.selected;
   }
 
-  private breed(): void {
+  private startLineage(genome: Genome): void {
+    this.parent = genome;
+    this.history.length = 0;
+    this.visited.clear();
+    this.visited.add(genomeKey(genome));
+    this.generation = 0;
+    this.breed(null);
+  }
+
+  // A new litter around the current parent. `chosenFrom` is the cell the parent
+  // was picked from, if it was picked.
+  private breed(chosenFrom: number | null): void {
     this.children = breedChildren(this.parent, this.random);
-    this.childBiomorphs = this.children.map((genome) => buildBiomorph(genome));
-    this.generationSeconds = 0;
     this.selected = 0;
     this.hovered = null;
+    this.startTransition(chosenFrom);
+    this.onParentChange();
+  }
+
+  private startTransition(chosenFrom: number | null): void {
+    this.arrivingFrom = chosenFrom;
+    this.transitionSeconds = 0;
   }
 
   private layout(): BiomorphLayout {
-    return layoutBiomorphs(this.worldWidth, this.worldHeight, this.worldHeight * 0.13, this.worldHeight * 0.17);
+    return layoutBiomorphs(this.worldWidth, this.worldHeight, this.worldHeight * 0.1, this.worldHeight * 0.09);
   }
 
-  private drawCreature(displayList: DisplayList, placed: PlacedCreature, color: BeamColor, intensity: number): void {
-    const centre = centreOf(placed.rect);
-    displayList.setColor(color);
-    displayList.addShape(placed.biomorph.shape, {
-      ...SCREEN_SPACE_PLACEMENT,
-      x: centre.x,
-      y: centre.y,
-      scale: Math.min(placed.rect.width, placed.rect.height) * 0.86,
-      intensity,
-    });
+  private addCreature(geometry: DynamicGeometry, genes: Genome, levels: number, centreX: number, centreY: number, size: number): void {
+    const count = growSegments(genes, levels, this.segmentBuffer);
+    addBiomorph(geometry, this.segmentBuffer, count, centreX, centreY, size);
   }
 
   private drawFrames(layout: BiomorphLayout, displayList: DisplayList): void {
@@ -267,6 +321,19 @@ function addRectangle(geometry: DynamicGeometry, rect: Rect): void {
   geometry.lineTo(rect.x + rect.width, rect.y + rect.height);
   geometry.lineTo(rect.x, rect.y + rect.height);
   geometry.closePath();
+}
+
+function mix(from: number, to: number, amount: number): number {
+  return from + (to - from) * amount;
+}
+
+function mixColor(from: BeamColor, to: BeamColor, amount: number): BeamColor {
+  return { red: mix(from.red, to.red, amount), green: mix(from.green, to.green, amount), blue: mix(from.blue, to.blue, amount) };
+}
+
+function smoothstep(value: number): number {
+  const clamped = Math.max(0, Math.min(1, value));
+  return clamped * clamped * (3 - 2 * clamped);
 }
 
 // Exposed so a URL can carry a genome around.

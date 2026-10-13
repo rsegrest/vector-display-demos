@@ -8,8 +8,9 @@ import {
 } from "@vector-demos/demo-kit";
 import { BIOMORPH_WORLD_HEIGHT, BiomorphDemo, parseGenome } from "./BiomorphDemo.js";
 
-// Runs the biomorph breeding grid full screen. ?seed= and ?genes=1,2,... start from
-// a reproducible creature.
+// Runs the biomorph breeding grid full screen. ?genes=1,2,... and ?seed= start from
+// a reproducible creature and litter, and the address follows the parent as you
+// breed, so whatever you have bred can be shared by copying it.
 export function startBiomorphs(canvas: HTMLCanvasElement): void {
   const parameters = new URLSearchParams(location.search);
   const demo = new BiomorphDemo({
@@ -39,6 +40,9 @@ export function startBiomorphs(canvas: HTMLCanvasElement): void {
     return;
   }
   bindEscapeToIndex();
+  demo.onParentChange = () => {
+    history.replaceState(null, "", `?genes=${demo.parentGenome.join(",")}&seed=${demo.currentSeed}`);
+  };
 
   window.addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
