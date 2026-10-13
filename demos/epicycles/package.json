@@ -1,0 +1,18 @@
+{
+  "name": "@vector-demos/epicycles",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Fourier epicycles: chains of rotating circles that redraw any shape, from the vector font's glyphs to something you sketch.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

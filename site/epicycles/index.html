@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Fourier epicycles on a vector display: chains of rotating circles redraw a star, a heart, letters of the vector font, or a shape you sketch yourself." />
+    <title>Fourier Epicycles</title>
+  </head>
+  <body>
+    <canvas id="screen" tabindex="0" aria-label="A chain of rotating circles, each riding on the rim of the last, whose final point traces out a shape. More circles are added on each pass and the tracing sharpens."></canvas>
+    <p class="visually-hidden">Draw on the page with the pointer to give the circles a shape of your own. Keys: N and B next and previous shape, left and right brackets fewer or more circles, digits 0 to 9 trace that digit, A auto, minus and plus change speed, C show or hide circles, G show or hide the target shape, T trails, space pause, H toggle overlay, F fullscreen, Escape back to the menu.</p>
+    <script type="module" src="../src/pages/epicycles.ts"></script>
+  </body>
+</html>

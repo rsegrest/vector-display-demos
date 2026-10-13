@@ -72,4 +72,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Text Crawl",
     description: "Words receding into the distance, then shattering into their strokes",
   },
+  {
+    path: "epicycles",
+    title: "Fourier Epicycles",
+    description: "Chains of turning circles that redraw any shape, including one you sketch",
+  },
 ];
