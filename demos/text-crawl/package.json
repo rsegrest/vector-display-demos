@@ -1,0 +1,18 @@
+{
+  "name": "@vector-demos/text-crawl",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A perspective text crawl in the vector font whose letters shatter into their strokes and reassemble.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

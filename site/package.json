@@ -24,6 +24,7 @@
     "@vector-demos/particle-life": "*",
     "@vector-demos/polytopes": "*",
     "@vector-demos/slime-mold": "*",
+    "@vector-demos/text-crawl": "*",
     "@vector-demos/travel-globe": "*",
     "@vector-display/core": "^0.1.0"
   }

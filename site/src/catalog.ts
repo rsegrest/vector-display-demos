@@ -67,4 +67,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Oscilloscope",
     description: "Sound drawn as a beam: left channel across, right channel up, pictures you can hear",
   },
+  {
+    path: "text-crawl",
+    title: "Text Crawl",
+    description: "Words receding into the distance, then shattering into their strokes",
+  },
 ];
