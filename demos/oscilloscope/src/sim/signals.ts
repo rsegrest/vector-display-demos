@@ -3,7 +3,7 @@
 // to listen to and a picture to look at. Sources produce samples in order and keep
 // their own phase, so however the output is chopped into blocks the signal is the same.
 
-import { samplePath, type ScopePath } from "./paths.js";
+import { samplePath, type BeamPath } from "@vector-demos/demo-kit";
 
 export interface SignalSource {
   // Writes the next `count` samples into the start of `left` and `right`.
@@ -89,7 +89,7 @@ export class PathSource implements TunableSource {
   private readonly point: [number, number, number] = [0, 0, 0];
 
   public constructor(
-    private readonly path: ScopePath,
+    private readonly path: BeamPath,
     private readonly settings: PathSettings,
   ) {
     this.frequency = settings.frequency;

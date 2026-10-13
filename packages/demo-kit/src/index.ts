@@ -14,3 +14,5 @@ export { ClippedPen } from "./ClippedPen.js";
 export type { PenClip } from "./ClippedPen.js";
 export { ContourTracer } from "./contours.js";
 export type { ContourTransform } from "./contours.js";
+export { buildPath, cubePath, glyphStrokes, heartPath, octahedronPath, samplePath, spiralPath, starPath, textPath, trianglePath } from "./beamPaths.js";
+export type { BeamPath, Point3, Stroke } from "./beamPaths.js";

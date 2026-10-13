@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DisplayList, FLOATS_PER_BEAM_SEGMENT } from "@vector-display/core";
 import { BASE_FREQUENCY, DEFAULT_SAMPLE_RATE, OscilloscopeDemo, PROGRAMS } from "../src/OscilloscopeDemo.js";
 import { ScopeEngine } from "../src/sim/ScopeEngine.js";
-import { buildPath, cubePath, octahedronPath, samplePath, spiralPath, starPath, textPath } from "../src/sim/paths.js";
+import { buildPath, cubePath, octahedronPath, samplePath, spiralPath, starPath, textPath } from "@vector-demos/demo-kit";
 import { AMPLITUDE, LissajousSource, PathSource, RecordedSource, type SignalSource } from "../src/sim/signals.js";
 
 const RATE = 48000;

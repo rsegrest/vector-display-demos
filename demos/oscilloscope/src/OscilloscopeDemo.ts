@@ -1,7 +1,19 @@
 import { SCREEN_SPACE_PLACEMENT, type BeamColor, type DisplayList } from "@vector-display/core";
-import { DemoHud, DynamicGeometry, fontSafeText, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
+import {
+  DemoHud,
+  DynamicGeometry,
+  cubePath,
+  fontSafeText,
+  heartPath,
+  octahedronPath,
+  spiralPath,
+  starPath,
+  textPath,
+  trianglePath,
+  type Demo,
+  type DemoFrame,
+} from "@vector-demos/demo-kit";
 import { ScopeEngine } from "./sim/ScopeEngine.js";
-import { cubePath, heartPath, octahedronPath, spiralPath, starPath, textPath, trianglePath } from "./sim/paths.js";
 import { LissajousSource, PathSource, RecordedSource, type TunableSource } from "./sim/signals.js";
 
 export const OSCILLOSCOPE_WORLD_HEIGHT = 1000;
