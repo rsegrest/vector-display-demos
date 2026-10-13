@@ -6,7 +6,7 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 
 | Path | What it is |
 | --- | --- |
-| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`, `/meshes/`, `/docs/`). The demo list lives in `site/src/catalog.ts` |
+| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`, `/meshes/`, `/docs/`, `/os/`). The demo list lives in `site/src/catalog.ts` |
 | `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), beam paths (`buildPath`, `glyphStrokes`: shapes and font text as strokes for the beam to follow), `BeamSettingsStore` (the visitor's saved beam settings), the demo font, seeded random, page helpers |
 | `demos/particle-life` | Particle Life |
 | `demos/travel-globe` | Rick's travel map on a vector globe; meant to replace ricksegrest.com/globe |
@@ -24,9 +24,10 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/live-earth` | Live Earth: real satellites, the ISS ground track and recent earthquakes on a wireframe globe |
 | `demos/meshes` | Feature Edges: the teapot, the bunny and other meshes as line drawings, with hidden lines removed |
 | `demos/docs` | Live Guide: documentation for the `@vector-display` packages in which every example is editable and running |
+| `demos/vector-os` | Vector OS: a desktop drawn by one beam, with windows that run the other demos, a terminal, a clock and a beam control panel |
 | `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots. `--chrome-flags` passes extra switches, e.g. `--autoplay-policy=no-user-gesture-required` to test audio |
 
-Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay` and `resize`), so a later "Vector OS" shell can host them all. Every demo returns to the index with Escape.
+Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay` and `resize`), which is what lets Vector OS run them all in windows, unchanged. Every demo returns to the index with Escape.
 
 ## Commands
 
@@ -335,3 +336,35 @@ A guide to the five `@vector-display` packages at `/docs/`, in which every examp
 **The examples are tested.** `demos/docs/tests/docs.test.ts` reads the HTML, extracts every example and runs it at several moments, checking that it draws something and raises nothing. It also checks that the default values quoted in the guide's tables are the libraries' real defaults. Adding an example to the page adds it to the test.
 
 The guide is written from the packages' own READMEs and type declarations at version 0.1.0. It belongs with the library as much as with these demos, and could move to the `vector-display` repository as its documentation site.
+
+## Vector OS
+
+A desktop on a vector display, at `/os/`. One beam draws all of it: the menu bar, the list of programs, the window frames, and every program running in every window. It is a shell, not an operating system: its job is to launch the other demos.
+
+After a short power-on sequence (any key skips it; `?boot=0` leaves it out), the desktop opens with a terminal, a clock and a demo. Click a name in the list on the left to open a program. Windows open with the classic zoom-rectangle animation, land wherever they cover least of what is already open, and can be moved by their title bar and resized by their bottom right corner.
+
+**How windows work** (`SegmentBlitter.ts`). Programs never draw to the screen. Each has a display list of its own, and draws into it exactly as it would full screen. Each frame the OS copies those lists into the real one: every stroke is moved and scaled into its window, trimmed at the window's edges, and cut wherever another window lies on top. That last step matters more here than on an ordinary screen. The beam's light adds up, so anything drawn "behind" a window would shine straight through it. Connected strokes stay connected through the copy, so joints stay seamless.
+
+This is the payoff of every demo implementing one small interface (`update`, `draw`, optional `resize`): all fifteen run in windows with no changes. Each demo's code is loaded only when it is first launched, and at most eight windows are open at once.
+
+**Programs written for the OS:**
+
+- **Terminal.** `HELP` lists the commands: `LS`, `RUN NAME`, `PS`, `CLOSE NAME` (or `CLOSE ALL`), `SET NAME VALUE`, `GET`, `RESET`, `DATE`, `ECHO`, `CLEAR`, `ABOUT`, `REBOOT`. `RUN` accepts the start of a name, so `RUN SLIME` works. Up and down arrows recall earlier lines.
+- **Clock.** An analog face with the local time.
+- **Beam Settings.** Sliders for the beam, drawn by the beam: dragging one changes the display it is drawn on. `SET PERSISTENCE 200` at the terminal does the same thing. The settings are the ones the Live Guide saves, so they carry between the two.
+
+**One phosphor for everything.** There is one beam and so one set of beam settings for the whole desktop; a demo in a window does not get the persistence it uses on its own page. Slime Mold, whose network *is* the phosphor trail, shows this most: it looks best with persistence turned up, and then every window trails. Demos whose look depends on their own settings are best seen on their own pages, which the box at the right of each demo's title bar opens.
+
+**What windows pass through.** Keys go to the window in front; only the terminal uses them. The pointer goes to the program under it, for the demos where a click has one obvious meaning: Slime Mold and Gray-Scott (drop chemical), Biomorphs (breed), Text Crawl (shatter), Fourier Epicycles (sketch a shape) and the Beam Settings sliders. The rest are for watching. The Oscilloscope is silent in a window; sound belongs to its own page.
+
+| Input | Action |
+| --- | --- |
+| Click a name on the left | Open that program, or bring its window to the front |
+| Drag a title bar | Move the window |
+| Drag the bottom right corner | Resize it |
+| Box at the left of a title bar | Close the window |
+| Box at the right of a demo's title bar | Open that demo full screen |
+| Typing | Goes to the window in front |
+| `Esc` | Back to the menu |
+
+The demo list on the index page is still there. Replacing it with the OS, so that the site opens straight into the desktop, would be a one-line change to the index, but it would put a pointer-driven desktop in front of every visitor, including those on phones and keyboards. For now the OS is one entry on the list.

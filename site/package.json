@@ -30,6 +30,7 @@
     "@vector-demos/slime-mold": "*",
     "@vector-demos/text-crawl": "*",
     "@vector-demos/travel-globe": "*",
+    "@vector-demos/vector-os": "*",
     "@vector-display/core": "^0.1.0"
   }
 }

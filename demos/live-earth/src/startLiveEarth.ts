@@ -1,15 +1,12 @@
 import { DemoHost, bindEscapeToIndex, showFatalError, toggleFullscreen } from "@vector-demos/demo-kit";
-import geo from "@vector-demos/travel-globe/geo.json";
-import { QUAKE_MAXIMUM_AGE_MILLISECONDS, browserEnvironment, loadQuakes, loadSatelliteElements, type Snapshot } from "./data/LiveData.js";
-import snapshotData from "./data/snapshot.json";
-import { LIVE_EARTH_WORLD_HEIGHT, LiveEarthDemo } from "./LiveEarthDemo.js";
+import { createLiveEarth } from "./createLiveEarth.js";
+import { LIVE_EARTH_WORLD_HEIGHT } from "./LiveEarthDemo.js";
 
 // Runs the live Earth full screen. Satellite orbits and earthquakes are fetched
 // from CelesTrak and the USGS when the page opens; if either cannot be reached,
 // the copy bundled with the demo is shown instead and labelled as a snapshot.
 export function startLiveEarth(canvas: HTMLCanvasElement): void {
-  // The travel globe's map data: coastlines and borders as longitude, latitude pairs.
-  const demo = new LiveEarthDemo({ coastLines: (geo as unknown as { countryLines: number[][] }).countryLines });
+  const { demo } = createLiveEarth();
 
   let host: DemoHost;
   try {
@@ -31,14 +28,6 @@ export function startLiveEarth(canvas: HTMLCanvasElement): void {
     return;
   }
   bindEscapeToIndex();
-
-  const environment = browserEnvironment();
-  const snapshot = snapshotData as unknown as Snapshot;
-  void loadSatelliteElements(environment, snapshot).then((data) => demo.setSatellites(data));
-  const refreshQuakes = (): void => void loadQuakes(environment, snapshot).then((data) => demo.setQuakes(data));
-  refreshQuakes();
-  // New earthquakes keep coming; orbits do not change fast enough to need refetching in one sitting.
-  window.setInterval(refreshQuakes, QUAKE_MAXIMUM_AGE_MILLISECONDS + 5000);
 
   window.addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;

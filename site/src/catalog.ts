@@ -92,4 +92,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Live Guide",
     description: "How the vector-display packages work, with every example editable and running",
   },
+  {
+    path: "os",
+    title: "Vector OS",
+    description: "A desktop drawn by one beam: windows running the demos, a terminal, a clock",
+  },
 ];

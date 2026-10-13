@@ -24,8 +24,8 @@ export interface MenuLayout {
   readonly columnWidth: number;
 }
 
-export const ITEM_TEXT_SIZE = 34;
-const ROW_SPACING = 74;
+export const ITEM_TEXT_SIZE = 30;
+const ROW_SPACING = 62;
 // How far the clickable area reaches left of the text, to cover the pointer.
 const HIT_MARGIN_LEFT = 260;
 const HIT_MARGIN_RIGHT = 120;

@@ -1,2 +1,2 @@
 export { startTextCrawl } from "./startTextCrawl.js";
-export { TextCrawlDemo } from "./TextCrawlDemo.js";
+export { DEFAULT_PAGES, TextCrawlDemo } from "./TextCrawlDemo.js";

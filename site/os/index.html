@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Vector OS: a desktop drawn entirely by one vector beam, with windows that run the other demos, a terminal, a clock and a beam control panel." />
+    <title>Vector OS</title>
+  </head>
+  <body>
+    <canvas id="screen" tabindex="0" aria-label="Vector OS: a desktop drawn in glowing lines, with a list of programs down the left side and overlapping windows, each running a demo, a terminal, or a clock."></canvas>
+    <p class="visually-hidden">After a short power-on sequence, which any key skips, a desktop appears. Click a program's name in the list on the left to open it in a window. Drag a window by its title bar to move it, drag its bottom right corner to resize it, and click the box at the left of its title bar to close it; the box at the right of a demo's title bar opens that demo full screen. Typing goes to the window in front. In the terminal, type HELP for a list of commands, such as RUN LENIA or SET PERSISTENCE 200. Escape returns to the menu. Every demo here also has a page of its own, listed on the menu.</p>
+    <script type="module" src="../src/pages/os.ts"></script>
+  </body>
+</html>

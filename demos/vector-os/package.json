@@ -1,0 +1,33 @@
+{
+  "name": "@vector-demos/vector-os",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Vector OS: a desktop drawn by one beam, with windows that run the other demos, a terminal, a clock and a beam control panel.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/attractors": "*",
+    "@vector-demos/biomorphs": "*",
+    "@vector-demos/boids": "*",
+    "@vector-demos/ca-terrain": "*",
+    "@vector-demos/demo-kit": "*",
+    "@vector-demos/epicycles": "*",
+    "@vector-demos/gray-scott": "*",
+    "@vector-demos/lenia": "*",
+    "@vector-demos/life": "*",
+    "@vector-demos/live-earth": "*",
+    "@vector-demos/meshes": "*",
+    "@vector-demos/oscilloscope": "*",
+    "@vector-demos/particle-life": "*",
+    "@vector-demos/polytopes": "*",
+    "@vector-demos/slime-mold": "*",
+    "@vector-demos/text-crawl": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}
