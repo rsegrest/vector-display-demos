@@ -58,6 +58,10 @@ export class MenuDemo implements Demo {
     if (!this.isLaunching) this.model.move(delta);
   }
 
+  public moveColumn(delta: number): void {
+    if (!this.isLaunching) this.model.moveColumn(delta, this.layout);
+  }
+
   // Flares the selection briefly, then hands over to onOpen.
   public open(index = this.model.selectedIndex): void {
     if (this.isLaunching) return;
@@ -113,7 +117,7 @@ export class MenuDemo implements Demo {
     const bob = Math.sin(this.seconds * 4) * 5;
     displayList.setColor(POINTER_COLOR);
     displayList.addShape(POINTER_SHAPE, {
-      x: layout.listLeft - POINTER_GAP + bob,
+      x: this.model.pointerX - POINTER_GAP + bob,
       y: this.model.pointerY,
       rotation: 0,
       scale: 1,
@@ -131,7 +135,7 @@ export class MenuDemo implements Demo {
       intensity: 0.9,
     });
     font.addText(displayList, {
-      text: "UP DOWN SELECT   ENTER OPEN   ESC IN A DEMO RETURNS HERE",
+      text: "ARROWS SELECT   ENTER OPEN   ESC IN A DEMO RETURNS HERE",
       x: centerX,
       y: frame.height - 60,
       size: 14,

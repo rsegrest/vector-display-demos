@@ -46,4 +46,63 @@ describe("MenuModel", () => {
     for (let step = 0; step < 60; step++) menu.update(1 / 60, layout);
     expect(menu.pointerY).toBeCloseTo(target, 1);
   });
+
+  describe("with more items than fit in one column", () => {
+    const count = 12;
+    const widths = new Array<number>(count).fill(300);
+    widths[3] = 420;
+    const menu = new MenuModel(count);
+    const layout = menu.layout({ width: 1778, height: 1000, itemWidths: widths });
+
+    it("splits into equal columns that stay clear of the title and the footer", () => {
+      expect(layout.columnCount).toBe(2);
+      expect(layout.rowsPerColumn).toBe(6);
+      expect(new Set(layout.rows.map((row) => row.left)).size).toBe(2);
+      for (const row of layout.rows) {
+        expect(row.top).toBeGreaterThanOrEqual(260);
+        expect(row.top + row.height).toBeLessThanOrEqual(1000 - 200);
+        expect(row.left).toBeGreaterThan(0);
+        expect(row.left + row.width).toBeLessThan(1778);
+      }
+      // Reading order runs down the first column, then down the second.
+      expect(layout.rows[5].top).toBeGreaterThan(layout.rows[4].top);
+      expect(layout.rows[6].top).toBe(layout.rows[0].top);
+      expect(layout.rows[6].left).toBeGreaterThan(layout.rows[0].left + 420);
+    });
+
+    it("keeps a short list in a single column", () => {
+      const short = new MenuModel(7).layout({ width: 1778, height: 1000, itemWidths: new Array<number>(7).fill(300) });
+      expect(short.columnCount).toBe(1);
+    });
+
+    it("gives every row its own hit area, with none overlapping", () => {
+      layout.rows.forEach((row, index) => {
+        expect(menu.rowAt(layout, row.left + 5, row.top + 5)).toBe(index);
+        expect(menu.rowAt(layout, row.left + row.width - 5, row.top + row.height - 5)).toBe(index);
+        // Where the pointer sits, just left of the text.
+        expect(menu.rowAt(layout, row.left - 40, row.top + 5)).toBe(index);
+      });
+    });
+
+    it("steps sideways between columns and stays put at the edges", () => {
+      const model = new MenuModel(count, 2);
+      model.moveColumn(1, layout);
+      expect(model.selectedIndex).toBe(8);
+      model.moveColumn(1, layout);
+      expect(model.selectedIndex).toBe(8);
+      model.moveColumn(-1, layout);
+      expect(model.selectedIndex).toBe(2);
+      model.moveColumn(-1, layout);
+      expect(model.selectedIndex).toBe(2);
+    });
+
+    it("slides the pointer across to the other column", () => {
+      const model = new MenuModel(count, 0);
+      model.update(1, layout);
+      expect(model.pointerX).toBe(layout.rows[0].left);
+      model.moveColumn(1, layout);
+      for (let step = 0; step < 90; step++) model.update(1 / 60, layout);
+      expect(model.pointerX).toBeCloseTo(layout.rows[6].left, 1);
+    });
+  });
 });

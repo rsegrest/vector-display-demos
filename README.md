@@ -6,8 +6,8 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 
 | Path | What it is |
 | --- | --- |
-| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`). The demo list lives in `site/src/catalog.ts` |
-| `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), the demo font, seeded random, page helpers |
+| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`). The demo list lives in `site/src/catalog.ts` |
+| `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), the demo font, seeded random, page helpers |
 | `demos/particle-life` | Particle Life |
 | `demos/travel-globe` | Rick's travel map on a vector globe; meant to replace ricksegrest.com/globe |
 | `demos/life`, `demos/boids` | Life on the Beam and Boids on the Beam. The rule and beam-geometry modules and their tests are copied unchanged from `~/code/2026/vector-display/examples/demo`; only the full-screen adapters are new |
@@ -15,7 +15,11 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/slime-mold` | Slime Mold: Physarum agents that follow each other's chemical trail. Only the agents are drawn; the display's own phosphor decay becomes the visible network |
 | `demos/ca-terrain` | Cellular Terrain: elementary cellular automata (Rule 30, 90, 110…) extruded as ridgelines scrolling toward a perspective camera |
 | `demos/biomorphs` | Biomorphs: Dawkins' nine-gene recursive creatures, bred by choosing one of eight mutant children |
-| `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots |
+| `demos/attractors` | Strange Attractors: particles flowing through six chaotic systems, crossfading by blending the equations |
+| `demos/gray-scott` | Gray-Scott: reaction-diffusion patterns drawn as contour lines |
+| `demos/polytopes` | 4D Polytopes: the six regular polytopes rotating through four dimensions |
+| `demos/oscilloscope` | Oscilloscope: a stereo signal drawn as an XY beam, with sound |
+| `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots. `--chrome-flags` passes extra switches, e.g. `--autoplay-policy=no-user-gesture-required` to test audio |
 
 Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay` and `resize`), so a later "Vector OS" shell can host them all. Every demo returns to the index with Escape.
 
@@ -131,3 +135,80 @@ URL: `genes=1,2,3,4,5,6,7,8,9`, `seed`. The address follows the parent as you br
 | `R` `P` `G` | Random creature, preset genome, reroll children |
 | `A`, `Space` | Autopilot, pause |
 | `H` `F` | HUD, fullscreen |
+
+## Strange Attractors
+
+Thousands of particles follow one of six chaotic systems: Lorenz, Aizawa, Thomas, Halvorsen, Rössler and Dadras. Nothing draws the attractor itself. Each particle is the short stroke it just travelled, and the phosphor remembers the rest, so the shape appears only because the particles keep retracing it. Colour is flow speed: slow reaches glow blue, fast ones burn toward orange.
+
+Each system lives at its own size and pace, so each is measured once at start-up (`sim/attractors.ts`) and from then on handled in a common frame: centred, about one unit in radius, moving at about one unit per unit of time. In that frame two systems can simply be averaged, which is how the demo crossfades: it blends the equations, not the pictures, so every particle keeps moving under one consistent law the whole way across. A particle that leaves an attractor's basin is put back near the middle.
+
+URL: `attractor` (1-based), `particles` (500–8000), `seed`.
+
+| Input | Action |
+| --- | --- |
+| Drag, wheel | Rotate, zoom |
+| `N` `B` | Next / previous attractor |
+| `A` `C` | Auto-cycle, auto-camera |
+| `R` | Scatter the particles and watch them find the attractor again |
+| `[` `]`, `-` `+` | Particle count, speed |
+| `T`, `Space`, `H`, `F` | Trails, pause, HUD, fullscreen |
+
+## Gray-Scott
+
+The Gray-Scott reaction-diffusion model: two chemicals, one feeding on the other, both spreading. Depending on two numbers, the feed and kill rates, it grows coral, mazes, spots that divide like cells, or restless turbulence. The concentration of one chemical is treated as a height map and drawn as nested contour lines, using the same marching-squares tracer as Lenia, so a spot is a small set of rings and a maze wall a pair of long parallel tracks.
+
+Changing pattern (`N`) does not reset the dish. The rates slide to their new values over a few seconds and the old pattern is reworked into the new one where it stands. `M` switches to a **rate map**: kill rate rising across the screen and feed rate rising up it, so every regime appears side by side.
+
+The simulation runs on the main thread: a 200×112 grid at 8 steps per frame costs about 4 ms. URL: `pattern` (1-based), `seed`.
+
+| Input | Action |
+| --- | --- |
+| Drag / Shift+drag | Add chemical / wipe |
+| `N` `B` | Next / previous pattern |
+| `M` | Rate map |
+| `R` `C` `E` | Reseed, clear, auto-evolve |
+| `-` `+`, `[` `]` | Speed, number of contours |
+| `Space`, `.`, `H`, `F` | Pause, step, HUD, fullscreen |
+
+## 4D Polytopes
+
+The six regular polytopes of four dimensions, the 4D cousins of the Platonic solids: the 5-cell, 16-cell, tesseract, 24-cell, 600-cell and 120-cell. Each is built from its textbook vertex coordinates (`sim/polytopes.ts`). Edges are never listed by hand: in a regular polytope they are exactly the pairs of vertices at the shortest distance. The 120-cell is derived as the dual of the 600-cell, with one vertex at the centre of each of its 600 tetrahedral cells. At 1200 edges it doubles as a load test for the renderer.
+
+Rotation in 4D happens in a plane, not about an axis, and there are six planes; three involve w, the axis we cannot see. `W` turns those three off, and the shape becomes an ordinary rigid object; turn them back on to see what w adds. Colour is the fourth coordinate: edges far along w are deep blue, near ones hot.
+
+`P` switches projection. **Perspective** is the 4D version of an ordinary camera and gives the familiar cube-within-a-cube. **Stereographic** projects from the 3-sphere the vertices lie on; it keeps angles true, so edges become arcs and the cells look like a foam of bubbles.
+
+URL: `polytope` (1-based), `projection` (`perspective` or `stereographic`), `seed`.
+
+| Input | Action |
+| --- | --- |
+| Drag / Shift+drag | Rotate in 3D / rotate through w |
+| Wheel | Zoom |
+| `N` `B`, `P` | Next / previous polytope, projection |
+| `W` `R` | Rotation through w on/off, new spin |
+| `A`, `-` `+` | Auto-cycle, speed |
+| `T`, `Space`, `H`, `F` | Trails, pause, HUD, fullscreen |
+
+## Oscilloscope
+
+An XY oscilloscope: the left audio channel moves the beam across and the right channel moves it up. That is the whole display. No shape is drawn as a shape; the beam is only ever sent where the signal says. A vector display and an oscilloscope are the same idea, so this is the most literal demo here.
+
+The page **starts silent**, because browsers do not let a page make sound until the visitor has pressed something. `S` (or a click) turns the sound on. The same signal runs silently before that, so the picture seen then is the picture heard afterwards.
+
+- **Figures.** Five Lissajous figures (two sine waves at simple frequency ratios), then shapes traced by the beam and turned as they play: star, triangle, spiral, heart, cube, octahedron and the word VECTOR in the vector font. The turning happens sample by sample, so a rotating cube is one continuous signal, not a sequence of frames, and sounds like a chord that slowly shifts.
+- **Beam brightness.** A real beam is dimmer the faster it moves. Segments are sorted by the distance covered in one sample, so the quick jumps between letters show only as faint lines.
+- **One sample stream.** `sim/ScopeEngine.ts` numbers every sample and both the speakers and the screen read from it. Audio is scheduled about 0.2 s ahead in blocks (`audio/AudioOutput.ts`); the scope draws the samples being heard at that moment. No audio worklet is involved.
+- **Your own audio.** `O` opens an audio file, or drop one on the page. Recordings made for the purpose ("oscilloscope music", such as Jerobeam Fenderson's) draw pictures; anything else draws its own stereo field. No recordings are bundled.
+
+URL: `figure` (1-based).
+
+| Input | Action |
+| --- | --- |
+| `S` / `Enter` / click | Sound on or off |
+| `←` `→` | Previous / next figure |
+| `↑` `↓` | Pitch, in semitones |
+| `[` `]` | Motion (drift and spin) |
+| `-` `+` | Volume |
+| `O`, or drop a file | Play an audio file through the scope |
+| `A` `T` `K` `G` | Auto-cycle, trails, phosphor colour, grid |
+| `Space`, `H`, `F` | Pause, HUD, fullscreen |

@@ -35,9 +35,11 @@ const display = process.env.SMOKE_DISPLAY ?? (existsSync("/tmp/.X11-unix/X99") ?
 const chrome = [process.env.CHROME, "/usr/bin/google-chrome", "/usr/bin/chromium"].filter(Boolean).find((p) => existsSync(p));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Its own process group, so that stopping it also stops the Vite process npx starts.
 const server = spawn("npx", ["vite", "--port", String(port), "--strictPort", "--host", "127.0.0.1"], {
   cwd: resolve(demoDir),
   stdio: "ignore",
+  detached: true,
 });
 let browser;
 let profile;
@@ -129,7 +131,11 @@ try {
   exitCode = 1;
 } finally {
   browser?.kill("SIGKILL");
-  server.kill("SIGTERM");
+  try {
+    process.kill(-server.pid, "SIGTERM");
+  } catch {
+    server.kill("SIGTERM");
+  }
   // Chrome may still be writing its profile for a moment after being killed.
   await sleep(300);
   if (profile) rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });

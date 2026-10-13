@@ -71,6 +71,8 @@ export function startMenu(canvas: HTMLCanvasElement): void {
     const number = Number.parseInt(event.key, 10);
     if (event.key === "ArrowUp" || event.key === "w" || event.key === "W") menu.move(-1);
     else if (event.key === "ArrowDown" || event.key === "s" || event.key === "S") menu.move(1);
+    else if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") menu.moveColumn(-1);
+    else if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") menu.moveColumn(1);
     else if (event.key === "Enter" || event.key === " ") menu.open();
     else if (number >= 1 && number <= DEMO_CATALOG.length) menu.open(number - 1);
     else return;
