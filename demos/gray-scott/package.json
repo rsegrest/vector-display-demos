@@ -1,0 +1,18 @@
+{
+  "name": "@vector-demos/gray-scott",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Gray-Scott reaction-diffusion: two chemicals that grow spots, mazes and coral, drawn as glowing contour lines.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

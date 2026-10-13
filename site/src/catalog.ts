@@ -52,4 +52,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Strange Attractors",
     description: "Thousands of particles flowing through Lorenz, Aizawa, Thomas and other chaotic systems",
   },
+  {
+    path: "gray-scott",
+    title: "Gray-Scott",
+    description: "Reaction-diffusion growing coral, mazes and dividing spots, drawn as contour lines",
+  },
 ];
