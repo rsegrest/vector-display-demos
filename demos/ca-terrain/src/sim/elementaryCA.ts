@@ -10,18 +10,18 @@ export interface RulePreset {
   readonly name: string;
 }
 
-// A spread of rules that look distinct as terrain: chaotic cliffs, nested
-// triangles, Sierpinski forests and the Turing-complete rule 110.
+// A spread of rules that look distinct as terrain: chaotic ranges, nested
+// basins, Sierpinski country and the Turing-complete rule 110.
 export const RULE_PRESETS: readonly RulePreset[] = [
   { rule: 30, name: "RULE 30" },
   { rule: 90, name: "RULE 90" },
   { rule: 110, name: "RULE 110" },
   { rule: 150, name: "RULE 150" },
+  { rule: 54, name: "RULE 54" },
   { rule: 22, name: "RULE 22" },
   { rule: 45, name: "RULE 45" },
-  { rule: 60, name: "RULE 60" },
+  { rule: 126, name: "RULE 126" },
   { rule: 105, name: "RULE 105" },
-  { rule: 184, name: "RULE 184" },
   { rule: 73, name: "RULE 73" },
 ];
 

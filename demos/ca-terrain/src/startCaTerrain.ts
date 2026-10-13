@@ -22,8 +22,8 @@ export function startCaTerrain(canvas: HTMLCanvasElement): void {
   try {
     host = DemoHost.start(canvas, demo, {
       worldHeight: TERRAIN_WORLD_HEIGHT,
-      // Ridgelines are connected paths; walls are single segments. No endpoint dwell,
-      // so the beam does not bead every generation.
+      // Ridgelines are connected paths that start and stop wherever nearer ground
+      // hides them. No endpoint dwell, so those breaks do not bead.
       lineStyle: { beamWidth: 1.25, glowRadius: 2.4, glowStrength: 0.16, endpointBrightness: 0, jointOverlap: 0.4 },
       phosphor: {
         persistenceHalfLifeMilliseconds: TRAIL_MODES[demo.trailIndex].halfLifeMilliseconds,
@@ -55,7 +55,7 @@ export function startCaTerrain(canvas: HTMLCanvasElement): void {
       case "-": case "_": case "ArrowDown": demo.changeSpeed(-1); break;
       case "=": case "+": case "ArrowUp": demo.changeSpeed(1); break;
       case "c": case "C": demo.nextCamera(); break;
-      case "l": case "L": demo.toggleWalls(); break;
+      case "l": case "L": demo.toggleHiddenLines(); break;
       case "[": demo.changeRidge(-1); break;
       case "]": demo.changeRidge(1); break;
       case "t": case "T": demo.cycleTrails(); break;
