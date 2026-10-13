@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NO_NEIGHBOR_SEGMENT } from "@vector-display/core";
-import { DynamicGeometry } from "@vector-demos/demo-kit";
-import { ContourTracer } from "../src/render/contours.js";
+import { DynamicGeometry } from "../src/DynamicGeometry.js";
+import { ContourTracer } from "../src/contours.js";
 
 function circleField(width: number, height: number, centerX: number, centerY: number, radius: number) {
   const field = new Float32Array(width * height);

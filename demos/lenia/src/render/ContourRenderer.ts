@@ -1,6 +1,5 @@
 import { SCREEN_SPACE_PLACEMENT, type BeamColor, type DisplayList, type ShapePlacement } from "@vector-display/core";
-import { DynamicGeometry, hslToBeamColor } from "@vector-demos/demo-kit";
-import { ContourTracer } from "./contours.js";
+import { ContourTracer, DynamicGeometry, hslToBeamColor } from "@vector-demos/demo-kit";
 
 export interface ContourStyle {
   readonly levelCount: number;

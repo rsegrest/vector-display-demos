@@ -1,4 +1,4 @@
-import type { DynamicGeometry } from "@vector-demos/demo-kit";
+import type { DynamicGeometry } from "./DynamicGeometry.js";
 
 export interface ContourTransform {
   readonly offsetX: number;

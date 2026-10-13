@@ -12,3 +12,5 @@ export { clipSegmentInside, clipSegmentOutside } from "./clip.js";
 export type { ClipRect } from "./clip.js";
 export { ClippedPen } from "./ClippedPen.js";
 export type { PenClip } from "./ClippedPen.js";
+export { ContourTracer } from "./contours.js";
+export type { ContourTransform } from "./contours.js";
