@@ -25,6 +25,8 @@ const LABEL_COLOR: BeamColor = { red: 0.35, green: 0.75, blue: 0.95 };
 export const WATERFALL_SIZES: readonly number[] = [14, 11, 9, 7.5, 6];
 export const READING_SIZE_RANGE = { low: 4, high: 20, step: 0.5 } as const;
 export const BEAM_WIDTH_RANGE = { low: 0.5, high: 3, step: 0.1 } as const;
+// Glow is the halo drawn around each stroke plus the bloom of the phosphor pass; 0 leaves the bare beam.
+export const GLOW_RANGE = { low: 0, high: 1, step: 0.1 } as const;
 const TYPE_SIZE_PER_CAP_HEIGHT = 1.4;
 
 const MARGIN = 36;
@@ -48,20 +50,21 @@ const READING_TEXT = [
     "a polygon – look closely at the “o” or the “g” – and at this size the width of the beam matters more " +
     "than the shape of the letter.",
   "",
-  "Can you read this comfortably? Press [ and ] to change the beam width, - and + to change the size of this " +
-    "column, and C to switch between the glowing phosphor layer and the crisp overlay, which has no bloom.",
+  "Can you read this comfortably? Press [ and ] to change the beam width, comma and full stop to change the " +
+    "glow, - and + to change the size of this column, and C to switch between the phosphor layer and the crisp overlay.",
   "",
   "• 3 windows open  • 12:45 PM  • 98.6% idle — it's all strokes…",
 ].join("\n");
 
 const HELP_TEXT =
-  "Left / Right: font    C: phosphor or crisp    [ ]: beam width    - +: reading size    G: color    F: fullscreen    Esc: menu";
+  "Left / Right: font    C: phosphor or crisp    [ ]: beam width    , .: glow    - +: reading size    G: color    F: fullscreen    Esc: menu";
 
 export interface TypeSpecimenOptions {
   readonly fontIndex?: number;
   readonly isCrisp?: boolean;
   readonly readingSize?: number;
   readonly beamWidth?: number;
+  readonly glow?: number;
   readonly colorIndex?: number;
 }
 
@@ -77,6 +80,7 @@ export class TypeSpecimenDemo implements Demo {
   public isCrisp: boolean;
   public readingSize: number;
   public beamWidth: number;
+  public glow: number;
   public colorIndex: number;
   // World units per CSS pixel, kept up to date by the page, so that sizes can be given in pixels.
   public unitsPerPixel = 1;
@@ -89,6 +93,7 @@ export class TypeSpecimenDemo implements Demo {
     this.isCrisp = options.isCrisp ?? false;
     this.readingSize = clamp(options.readingSize ?? 9, READING_SIZE_RANGE);
     this.beamWidth = clamp(options.beamWidth ?? 1.3, BEAM_WIDTH_RANGE);
+    this.glow = clamp(options.glow ?? 0.3, GLOW_RANGE);
     this.colorIndex = Math.max(0, Math.min(TEXT_COLORS.length - 1, options.colorIndex ?? 0));
   }
 
@@ -107,6 +112,10 @@ export class TypeSpecimenDemo implements Demo {
   public changeBeamWidth(direction: number): void {
     const stepped = this.beamWidth + direction * BEAM_WIDTH_RANGE.step;
     this.beamWidth = clamp(Math.round(stepped * 10) / 10, BEAM_WIDTH_RANGE);
+  }
+
+  public changeGlow(direction: number): void {
+    this.glow = clamp(Math.round((this.glow + direction * GLOW_RANGE.step) * 10) / 10, GLOW_RANGE);
   }
 
   public cycleColor(): void {
@@ -150,7 +159,7 @@ export class TypeSpecimenDemo implements Demo {
     displayList.setColor(textColor);
     specimen({ text: font.name, x: left, y, size: 24 * unit });
     const layer = this.isCrisp ? "crisp overlay" : "phosphor";
-    label(`${layer}   beam ${this.beamWidth.toFixed(1)} px   ${this.segmentCount} segments of text`, right, y, "right");
+    label(`${layer}   beam ${this.beamWidth.toFixed(1)} px   glow ${Math.round(this.glow * 100)}%   ${this.segmentCount} segments of text`, right, y, "right");
     label(`font ${this.fontIndex + 1} of ${SPECIMEN_FONTS.length}`, right, y + LABEL_SIZE * 2 * unit, "right");
     y += 24 * 2.1 * unit;
 
