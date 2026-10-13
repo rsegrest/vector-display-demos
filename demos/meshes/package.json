@@ -1,0 +1,19 @@
+{
+  "name": "@vector-demos/meshes",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Real meshes drawn as technical illustration: only silhouette and crease edges, with hidden lines removed.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build:meshes": "node tools/build-meshes.mjs"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

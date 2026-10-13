@@ -82,4 +82,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Live Earth",
     description: "Real satellites, the space station's track and this week's earthquakes on a wireframe globe",
   },
+  {
+    path: "meshes",
+    title: "Feature Edges",
+    description: "The teapot, the bunny and friends as line drawings: outline and folds only, hidden lines removed",
+  },
 ];

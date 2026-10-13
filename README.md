@@ -6,7 +6,7 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 
 | Path | What it is |
 | --- | --- |
-| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`). The demo list lives in `site/src/catalog.ts` |
+| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`, `/meshes/`). The demo list lives in `site/src/catalog.ts` |
 | `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), beam paths (`buildPath`, `glyphStrokes`: shapes and font text as strokes for the beam to follow), the demo font, seeded random, page helpers |
 | `demos/particle-life` | Particle Life |
 | `demos/travel-globe` | Rick's travel map on a vector globe; meant to replace ricksegrest.com/globe |
@@ -22,6 +22,7 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/text-crawl` | Text Crawl: vector-font text receding on a plane, shattering into its strokes |
 | `demos/epicycles` | Fourier Epicycles: chains of turning circles that redraw a shape |
 | `demos/live-earth` | Live Earth: real satellites, the ISS ground track and recent earthquakes on a wireframe globe |
+| `demos/meshes` | Feature Edges: the teapot, the bunny and other meshes as line drawings, with hidden lines removed |
 | `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots. `--chrome-flags` passes extra switches, e.g. `--autoplay-policy=no-user-gesture-required` to test audio |
 
 Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay` and `resize`), so a later "Vector OS" shell can host them all. Every demo returns to the index with Escape.
@@ -282,3 +283,33 @@ npm run update:snapshot -w @vector-demos/live-earth
 | `0` `W` | Back to now, replay the week |
 | `S` `Q` `G` `D` | Satellites, earthquakes, grid, day/night line |
 | `A`, `Space`, `H`, `F` | Spin, pause, HUD, fullscreen |
+
+## Feature Edges
+
+Real meshes as line drawings. Drawing every edge of a mesh gives a grey tangle, because most edges are only there to approximate a curved surface. This draws the few that describe the shape, the way a draughtsman would:
+
+- **Silhouette edges**, the outline: edges where a triangle facing the viewer meets one facing away. These change every frame as the object turns.
+- **Crease edges**, the sharp folds: edges where the surface bends by more than a set angle (`[` `]`).
+- **Border edges**, where an open surface simply stops.
+
+`M` switches to all edges, to show the tangle being chosen from. The teapot's 9,560 edges come down to about 570.
+
+**Hidden lines** are removed with a depth buffer on the CPU (`render/DepthBuffer.ts`), the method graphics hardware uses for surfaces. The triangles are not drawn, only measured: for each cell of a 512×512 grid, how near is the nearest surface. Each edge is then walked across the grid and the parts lying behind that surface are left out. It is approximate (a line can be cut a cell early or late) but it works for any mesh, however tangled, and costs about 4–6 ms a frame for these models. `L` turns it off to see through the object. This is the general-mesh hidden-line removal the `@vector-display/3d` package lacks; the Cellular Terrain demo's floating horizon only works for a height field.
+
+**Meshes.** The Utah teapot (Martin Newell, 1975), the Stanford bunny (Stanford 3D Scanning Repository, 1994) and Spot (Keenan Crane, public domain) are bundled in a compact form and loaded only when first shown. A gear and a torus knot are generated from formulae: the gear is all flat faces, so nearly everything drawn is a crease; the knot is all smooth surface, so everything drawn is silhouette. The bunny's 69,451 triangles are thinned to about 7,500 and smoothed by the build tool, which re-downloads the originals:
+
+```
+npm run build:meshes -w @vector-demos/meshes
+```
+
+URL: `mesh` (1-based).
+
+| Input | Action |
+| --- | --- |
+| Drag, wheel | Rotate, zoom |
+| `N` `B` | Next / previous mesh |
+| `M` | Feature edges / all edges |
+| `L` | Remove / show hidden lines |
+| `[` `]` | Crease angle |
+| `A` `C` | Auto-cycle, auto-camera |
+| `T`, `Space`, `H`, `F` | Trails, pause, HUD, fullscreen |
