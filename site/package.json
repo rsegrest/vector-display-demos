@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vector-demos/attractors": "*",
     "@vector-demos/biomorphs": "*",
     "@vector-demos/boids": "*",
     "@vector-demos/ca-terrain": "*",

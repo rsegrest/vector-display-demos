@@ -47,4 +47,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Biomorphs",
     description: "Dawkins' recursive creatures, bred by choosing one of eight mutant children",
   },
+  {
+    path: "attractors",
+    title: "Strange Attractors",
+    description: "Thousands of particles flowing through Lorenz, Aizawa, Thomas and other chaotic systems",
+  },
 ];
