@@ -73,40 +73,56 @@ Rick's travel map (the data from the travel-map app) on an orthographic vector g
 
 ## Slime Mold
 
-Thousands of Physarum agents crawl across a toroidal chemical field. Each one sniffs three points ahead, turns toward the strongest smell, steps forward and deposits a little more. The demo draws **only the agents**, as short ticks along their heading, and sets the phosphor's persistence long. The display's own decay *is* the trail, which is exactly the package feature this demo exists to show: the mesh of bright highways is where the beam has been.
+Thousands of Physarum agents crawl across a toroidal chemical field. Each one sniffs three points ahead, turns toward the strongest smell, steps forward and deposits a little more. The demo draws **only the agents**, as short ticks along their heading, and sets the phosphor's persistence long. The display's own decay *is* the trail, which is exactly the package feature this demo exists to show: the mesh of bright veins is where the beam has been.
 
-Five presets (`N`) change how far the mold can smell and how sharply it turns; they grow lattices, vines, blooms and webs. URL: `seed`, `agents` (1000–20000), `preset`.
+Two limits keep the network a network. A grid cell holds only so many agents, and the trail in a cell has a ceiling. Without them every strand is free to merge with its neighbour, and the whole dish drains into one line within half a minute; `tests/physarum.test.ts` checks each preset against exactly that.
+
+Click or drag to drop **food**: a standing smell that never fades. Veins within reach bend toward it and stay, so a few sources become the hubs of the network. Food sources are drawn as small amber rings.
+
+Five presets (`N`) change how far the mold can smell, how sharply it turns and how crowded a cell may get; they range from a fine filigree to a few long strands. Left alone, the demo starts a fresh dish with the next preset every 35 seconds. URL: `seed`, `agents` (2000–24000), `preset`.
 
 | Input | Action |
 | --- | --- |
-| Drag / Shift+drag | Drop food / erase trail |
+| Click or drag / Shift+drag | Drop food / erase trail and food |
 | `[` `]`, `-` `+` | Agent count, simulation steps per frame |
-| `N` `R` `C` `E` | Next preset, reseed, clear trail, auto-evolve |
+| `N` `R` `C` `E` | Next preset, reseed, clear the dish, auto-evolve |
 | `T` | Persistence: short, medium, long, echo |
 | `Space`, `.` | Pause, single step |
 | `H` `F` | HUD, fullscreen |
 
 ## Cellular Terrain
 
-Elementary cellular automata (Rule 30, 90, 110 and friends) are stacked into terrain. Each new generation is extruded as a ridgeline and scrolls toward a perspective camera, so you fly over the computation: Rule 30's chaotic cliffs, Rule 90's Sierpinski forest, Rule 110's Turing-complete traffic. There is no `@vector-display/3d` package in this repo, so the demo carries its own tiny pinhole projector (`render/terrainProjector.ts`); it is tested on its own.
+Elementary cellular automata (Rule 30, 90, 110 and friends) are stacked into terrain. Each new generation appears as a ridgeline at the horizon and slides toward a perspective camera, so you fly over the computation: Rule 30's chaotic ranges, Rule 90's nested basins, Rule 110's Turing-complete traffic.
+
+- **Height** is not the raw on/off cell but how crowded its neighbourhood has been over the last three generations (`sim/heightField.ts`), so busy regions pile up and the empty triangles become basins.
+- **Hidden lines** are removed with a floating horizon (`render/TerrainRenderer.ts`): rows are traced nearest first, and a farther row shows only where it rises above everything already drawn. `L` turns this off to see the difference.
+- **The land fills the view.** The automaton is a ring of 400 cells, tiled sideways as far as each row needs, so the terrain reaches the horizon on both sides.
+- **Motion is continuous.** Rows slide between generations rather than jumping a row at a time.
+- **Changing the rule does not cut.** The new rule carries on from the current generation, so its country arrives from the horizon. `G` and `R` likewise plant a single cell or a random row at the horizon.
+
+There is no `@vector-display/3d` package in this repo, so the demo carries its own tiny pinhole projector (`render/terrainProjector.ts`); it is tested on its own.
 
 URL: `rule` (1-based index into the preset list), `seed`, `camera`.
 
 | Input | Action |
 | --- | --- |
 | `N` `B` | Next / previous rule |
-| `R` `G` | Random initial row, single-cell seed |
+| `R` `G` | Random row, single-cell seed |
 | `A` | Auto-advance through rules |
 | `-` `+` | Generations per second |
-| `C` `L` | Camera height, toggle walls |
+| `C` `L` | Camera height, toggle hidden-line removal |
 | `[` `]` | Ridge height |
 | `T`, `Space`, `.`, `H`, `F` | Persistence, pause, step, HUD, fullscreen |
 
 ## Biomorphs
 
-Dawkins' *Blind Watchmaker* creatures, built from a nine-gene recursive tree. The parent sits in the middle of a 3×3 grid with eight mutant children around it; click a child (or use the arrows and `Enter`) and it becomes the parent of the next generation. The eight direction genes share mirror pairs, so the drawing is bilaterally symmetric. `Backspace` walks back up the lineage, and `P` cycles the famous Tree and Insect starting genomes. Left alone, the autopilot (`A`) breeds by random selection. Each child fades in branch by branch.
+Dawkins' *Blind Watchmaker* creatures, built from a nine-gene recursive tree. The parent sits in the middle of a 3×3 grid with eight mutant children around it; click a child (or use the arrows and `Enter`) and it becomes the parent of the next generation. The eight direction genes share mirror pairs, so the drawing is bilaterally symmetric.
 
-URL: `seed`, `genes=1,2,3,4,5,6,7,8,9`.
+Choosing a child is animated: it travels to the middle, and its own litter grows out of it, each child flowing from the parent's shape into its own. This works because every branch is a smooth function of the genes, so a creature part-way between two genomes is just the tree grown from part-way genes (`render/biomorph.ts`).
+
+`Backspace` walks back up the lineage, and `P` cycles eight starting creatures. Left alone, the autopilot (`A`) breeds on its own, steering away from creatures it has already visited and from nearly bare ones.
+
+URL: `genes=1,2,3,4,5,6,7,8,9`, `seed`. The address follows the parent as you breed, so copying it shares the creature.
 
 | Input | Action |
 | --- | --- |
