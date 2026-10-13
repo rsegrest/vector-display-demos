@@ -66,6 +66,7 @@ export class DemoHost {
   private elapsedSeconds = 0;
   private pendingSingleSteps = 0;
   private animationFrameId = 0;
+  private readonly onResize = (): void => this.layout();
 
   private constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -92,7 +93,7 @@ export class DemoHost {
   public static start(canvas: HTMLCanvasElement, demo: Demo, options: DemoHostOptions): DemoHost {
     const host = new DemoHost(canvas, demo, options);
     host.layout();
-    window.addEventListener("resize", () => host.layout());
+    window.addEventListener("resize", host.onResize);
     host.previousTime = performance.now();
     host.animationFrameId = requestAnimationFrame((time) => host.frame(time));
     return host;
@@ -121,10 +122,20 @@ export class DemoHost {
     };
   }
 
+  // Lays the display out again, for when the canvas has changed size without the window doing so.
+  public refreshLayout(): void {
+    this.layout();
+  }
+
+  // Stops drawing and gives everything back, including the canvas's WebGL context:
+  // browsers allow only a handful at once, so a page with many displays must
+  // release the ones it is not showing. The canvas cannot be drawn to again.
   public stop(): void {
     cancelAnimationFrame(this.animationFrameId);
+    window.removeEventListener("resize", this.onResize);
     this.phosphor.dispose();
     this.renderer.dispose();
+    this.renderer.gl.getExtension("WEBGL_lose_context")?.loseContext();
   }
 
   private layout(): void {

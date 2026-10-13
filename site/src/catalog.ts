@@ -87,4 +87,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Feature Edges",
     description: "The teapot, the bunny and friends as line drawings: outline and folds only, hidden lines removed",
   },
+  {
+    path: "docs",
+    title: "Live Guide",
+    description: "How the vector-display packages work, with every example editable and running",
+  },
 ];

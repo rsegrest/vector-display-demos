@@ -17,6 +17,7 @@
     "@vector-demos/boids": "*",
     "@vector-demos/ca-terrain": "*",
     "@vector-demos/demo-kit": "*",
+    "@vector-demos/docs": "*",
     "@vector-demos/epicycles": "*",
     "@vector-demos/gray-scott": "*",
     "@vector-demos/lenia": "*",

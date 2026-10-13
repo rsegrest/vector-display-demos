@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A guide to the vector-display packages in which every example is live: edit the code and the vector display beside it redraws." />
+    <title>vector-display: a live guide</title>
+  </head>
+  <body class="docs">
+    <a class="skip-link" href="#content">Skip to the guide</a>
+    <header class="docs-header">
+      <p><a href="../">&larr; All demos</a></p>
+      <h1>vector-display: a live guide</h1>
+      <p class="lede">
+        The <code>@vector-display</code> packages draw graphics the way a vector arcade monitor did: as glowing lines traced by a beam, not as a grid of
+        pixels. Every example on this page is running. Change the code and the display beside it redraws as you type.
+      </p>
+    </header>
+
+    <nav class="docs-nav" aria-label="Sections">
+      <ol>
+        <li><a href="#beam">The beam</a></li>
+        <li><a href="#display-list">The display list</a></li>
+        <li><a href="#shapes">Shapes</a></li>
+        <li><a href="#placement">Placement</a></li>
+        <li><a href="#colour">Colour and brightness</a></li>
+        <li><a href="#geometry">Geometry made every frame</a></li>
+        <li><a href="#line-style">Line style</a></li>
+        <li><a href="#phosphor">Phosphor</a></li>
+        <li><a href="#text">Text</a></li>
+        <li><a href="#three-d">Three dimensions</a></li>
+        <li><a href="#program">A whole program</a></li>
+        <li><a href="#reference">Reference</a></li>
+      </ol>
+    </nav>
+
+    <details class="beam-settings">
+      <summary>Beam settings</summary>
+      <p>These change every display on the page, and are remembered for next time.</p>
+      <div id="beam-settings"></div>
+    </details>
+
+    <main id="content">
+      <section id="beam">
+        <h2>The beam</h2>
+        <p>
+          A vector display has three properties an ordinary screen does not have by default. Light is <strong>additive</strong>: where lines cross, they
+          get brighter. The phosphor has <strong>persistence</strong>: a moving beam leaves a trail that fades. And there are
+          <strong>only lines</strong>: nothing is ever filled in.
+        </p>
+        <p>
+          The packages split the work in the same way the hardware did. <code>@vector-display/core</code> holds shapes and the list of strokes to draw
+          this frame. <code>@vector-display/webgl</code> draws that list. <code>@vector-display/beam-fx</code> adds the phosphor.
+          <code>@vector-display/font</code> and <code>@vector-display/3d</code> make strokes from text and from wireframe models.
+        </p>
+        <figure class="snippet" data-title="The banner">
+          <pre data-snippet><code>// Everything on this page is drawn by the library, starting with this.
+list.setColor({ red: 0.5, green: 1, blue: 0.85 });
+font.addText(list, {
+  text: "VECTOR-DISPLAY",
+  x: width / 2,
+  y: height / 2 - 30,
+  // Sized to fit the display, whatever its width.
+  size: width / 18,
+  alignment: "center",
+});
+
+// A dot circling the words. The trail behind it is the phosphor.
+const dot = Shape.createDot();
+list.setColor({ red: 1, green: 0.8, blue: 0.3 });
+list.addShape(dot, {
+  x: width / 2 + Math.cos(t * 2) * width * 0.44,
+  y: height / 2 - 12 + Math.sin(t * 2) * 80,
+  rotation: 0,
+  scale: 1,
+  intensity: 2,
+});
+view.phosphor = { persistenceHalfLifeMilliseconds: 350 };</code></pre>
+          <figcaption>
+            In each example, <code>list</code> is the display list for this frame, <code>t</code> is the time in seconds, and <code>width</code> and
+            <code>height</code> are the size of the display. One unit is one CSS pixel here.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section id="display-list">
+        <h2>The display list</h2>
+        <p>
+          A <code>DisplayList</code> is the list of strokes for one frame. You clear it, set a colour, and add shapes; then a renderer draws it. Nothing
+          is kept from one frame to the next, so a program rebuilds the list every frame. It reuses its memory, so that costs very little.
+        </p>
+        <p>
+          Coordinates are world units, with the origin at the top left and y pointing down, as in Canvas 2D. The renderer maps whatever world size you
+          choose onto the canvas.
+        </p>
+        <figure class="snippet" data-title="A shape in a display list">
+          <pre data-snippet><code>// Points only need x and y.
+const ship = Shape.fromPolyline({
+  points: [
+    { x: 0, y: -10 },
+    { x: -7.5, y: 10 },
+    { x: -5, y: 5 },
+    { x: 5, y: 5 },
+    { x: 7.5, y: 10 },
+  ],
+  isClosed: true,
+});
+
+list.setColor({ red: 0.85, green: 0.95, blue: 1 });
+list.addShape(ship, {
+  x: width / 2,
+  y: height / 2,
+  rotation: t,
+  scale: 6,
+  intensity: 1,
+});</code></pre>
+          <figcaption>
+            In a real program you would build <code>ship</code> once, outside the frame loop. The examples here rebuild their shapes every frame only so
+            that each one is complete in itself.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section id="shapes">
+        <h2>Shapes</h2>
+        <p>A <code>Shape</code> is line geometry, made once and placed as often as you like. There are four ways to make one.</p>
+        <ul>
+          <li><code>Shape.fromPolyline(polyline)</code>: a run of points. With <code>isClosed: true</code> it joins back to the first point.</li>
+          <li><code>Shape.fromPolylines(polylines)</code>: several runs in one shape, for anything with separate strokes.</li>
+          <li>
+            <code>Shape.fromSegmentCoordinates([x0, y0, x1, y1, ...])</code>: raw segments, four numbers each. Segments that touch end to start are
+            treated as connected.
+          </li>
+          <li><code>Shape.createDot()</code>: a segment of no length, which draws as a round dot, like a bullet on a vector monitor.</li>
+        </ul>
+        <figure class="snippet" data-title="Four ways to make a shape">
+          <pre data-snippet><code>const open = Shape.fromPolyline({
+  points: [{ x: -30, y: 20 }, { x: -10, y: -20 }, { x: 10, y: 20 }, { x: 30, y: -20 }],
+  isClosed: false,
+});
+const closed = Shape.fromPolyline({
+  points: [{ x: -25, y: 22 }, { x: 0, y: -22 }, { x: 25, y: 22 }],
+  isClosed: true,
+});
+// An A: the two legs, and the bar across.
+const letter = Shape.fromPolylines([
+  { points: [{ x: -20, y: 25 }, { x: 0, y: -25 }, { x: 20, y: 25 }], isClosed: false },
+  { points: [{ x: -11, y: 5 }, { x: 11, y: 5 }], isClosed: false },
+]);
+// A cross from two separate segments.
+const cross = Shape.fromSegmentCoordinates([-20, -20, 20, 20, -20, 20, 20, -20]);
+const dot = Shape.createDot();
+
+list.setColor({ red: 0.4, green: 1, blue: 0.7 });
+const shapes = [open, closed, letter, cross, dot];
+shapes.forEach((shape, index) =&gt; {
+  list.addShape(shape, {
+    x: (width * (index + 1)) / (shapes.length + 1),
+    y: height / 2,
+    rotation: 0,
+    scale: 1.6,
+    intensity: 1,
+  });
+});</code></pre>
+        </figure>
+        <p>
+          Whether segments are <em>connected</em> matters to how they look. The beam is brighter where it starts and stops, and a renderer can either
+          show that at every corner or join the corners seamlessly. See <a href="#line-style">line style</a>.
+        </p>
+      </section>
+
+      <section id="placement">
+        <h2>Placement</h2>
+        <p>
+          Each call to <code>addShape</code> takes a placement: where the shape goes (<code>x</code>, <code>y</code>), how far it is turned
+          (<code>rotation</code>, in radians, clockwise on screen because y points down), how large it is (<code>scale</code>), and how bright
+          (<code>intensity</code>). One shape can be placed many times in a frame.
+        </p>
+        <figure class="snippet" data-title="One shape, placed many times">
+          <pre data-snippet><code>const arrow = Shape.fromPolyline({
+  points: [{ x: 0, y: -12 }, { x: 8, y: 10 }, { x: 0, y: 4 }, { x: -8, y: 10 }],
+  isClosed: true,
+});
+
+list.setColor({ red: 1, green: 0.75, blue: 0.3 });
+const count = 9;
+for (let index = 0; index &lt; count; index++) {
+  const along = index / (count - 1);
+  list.addShape(arrow, {
+    x: 60 + along * (width - 120),
+    y: height / 2 + Math.sin(t * 2 + index) * 40,
+    rotation: t + index * 0.7,
+    scale: 1 + along * 2.5,
+    intensity: 0.3 + along,
+  });
+}</code></pre>
+        </figure>
+        <p>
+          For geometry that is already in world coordinates, pass <code>SCREEN_SPACE_PLACEMENT</code>, which is no movement, no rotation, a scale of 1
+          and an intensity of 1.
+        </p>
+      </section>
+
+      <section id="colour">
+        <h2>Colour and brightness</h2>
+        <p>
+          <code>setColor</code> takes red, green and blue from 0 to 1, and applies to every shape added after it. Light adds up: where two lines cross,
+          the crossing is brighter than either, and where red, green and blue lines meet, the meeting point is white. Intensity above 1 is allowed, and
+          is how you make something burn.
+        </p>
+        <figure class="snippet" data-title="Additive light">
+          <pre data-snippet><code>// Three fans of lines, one in each primary colour, sweeping across each other.
+const colours = [
+  { red: 1, green: 0.1, blue: 0.1 },
+  { red: 0.1, green: 1, blue: 0.1 },
+  { red: 0.15, green: 0.25, blue: 1 },
+];
+colours.forEach((colour, fan) =&gt; {
+  const coordinates = [];
+  const centreX = width / 2 + Math.cos(t * 0.6 + fan * 2.1) * 120;
+  const centreY = height / 2 + Math.sin(t * 0.6 + fan * 2.1) * 40;
+  for (let line = 0; line &lt; 14; line++) {
+    const angle = (line / 14) * Math.PI + t * 0.2 * (fan + 1);
+    coordinates.push(
+      centreX - Math.cos(angle) * 110, centreY - Math.sin(angle) * 110,
+      centreX + Math.cos(angle) * 110, centreY + Math.sin(angle) * 110,
+    );
+  }
+  list.setColor(colour);
+  list.addShape(Shape.fromSegmentCoordinates(coordinates), SCREEN_SPACE_PLACEMENT);
+});</code></pre>
+        </figure>
+      </section>
+
+      <section id="geometry">
+        <h2>Geometry made every frame</h2>
+        <p>
+          A <code>Shape</code> is for geometry that does not change. For geometry that does (a waveform, a contour, a swarm) the display list accepts
+          anything with the <code>ShapeGeometry</code> interface, so you can fill your own buffers each frame and avoid making new objects:
+        </p>
+        <ul>
+          <li><code>segmentCoordinates</code>: a <code>Float32Array</code> with four numbers per segment, <code>x0, y0, x1, y1</code>.</li>
+          <li>
+            <code>segmentNeighbors</code>: an <code>Int32Array</code> with two numbers per segment: the index of the segment it continues from and the
+            index of the one that continues it, or <code>NO_NEIGHBOR_SEGMENT</code> (-1) at a loose end.
+          </li>
+          <li><code>segmentCount</code>: how many segments are in use. The buffers may be longer.</li>
+        </ul>
+        <figure class="snippet" data-title="A waveform built each frame">
+          <pre data-snippet><code>const points = 120;
+const segments = points - 1;
+const segmentCoordinates = new Float32Array(segments * 4);
+const segmentNeighbors = new Int32Array(segments * 2);
+
+const wave = (index) =&gt; {
+  const along = index / (points - 1);
+  const envelope = Math.sin(along * Math.PI);
+  return height / 2 + Math.sin(along * 18 - t * 4) * 70 * envelope;
+};
+for (let index = 0; index &lt; segments; index++) {
+  segmentCoordinates[index * 4] = 40 + (index / (points - 1)) * (width - 80);
+  segmentCoordinates[index * 4 + 1] = wave(index);
+  segmentCoordinates[index * 4 + 2] = 40 + ((index + 1) / (points - 1)) * (width - 80);
+  segmentCoordinates[index * 4 + 3] = wave(index + 1);
+  // Each segment continues from the one before and into the one after.
+  segmentNeighbors[index * 2] = index === 0 ? NO_NEIGHBOR_SEGMENT : index - 1;
+  segmentNeighbors[index * 2 + 1] = index === segments - 1 ? NO_NEIGHBOR_SEGMENT : index + 1;
+}
+
+list.setColor({ red: 0.3, green: 1, blue: 0.5 });
+list.addShape(
+  { segmentCoordinates, segmentNeighbors, segmentCount: segments },
+  SCREEN_SPACE_PLACEMENT,
+);</code></pre>
+          <figcaption>
+            Here too a real program would allocate the two arrays once and refill them each frame. Telling the renderer which segments are neighbours
+            is what lets it join them without a bright bead at every point.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section id="line-style">
+        <h2>Line style</h2>
+        <p>
+          <code>WebGLVectorRenderer</code> draws a whole display list in one draw call. How its lines look is set with
+          <code>renderer.setLineStyle({ ... })</code>, in framebuffer pixels:
+        </p>
+        <table>
+          <thead>
+            <tr><th scope="col">Field</th><th scope="col">Default</th><th scope="col">Effect</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>beamWidth</code></td><td>1.5</td><td>Width of the line itself</td></tr>
+            <tr><td><code>glowRadius</code></td><td>4</td><td>How far the soft halo round each line reaches</td></tr>
+            <tr><td><code>glowStrength</code></td><td>0.25</td><td>How bright that halo is</td></tr>
+            <tr><td><code>endpointBrightness</code></td><td>0.6</td><td>Extra brightness where a stroke starts and stops; 0 removes it</td></tr>
+            <tr><td><code>jointOverlap</code></td><td>1</td><td>Extra brightness where connected segments meet; 0 gives seamless joints</td></tr>
+          </tbody>
+        </table>
+        <p>
+          The first three are in the <a href="#beam-settings">beam settings</a> panel. The last two are a choice about character: a real beam dwells
+          at the ends of each stroke, which gives arcade vector graphics their beaded corners.
+        </p>
+        <figure class="snippet" data-title="Endpoints and joints">
+          <pre data-snippet><code>// In these examples, set view.lineStyle to change this display alone.
+// Try endpointBrightness: 0 and jointOverlap: 0 for smooth, even lines.
+view.lineStyle = {
+  beamWidth: 1.5,
+  endpointBrightness: 0.9,
+  jointOverlap: 1,
+};
+
+const star = [];
+for (let point = 0; point &lt; 5; point++) {
+  const angle = -Math.PI / 2 + (point * 2 * Math.PI * 2) / 5;
+  star.push({ x: Math.cos(angle) * 90, y: Math.sin(angle) * 90 });
+}
+list.setColor({ red: 0.8, green: 0.9, blue: 1 });
+// Connected: the corners are joints.
+list.addShape(Shape.fromPolyline({ points: star, isClosed: true }), {
+  x: width * 0.3, y: height / 2, rotation: t * 0.3, scale: 1, intensity: 1,
+});
+// Loose: every segment has two ends of its own.
+const loose = [];
+star.forEach((from, index) =&gt; {
+  const to = star[(index + 1) % star.length];
+  loose.push(from.x * 0.97, from.y * 0.97, to.x * 0.97, to.y * 0.97);
+});
+list.addShape(Shape.fromSegmentCoordinates(loose), {
+  x: width * 0.7, y: height / 2, rotation: t * 0.3, scale: 1, intensity: 1,
+});</code></pre>
+        </figure>
+      </section>
+
+      <section id="phosphor">
+        <h2>Phosphor</h2>
+        <p>
+          <code>PhosphorPipeline</code> sits on top of the renderer and gives the display its glass. In place of clearing and drawing, you call
+          <code>phosphor.renderFrame(displayList, elapsedMilliseconds)</code>: it draws the beams, fades what was there before, adds bloom, and writes
+          the result to the canvas.
+        </p>
+        <table>
+          <thead>
+            <tr><th scope="col">Setting</th><th scope="col">Default</th><th scope="col">Effect</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>persistenceHalfLifeMilliseconds</code></td><td>40</td><td>How long a trail takes to fade to half brightness</td></tr>
+            <tr><td><code>bloomStrength</code></td><td>1.2</td><td>The wide glow round bright lines; lower looks crisper</td></tr>
+            <tr><td><code>bloomBlurIterations</code></td><td>2</td><td>How far that glow spreads</td></tr>
+            <tr><td><code>exposure</code></td><td>1.6</td><td>How quickly bright areas roll off toward white</td></tr>
+            <tr><td><code>flickerAmount</code></td><td>0.08</td><td>Depth of the random brightness flutter, 0 to 1</td></tr>
+            <tr><td><code>flickerFrequencyHz</code></td><td>15</td><td>How often the flutter changes level</td></tr>
+          </tbody>
+        </table>
+        <p>
+          The effects are based on time, not frames, so they look the same at 60 Hz and at 120 Hz. Something that does not move keeps its true
+          brightness; only movement leaves a trail. That makes persistence a drawing tool: draw only a moving point, and the phosphor draws the path.
+        </p>
+        <figure class="snippet" data-title="Persistence as a drawing tool">
+          <pre data-snippet><code>// Only three dots are drawn. The curves are what the phosphor remembers.
+view.phosphor = { persistenceHalfLifeMilliseconds: 700, bloomStrength: 0.8 };
+
+const dot = Shape.createDot();
+const colours = [
+  { red: 1, green: 0.4, blue: 0.3 },
+  { red: 0.4, green: 1, blue: 0.5 },
+  { red: 0.4, green: 0.6, blue: 1 },
+];
+colours.forEach((colour, index) =&gt; {
+  list.setColor(colour);
+  list.addShape(dot, {
+    x: width / 2 + Math.sin(t * (2 + index)) * (width * 0.38),
+    y: height / 2 + Math.sin(t * (3 + index) + index) * 95,
+    rotation: 0,
+    scale: 1,
+    intensity: 3,
+  });
+});</code></pre>
+        </figure>
+        <p class="note">
+          <strong>Photosensitivity:</strong> strong full-screen flicker at around 3 to 30 Hz can trigger seizures in people with photosensitive
+          epilepsy. Keep <code>flickerAmount</code> small, and let people turn it off. The panel on this page stops at 0.15.
+        </p>
+      </section>
+
+      <section id="text">
+        <h2>Text</h2>
+        <p>
+          <code>@vector-display/font</code> is a stroke font in the style of late-1970s vector games, drawn on a 4 by 6 grid, and a small text layout.
+          Letters are beam strokes like everything else, so they glow and leave trails like everything else.
+        </p>
+        <p>
+          <code>font.addText(displayList, run)</code> takes <code>text</code>, <code>x</code>, <code>y</code> (the top of the first line),
+          <code>size</code> (the height of a capital, in world units), and optionally <code>alignment</code> (<code>"left"</code>,
+          <code>"center"</code> or <code>"right"</code>), <code>rotation</code> and <code>intensity</code>. <code>font.measureText(text, size)</code>
+          gives the width and height it would take. The font has A to Z, 0 to 9 and common punctuation; lowercase is drawn as capitals, and
+          <code>\n</code> starts a new line.
+        </p>
+        <figure class="snippet" data-title="Text and measuring it">
+          <pre data-snippet><code>// `font` here was made with VectorFont.createArcadeFont().
+const score = String(Math.floor(t * 137) % 100000).padStart(5, "0");
+list.setColor({ red: 0.85, green: 0.95, blue: 1 });
+font.addText(list, { text: "SCORE " + score, x: 30, y: 24, size: 18 });
+font.addText(list, { text: "HIGH 99990", x: width - 30, y: 24, size: 18, alignment: "right" });
+
+const message = "GAME OVER";
+const size = 40 + Math.sin(t * 2) * 6;
+const box = font.measureText(message, size);
+list.setColor({ red: 1, green: 0.45, blue: 0.35 });
+font.addText(list, {
+  text: message,
+  x: width / 2,
+  y: height / 2 - box.height / 2,
+  size,
+  alignment: "center",
+});
+
+// A frame drawn from the measurement.
+const pad = 16;
+const left = width / 2 - box.width / 2 - pad;
+const top = height / 2 - box.height / 2 - pad;
+list.setColor({ red: 0.5, green: 0.3, blue: 0.3 });
+list.addShape(
+  Shape.fromPolyline({
+    points: [
+      { x: left, y: top },
+      { x: left + box.width + pad * 2, y: top },
+      { x: left + box.width + pad * 2, y: top + box.height + pad * 2 },
+      { x: left, y: top + box.height + pad * 2 },
+    ],
+    isClosed: true,
+  }),
+  SCREEN_SPACE_PLACEMENT,
+);</code></pre>
+        </figure>
+        <p>
+          With glow and bloom, text 16 units tall or more reads clearly. For smaller text, turn bloom and endpoint brightness down. You can add or
+          replace glyphs with <code>VectorFont.createArcadeFont({ ... })</code>, or build a whole font with <code>VectorFont.fromDefinition</code>.
+        </p>
+      </section>
+
+      <section id="three-d">
+        <h2>Three dimensions</h2>
+        <p>
+          <code>@vector-display/3d</code> projects wireframe models into strokes. Its space has x to the right, <strong>y up</strong>, and z away from
+          the viewer; what comes out is in the display's own y-down coordinates. The maths types, <code>Vector</code> and <code>Angle</code>, come
+          from <code>es-vector-math</code>.
+        </p>
+        <ul>
+          <li>
+            A <strong>model</strong> is vertices and the polylines that join them: <code>WireframeModel.fromDefinition({ vertices, polylines })</code>.
+            <code>createBoxModel</code> and <code>createPyramidModel</code> are included.
+          </li>
+          <li>
+            A <strong>placement</strong> puts a model in the scene: <code>createModelPlacement({ position, rotationX, rotationY, rotationZ, scale })</code>,
+            applied as scale, then rotation, then position.
+          </li>
+          <li>
+            A <strong>camera</strong> has a position, a yaw and a pitch. The eye sits <code>viewDistance</code> behind a plane at that position, so
+            things on that plane keep their size. Lines nearer the eye than <code>nearDistance</code> are cut off, so objects can pass the camera.
+          </li>
+        </ul>
+        <figure class="snippet" data-title="Wireframe models in perspective">
+          <pre data-snippet><code>const projector = new WireframeProjector({
+  ...DEFAULT_PERSPECTIVE_CAMERA,
+  // The eye is 400 units behind this point, looking slightly down.
+  position: new Vector(0, 90, 0),
+  pitch: Angle.fromDegrees(10),
+  screenCenterX: width / 2,
+  screenCenterY: height / 2,
+});
+const cube = createBoxModel({ width: 110, height: 110, depth: 110 });
+const pyramid = createPyramidModel({ baseWidth: 110, height: 130 });
+
+// The projector reuses its buffers, so add each result before projecting the next.
+list.setColor({ red: 0.4, green: 1, blue: 0.6 });
+list.addShape(
+  projector.project(cube, createModelPlacement({
+    position: new Vector(-120, 55, 180),
+    rotationY: Angle.fromRadians(t),
+    rotationX: Angle.fromRadians(t * 0.4),
+  })),
+  SCREEN_SPACE_PLACEMENT,
+);
+list.setColor({ red: 1, green: 0.7, blue: 0.3 });
+list.addShape(
+  projector.project(pyramid, createModelPlacement({
+    position: new Vector(120, 0, 180),
+    rotationY: Angle.fromRadians(-t * 0.8),
+  })),
+  SCREEN_SPACE_PLACEMENT,
+);
+
+// A floor of lines running into the distance.
+const floor = WireframeModel.fromDefinition({
+  vertices: [-2, -1, 0, 1, 2].flatMap((lane) =&gt; [new Vector(lane * 120, 0, 40), new Vector(lane * 120, 0, 1500)]),
+  polylines: [0, 1, 2, 3, 4].map((lane) =&gt; ({ vertexIndices: [lane * 2, lane * 2 + 1], isClosed: false })),
+});
+list.setColor({ red: 0.25, green: 0.4, blue: 0.7 });
+list.addShape(projector.project(floor, createModelPlacement({})), SCREEN_SPACE_PLACEMENT);</code></pre>
+          <figcaption>
+            The package draws every edge of a model. It has no hidden-line removal; the Feature Edges and Cellular Terrain demos on this site each
+            carry their own.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section id="program">
+        <h2>A whole program</h2>
+        <p>
+          The examples above are given a display list and a clock. This is everything a real page needs: a canvas, a renderer, the phosphor, and a
+          frame loop. It is not editable here, because it is the part this page is already doing for every example.
+        </p>
+        <pre class="listing"><code>import { DisplayList, Shape } from "@vector-display/core";
+import { WebGLVectorRenderer } from "@vector-display/webgl";
+import { PhosphorPipeline } from "@vector-display/beam-fx";
+
+const canvas = document.querySelector("canvas");
+const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+canvas.width = canvas.clientWidth * pixelRatio;
+canvas.height = canvas.clientHeight * pixelRatio;
+
+// The world is 1024 by 768 units, whatever size the canvas is.
+const renderer = WebGLVectorRenderer.fromCanvas(canvas, { width: 1024, height: 768 });
+renderer.setLineStyle({ beamWidth: 1.5 * pixelRatio, glowRadius: 3 * pixelRatio });
+const phosphor = new PhosphorPipeline(renderer, {
+  persistenceHalfLifeMilliseconds: 60,
+  bloomStrength: 0.6,
+});
+
+// Build shapes once.
+const ship = Shape.fromPolyline({
+  points: [{ x: 0, y: -10 }, { x: -7.5, y: 10 }, { x: -5, y: 5 }, { x: 5, y: 5 }, { x: 7.5, y: 10 }],
+  isClosed: true,
+});
+const displayList = new DisplayList();
+
+let previousTime = performance.now();
+function drawFrame(time) {
+  displayList.clear();
+  displayList.setColor({ red: 0.85, green: 0.95, blue: 1 });
+  displayList.addShape(ship, { x: 512, y: 384, rotation: time / 1000, scale: 4, intensity: 1 });
+
+  // In place of renderer.clear() and renderer.drawDisplayList(displayList):
+  phosphor.renderFrame(displayList, time - previousTime);
+  previousTime = time;
+  requestAnimationFrame(drawFrame);
+}
+requestAnimationFrame(drawFrame);</code></pre>
+        <p>
+          Without the phosphor, the loop is <code>renderer.clear()</code> followed by <code>renderer.drawDisplayList(displayList)</code>. Drawing is
+          additive and goes to whatever framebuffer is bound, so the renderer can also draw into a texture of your own.
+        </p>
+      </section>
+
+      <section id="reference">
+        <h2>Reference</h2>
+        <p>All five packages are ES modules with TypeScript declarations, at version 0.1; the API may change between minor versions.</p>
+        <table>
+          <thead>
+            <tr><th scope="col">Package</th><th scope="col">Exports</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>@vector-display/core</code></td>
+              <td>
+                <code>Shape</code>, <code>DisplayList</code> (<code>clear</code>, <code>setColor</code>, <code>addShape</code>,
+                <code>getSegmentData</code>, <code>segmentCount</code>), <code>SCREEN_SPACE_PLACEMENT</code>, <code>NO_NEIGHBOR_SEGMENT</code>, and the
+                types <code>BeamColor</code>, <code>Polyline</code>, <code>ShapeGeometry</code>, <code>ShapePlacement</code>. No rendering code, so it
+                runs in Node and in tests.
+              </td>
+            </tr>
+            <tr>
+              <td><code>@vector-display/webgl</code></td>
+              <td>
+                <code>WebGLVectorRenderer</code> (<code>fromCanvas</code>, <code>setWorldSize</code>, <code>setLineStyle</code>, <code>clear</code>,
+                <code>drawDisplayList</code>, <code>dispose</code>), <code>DEFAULT_LINE_STYLE</code>, <code>createShaderProgram</code>. Needs WebGL2.
+              </td>
+            </tr>
+            <tr>
+              <td><code>@vector-display/beam-fx</code></td>
+              <td>
+                <code>PhosphorPipeline</code> (<code>renderFrame</code>, <code>setSettings</code>, <code>dispose</code>),
+                <code>DEFAULT_PHOSPHOR_SETTINGS</code>.
+              </td>
+            </tr>
+            <tr>
+              <td><code>@vector-display/font</code></td>
+              <td>
+                <code>VectorFont</code> (<code>createArcadeFont</code>, <code>fromDefinition</code>, <code>addText</code>, <code>measureText</code>,
+                <code>hasGlyph</code>, <code>findGlyph</code>), <code>ARCADE_GLYPHS</code>, <code>ARCADE_FONT_METRICS</code>.
+              </td>
+            </tr>
+            <tr>
+              <td><code>@vector-display/3d</code></td>
+              <td>
+                <code>WireframeModel</code>, <code>WireframeProjector</code> (<code>project</code>, <code>setCamera</code>),
+                <code>createBoxModel</code>, <code>createPyramidModel</code>, <code>createModelPlacement</code>,
+                <code>DEFAULT_PERSPECTIVE_CAMERA</code>. Uses <code>es-vector-math</code>.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          The rest of this site is built on the same five packages. <a href="../">The demos</a> are the larger examples: each one is a few hundred
+          lines that fill a display list every frame.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="../src/pages/docs.ts"></script>
+  </body>
+</html>

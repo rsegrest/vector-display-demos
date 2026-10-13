@@ -1,0 +1,23 @@
+{
+  "name": "@vector-demos/docs",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A guide to the @vector-display packages in which every example is live: edit the code and the vector canvas beside it redraws.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/3d": "^0.1.0",
+    "@vector-display/beam-fx": "^0.1.0",
+    "@vector-display/core": "^0.1.0",
+    "@vector-display/font": "^0.1.0",
+    "@vector-display/webgl": "^0.1.0",
+    "es-vector-math": "^0.1.0"
+  }
+}

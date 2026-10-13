@@ -6,8 +6,8 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 
 | Path | What it is |
 | --- | --- |
-| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`, `/meshes/`). The demo list lives in `site/src/catalog.ts` |
-| `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), beam paths (`buildPath`, `glyphStrokes`: shapes and font text as strokes for the beam to follow), the demo font, seeded random, page helpers |
+| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`, `/meshes/`, `/docs/`). The demo list lives in `site/src/catalog.ts` |
+| `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), beam paths (`buildPath`, `glyphStrokes`: shapes and font text as strokes for the beam to follow), `BeamSettingsStore` (the visitor's saved beam settings), the demo font, seeded random, page helpers |
 | `demos/particle-life` | Particle Life |
 | `demos/travel-globe` | Rick's travel map on a vector globe; meant to replace ricksegrest.com/globe |
 | `demos/life`, `demos/boids` | Life on the Beam and Boids on the Beam. The rule and beam-geometry modules and their tests are copied unchanged from `~/code/2026/vector-display/examples/demo`; only the full-screen adapters are new |
@@ -23,6 +23,7 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/epicycles` | Fourier Epicycles: chains of turning circles that redraw a shape |
 | `demos/live-earth` | Live Earth: real satellites, the ISS ground track and recent earthquakes on a wireframe globe |
 | `demos/meshes` | Feature Edges: the teapot, the bunny and other meshes as line drawings, with hidden lines removed |
+| `demos/docs` | Live Guide: documentation for the `@vector-display` packages in which every example is editable and running |
 | `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots. `--chrome-flags` passes extra switches, e.g. `--autoplay-policy=no-user-gesture-required` to test audio |
 
 Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay` and `resize`), so a later "Vector OS" shell can host them all. Every demo returns to the index with Escape.
@@ -313,3 +314,24 @@ URL: `mesh` (1-based).
 | `[` `]` | Crease angle |
 | `A` `C` | Auto-cycle, auto-camera |
 | `T`, `Space`, `H`, `F` | Trails, pause, HUD, fullscreen |
+
+## Live Guide
+
+A guide to the five `@vector-display` packages at `/docs/`, in which every example is running. Each has an editor beside a vector display; change the code and the display redraws about a quarter of a second after you stop typing.
+
+**The text is ordinary HTML.** The whole guide, code included, is written in `site/docs/index.html`, so it can be read, searched and navigated without the script, and by a screen reader. The script only upgrades each `<figure class="snippet">`: its `<pre data-snippet>` becomes a labelled text area, and a display appears next to it.
+
+**How an example runs** (`demos/docs/src/snippetRuntime.ts`). The code is the body of a function called once per frame. It is given `list` (the display list to fill), `t` (seconds), `width` and `height`, a `view` object for setting line style or phosphor on its own display, and the packages' exports under their own names, so what works in the guide works when imported in a real program.
+
+- Text that does not parse is reported, and the last version that did keeps running.
+- Code that throws is stopped and reported, and starts again when edited.
+- Code is only ever taken from the page or from what the reader types. It is never read from the address bar or from storage, so a link cannot carry code into someone else's browser.
+- **Limitation:** the code runs on the page's own thread, so an endless loop typed into an editor will hang the tab. Reloading clears it, since edits are not saved.
+
+**Beam settings.** A panel in the corner has sliders for beam width, glow, persistence, bloom, exposure and flicker. They apply to every display on the page and are saved in the browser (`BeamSettingsStore` in `demo-kit`), ready for other pages to share. Flicker stops at 0.15: strong full-screen flicker can trigger photosensitive seizures.
+
+**Displays come and go.** Browsers allow a page only a handful of WebGL displays at once, so each example's display is created as it scrolls into view and released when it scrolls away.
+
+**The examples are tested.** `demos/docs/tests/docs.test.ts` reads the HTML, extracts every example and runs it at several moments, checking that it draws something and raises nothing. It also checks that the default values quoted in the guide's tables are the libraries' real defaults. Adding an example to the page adds it to the test.
+
+The guide is written from the packages' own READMEs and type declarations at version 0.1.0. It belongs with the library as much as with these demos, and could move to the `vector-display` repository as its documentation site.

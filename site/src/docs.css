@@ -1,0 +1,307 @@
+/* The guide is a document, not a full-screen display: it scrolls, and its text is ordinary text. */
+:root {
+  color-scheme: dark;
+  --ink: #cfe3f5;
+  --dim: #8aa3b8;
+  --line: #24384a;
+  --panel: #0a1119;
+  --accent: #7fffd9;
+  --warn: #ffb37a;
+}
+
+body.docs {
+  margin: 0;
+  padding: 0 24px 96px;
+  background: #04070b;
+  color: var(--ink);
+  font: 16px/1.6 ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.docs a {
+  color: var(--accent);
+}
+
+.docs a:focus-visible,
+.docs button:focus-visible,
+.docs textarea:focus-visible,
+.docs input:focus-visible,
+.docs summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+}
+
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+  padding: 8px 12px;
+  background: var(--panel);
+  z-index: 20;
+}
+
+.docs-header,
+.docs-nav,
+.docs main {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.docs-header {
+  padding-top: 28px;
+}
+
+.docs h1 {
+  margin: 8px 0 12px;
+  font-size: 30px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(127, 255, 217, 0.35);
+}
+
+.docs h2 {
+  margin: 56px 0 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 22px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.lede {
+  max-width: 75ch;
+  color: var(--ink);
+}
+
+.docs p,
+.docs li {
+  max-width: 80ch;
+}
+
+.docs code {
+  color: #ffe3a8;
+}
+
+.docs-nav ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The beam settings stay in reach in a corner while the page scrolls. */
+.beam-settings {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  width: 300px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  background: rgba(8, 14, 21, 0.96);
+  font-size: 13px;
+}
+
+.beam-settings:not([open]) {
+  width: auto;
+}
+
+.beam-settings summary {
+  cursor: pointer;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.beam-settings p {
+  margin: 8px 0;
+  color: var(--dim);
+}
+
+.beam-row {
+  display: grid;
+  grid-template-columns: 96px 1fr 62px;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.beam-row output {
+  text-align: right;
+  color: var(--dim);
+}
+
+.beam-row input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.docs button {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.docs button:hover {
+  border-color: var(--accent);
+}
+
+/* An example: the display beside its code on a wide screen, above it on a narrow one. */
+figure.snippet {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin: 20px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.snippet-stage {
+  background: #000;
+  color: var(--warn);
+}
+
+.snippet-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.snippet-label {
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.snippet-editor,
+.docs pre {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: #02050a;
+  color: #dbeaf7;
+  font: 13px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+}
+
+.snippet-editor {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.snippet-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.snippet-status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.snippet-status[data-kind="syntax"],
+.snippet-status[data-kind="failed"] {
+  color: var(--warn);
+}
+
+figure.snippet figcaption {
+  color: var(--dim);
+  font-size: 14px;
+  max-width: 85ch;
+}
+
+@media (min-width: 1100px) {
+  figure.snippet.snippet-live {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "stage label"
+      "stage editor"
+      "stage controls"
+      "caption caption";
+    grid-template-rows: auto 1fr auto auto;
+  }
+
+  /* The display stays in view while a long example's code scrolls past. */
+  .snippet-live .snippet-stage {
+    grid-area: stage;
+    position: sticky;
+    top: 12px;
+    align-self: start;
+  }
+
+  .snippet-live .snippet-label {
+    grid-area: label;
+  }
+
+  .snippet-live .snippet-editor {
+    grid-area: editor;
+    height: 100%;
+  }
+
+  .snippet-live .snippet-controls {
+    grid-area: controls;
+  }
+
+  .snippet-live figcaption {
+    grid-area: caption;
+  }
+}
+
+.docs table {
+  width: 100%;
+  max-width: 1000px;
+  margin: 16px 0;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.docs th,
+.docs td {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.docs th {
+  color: var(--accent);
+}
+
+.note {
+  padding: 10px 14px;
+  border-left: 3px solid var(--warn);
+  background: var(--panel);
+}
+
+@media (max-width: 760px) {
+  .beam-settings {
+    position: static;
+    width: auto;
+    margin: 16px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

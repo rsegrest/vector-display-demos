@@ -16,3 +16,5 @@ export { ContourTracer } from "./contours.js";
 export type { ContourTransform } from "./contours.js";
 export { buildPath, cubePath, glyphStrokes, heartPath, octahedronPath, samplePath, spiralPath, starPath, textPath, trianglePath } from "./beamPaths.js";
 export type { BeamPath, Point3, Stroke } from "./beamPaths.js";
+export { BEAM_SETTINGS_STORAGE_KEY, BEAM_SETTING_RANGES, BeamSettingsStore, DEFAULT_BEAM_SETTINGS, browserSettingsStorage } from "./BeamSettings.js";
+export type { BeamSettingRange, BeamSettings, SettingsStorage } from "./BeamSettings.js";
