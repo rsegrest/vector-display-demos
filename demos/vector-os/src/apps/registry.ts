@@ -81,7 +81,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "ca-terrain",
     title: "Cellular Terrain",
     kind: "demo",
-    category: "alife",
+    category: "simulation",
     size: DEMO_SIZE,
     create: async () => {
       const { CaTerrainDemo } = await import("@vector-demos/ca-terrain");
@@ -112,7 +112,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "attractors",
     title: "Strange Attractors",
     kind: "demo",
-    category: "creative",
+    category: "simulation",
     size: DEMO_SIZE,
     create: async () => {
       const { AttractorsDemo } = await import("@vector-demos/attractors");
@@ -123,7 +123,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "gray-scott",
     title: "Gray-Scott",
     kind: "demo",
-    category: "alife",
+    category: "simulation",
     size: DEMO_SIZE,
     create: async () => {
       const { GrayScottDemo } = await import("@vector-demos/gray-scott");
@@ -190,7 +190,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     id: "live-earth",
     title: "Live Earth",
     kind: "demo",
-    category: "creative",
+    category: "simulation",
     size: { width: 600, height: 480 },
     create: async () => {
       const { createLiveEarth } = await import("@vector-demos/live-earth");

@@ -730,8 +730,9 @@ describe("the real programs", () => {
     expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(15);
     const inCategory = (category: string): string[] => APP_ENTRIES.filter((entry) => entry.category === category).map((entry) => entry.id);
     expect(inCategory("utilities")).toEqual(["terminal", "clock", "beam", "calc"]);
-    expect(inCategory("alife")).toEqual(["particle-life", "lenia", "life", "boids", "slime-mold", "ca-terrain", "biomorphs", "gray-scott"]);
-    expect(inCategory("creative")).toEqual(["attractors", "polytopes", "oscilloscope", "text-crawl", "epicycles", "live-earth", "meshes"]);
+    expect(inCategory("alife")).toEqual(["particle-life", "lenia", "life", "boids", "slime-mold", "biomorphs"]);
+    expect(inCategory("simulation")).toEqual(["ca-terrain", "attractors", "gray-scott", "live-earth"]);
+    expect(inCategory("creative")).toEqual(["polytopes", "oscilloscope", "text-crawl", "epicycles", "meshes"]);
     expect(inCategory("arcade")).toEqual([]);
   });
 
