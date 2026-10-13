@@ -1,0 +1,21 @@
+{
+  "name": "@vector-demos/live-earth",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A wireframe Earth with real satellites, the ISS ground track and recent earthquakes, from live public data.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "update:snapshot": "node tools/update-snapshot.mjs"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-demos/travel-globe": "*",
+    "@vector-display/core": "^0.1.0",
+    "satellite.js": "^5.0.0"
+  }
+}

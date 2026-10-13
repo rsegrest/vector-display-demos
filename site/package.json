@@ -21,6 +21,7 @@
     "@vector-demos/gray-scott": "*",
     "@vector-demos/lenia": "*",
     "@vector-demos/life": "*",
+    "@vector-demos/live-earth": "*",
     "@vector-demos/oscilloscope": "*",
     "@vector-demos/particle-life": "*",
     "@vector-demos/polytopes": "*",

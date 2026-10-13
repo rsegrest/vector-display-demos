@@ -6,8 +6,8 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 
 | Path | What it is |
 | --- | --- |
-| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`). The demo list lives in `site/src/catalog.ts` |
-| `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), the demo font, seeded random, page helpers |
+| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`). The demo list lives in `site/src/catalog.ts` |
+| `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), beam paths (`buildPath`, `glyphStrokes`: shapes and font text as strokes for the beam to follow), the demo font, seeded random, page helpers |
 | `demos/particle-life` | Particle Life |
 | `demos/travel-globe` | Rick's travel map on a vector globe; meant to replace ricksegrest.com/globe |
 | `demos/life`, `demos/boids` | Life on the Beam and Boids on the Beam. The rule and beam-geometry modules and their tests are copied unchanged from `~/code/2026/vector-display/examples/demo`; only the full-screen adapters are new |
@@ -19,6 +19,9 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/gray-scott` | Gray-Scott: reaction-diffusion patterns drawn as contour lines |
 | `demos/polytopes` | 4D Polytopes: the six regular polytopes rotating through four dimensions |
 | `demos/oscilloscope` | Oscilloscope: a stereo signal drawn as an XY beam, with sound |
+| `demos/text-crawl` | Text Crawl: vector-font text receding on a plane, shattering into its strokes |
+| `demos/epicycles` | Fourier Epicycles: chains of turning circles that redraw a shape |
+| `demos/live-earth` | Live Earth: real satellites, the ISS ground track and recent earthquakes on a wireframe globe |
 | `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots. `--chrome-flags` passes extra switches, e.g. `--autoplay-policy=no-user-gesture-required` to test audio |
 
 Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay` and `resize`), so a later "Vector OS" shell can host them all. Every demo returns to the index with Escape.
@@ -212,3 +215,70 @@ URL: `figure` (1-based).
 | `O`, or drop a file | Play an audio file through the scope |
 | `A` `T` `K` `G` | Auto-cycle, trails, phosphor colour, grid |
 | `Space`, `H`, `F` | Pause, HUD, fullscreen |
+
+## Text Crawl
+
+Text in the vector font, laid on a plane that recedes from the viewer and slides into the distance. The text is only ever its strokes: perspective comes from projecting each stroke's two ends, and when the page shatters the same strokes simply stop being held in place. Each becomes a small spinning stick thrown outward from the blast, and the next page assembles from scattered strokes flying into words.
+
+Click anywhere in the text to shatter it from that point (`sim/CrawlScene.ts` finds where the click's line of sight meets the plane). Left alone, a page shatters once it has slid far enough away.
+
+`?text=` shows your own words: `|` ends a line, `||` ends a page, and a line starting with `#` is a title. Keep lines under about 26 characters so the nearest ones fit the screen. Characters the font cannot draw become spaces. Example: `?text=%23HELLO|THIS IS MY OWN CRAWL||AND A SECOND PAGE`.
+
+| Input | Action |
+| --- | --- |
+| `Space` / `Enter` / click | Shatter the page (a click shatters from that point) |
+| `N` | Next page |
+| `-` `+` | Crawl speed |
+| `T`, `P`, `H`, `F` | Trails, pause, HUD, fullscreen |
+
+## Fourier Epicycles
+
+Any closed path can be drawn by a chain of circles, each turning at a steady whole-number rate with its centre riding on the rim of the one before. The Fourier transform says which circles (`sim/fourier.ts`): one radius and starting angle per turning speed. With few circles the tip traces a smooth caricature of the shape; each one added sharpens it. Left alone, the demo adds circles on every trip round, then moves to the next shape.
+
+Shapes come from three places: built-in outlines (star, heart, triangle), glyphs of the vector font (press a digit to trace it; letters and the word VECTOR are in the list), and **your own sketch**: draw on the screen with the pointer and release.
+
+A letter is several separate strokes, and the chain cannot lift its pen. So the path includes the jumps between strokes, crossed quickly, and the trace is simply not drawn while the tip is on one. The faint grey outline is the shape being aimed for.
+
+URL: `shape` (1-based).
+
+| Input | Action |
+| --- | --- |
+| Draw with the pointer | Trace your own shape |
+| `N` `B` | Next / previous shape |
+| `[` `]` | Fewer / more circles |
+| `0`–`9` | Trace that digit |
+| `A`, `-` `+` | Auto, speed |
+| `C` `G` | Show circles, show the target shape |
+| `T`, `Space`, `H`, `F` | Trails, pause, HUD, fullscreen |
+
+## Live Earth
+
+A wireframe Earth showing what is actually up there and what has actually happened. Nothing on it is invented.
+
+- **Satellites.** About 170 real ones: the space stations and the brightest satellites, placed from their published orbital elements with the standard SGP4 model (`satellite.js`). Each is a small diamond with a tail showing its direction. The ISS and Tiangong are labelled.
+- **ISS ground track.** The station's path over the ground for the last half hour and the next orbit and a half, with a line down to the point beneath it. `I` turns the globe to follow it.
+- **Earthquakes.** Every earthquake of magnitude 4.5 or more in the past week, as a ring sized by magnitude and dimmed by age. Those of the last day ripple.
+- **Day and night.** The line between them, and a mark where the Sun is overhead, from the date and time.
+- **Pointing.** Point at a satellite or an earthquake for its name, height and orbit, or magnitude, place, depth and age.
+
+**Time.** The clock starts at the present and by default runs at one minute per second, so the ISS circles the globe in about a minute and a half; the HUD always shows the moment being displayed and how far it is from now. `0` returns to now, and `W` winds back a week and replays it at an hour a second, so the week's earthquakes appear in the order they happened.
+
+**Data.** Orbits come from [CelesTrak](https://celestrak.org) and earthquakes from the [USGS](https://earthquake.usgs.gov/earthquakes/feed/), fetched by the browser when the page opens. Orbit data is cached for two hours, as CelesTrak asks, and earthquakes for five minutes. If a feed cannot be reached, the demo uses a copy bundled with it and says so: the HUD reads `LIVE`, `CACHED` or `SNAPSHOT` with a date. Orbit predictions drift as elements age, so refresh the bundled copy now and then:
+
+```
+npm run update:snapshot -w @vector-demos/live-earth
+```
+
+**Reused from the travel globe:** the view that turns longitude and latitude into screen positions and hides the far side, the coastline and border data, and the star field (`@vector-demos/travel-globe/geo`). The renderer is new; the travel globe's is built around its hatching.
+
+`satellite.js` is pinned to version 5. Version 7 ships WebAssembly that uses top-level await, which stops Vite's dev server.
+
+| Input | Action |
+| --- | --- |
+| Drag, wheel | Rotate, zoom |
+| Point | Details of the satellite or earthquake under the pointer |
+| `I` | Follow the ISS |
+| `-` `+` | How fast time runs |
+| `0` `W` | Back to now, replay the week |
+| `S` `Q` `G` `D` | Satellites, earthquakes, grid, day/night line |
+| `A`, `Space`, `H`, `F` | Spin, pause, HUD, fullscreen |

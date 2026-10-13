@@ -77,4 +77,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Fourier Epicycles",
     description: "Chains of turning circles that redraw any shape, including one you sketch",
   },
+  {
+    path: "live-earth",
+    title: "Live Earth",
+    description: "Real satellites, the space station's track and this week's earthquakes on a wireframe globe",
+  },
 ];

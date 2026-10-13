@@ -59,8 +59,8 @@ describe("MenuModel", () => {
       expect(layout.rowsPerColumn).toBe(6);
       expect(new Set(layout.rows.map((row) => row.left)).size).toBe(2);
       for (const row of layout.rows) {
-        expect(row.top).toBeGreaterThanOrEqual(260);
-        expect(row.top + row.height).toBeLessThanOrEqual(1000 - 200);
+        expect(row.top).toBeGreaterThanOrEqual(240);
+        expect(row.top + row.height).toBeLessThanOrEqual(1000 - 180);
         expect(row.left).toBeGreaterThan(0);
         expect(row.left + row.width).toBeLessThan(1778);
       }
@@ -70,9 +70,12 @@ describe("MenuModel", () => {
       expect(layout.rows[6].left).toBeGreaterThan(layout.rows[0].left + 420);
     });
 
-    it("keeps a short list in a single column", () => {
-      const short = new MenuModel(7).layout({ width: 1778, height: 1000, itemWidths: new Array<number>(7).fill(300) });
+    it("keeps a short list in a single column, and fits sixteen in two", () => {
+      const short = new MenuModel(8).layout({ width: 1778, height: 1000, itemWidths: new Array<number>(8).fill(300) });
       expect(short.columnCount).toBe(1);
+      const long = new MenuModel(16).layout({ width: 1778, height: 1000, itemWidths: new Array<number>(16).fill(300) });
+      expect(long.columnCount).toBe(2);
+      expect(long.rowsPerColumn).toBe(8);
     });
 
     it("gives every row its own hit area, with none overlapping", () => {

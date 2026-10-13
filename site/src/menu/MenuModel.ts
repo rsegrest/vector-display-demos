@@ -31,8 +31,8 @@ const HIT_MARGIN_LEFT = 260;
 const HIT_MARGIN_RIGHT = 120;
 const POINTER_EASE_PER_SECOND = 14;
 // Room kept clear above the list for the title, and below it for the description and key help.
-const TOP_RESERVE = 260;
-const BOTTOM_RESERVE = 200;
+const TOP_RESERVE = 240;
+const BOTTOM_RESERVE = 180;
 // Space between columns, which the pointer of the right-hand one sits in.
 const COLUMN_GAP = 170;
 

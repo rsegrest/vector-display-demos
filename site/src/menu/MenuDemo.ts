@@ -129,7 +129,8 @@ export class MenuDemo implements Demo {
     font.addText(displayList, {
       text: selected.description.toUpperCase(),
       x: centerX,
-      y: layout.listBottom + 80,
+      // Below the list, but never down among the key help.
+      y: Math.min(layout.listBottom + 80, frame.height - 122),
       size: 16,
       alignment: "center",
       intensity: 0.9,

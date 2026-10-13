@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Rick's travel map as a multicolor vector globe: visited countries and US states hatched in status colors.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./geo": "./src/geo/index.ts",
+    "./geo.json": "./src/data/geo.json"
   },
   "scripts": {
     "build:geo": "node tools/build-geo.mjs",

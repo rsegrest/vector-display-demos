@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A wireframe Earth with real satellites placed from their published orbits, the space station's ground track, the day-night line and the past week's earthquakes, from live public data." />
+    <title>Live Earth</title>
+  </head>
+  <body>
+    <canvas id="screen" tabindex="0" aria-label="A rotating wireframe globe with coastlines. Small markers show real satellites in orbit, a curve shows the path of the International Space Station over the ground, and rings mark recent earthquakes."></canvas>
+    <p class="visually-hidden">Satellite orbits come from CelesTrak and earthquakes from the United States Geological Survey; if they cannot be reached, a bundled snapshot is shown. Keys: drag to rotate, wheel to zoom, point at a satellite or earthquake for details, I follow the space station, minus and plus change how fast time runs, 0 return to now, W replay the past week, S satellites, Q earthquakes, G grid, D day and night line, A spin, space pause, H toggle overlay, F fullscreen, Escape back to the menu.</p>
+    <script type="module" src="../src/pages/live-earth.ts"></script>
+  </body>
+</html>
