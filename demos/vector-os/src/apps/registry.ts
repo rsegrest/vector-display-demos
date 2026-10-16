@@ -1,4 +1,6 @@
+/// <reference path="./arcade/vectorGames.d.ts" />
 import { createRandomSeed } from "@vector-demos/demo-kit";
+import { createArcadeApp } from "./arcade/arcadeApp.js";
 import { createBeamPanel } from "./beamPanel.js";
 import { createCalculator } from "./calculator/Calculator.js";
 import { createClock } from "./clock.js";
@@ -15,6 +17,11 @@ const DEMO_BRIGHTNESS = 0.75;
 //
 // A few demos are given the pointer, where what a click means is simple. The rest
 // are for watching; the box at the right of the title bar opens the real thing.
+//
+// The arcade games are the exception: they are played here, with the keyboard,
+// while their window is in front, and play their attract mode behind. Each is
+// the game from vector-games itself, through its src/embed.ts, and its title
+// bar's box opens its own page, built into the site under arcade/.
 export const APP_ENTRIES: readonly AppEntry[] = [
   { id: "terminal", title: "Terminal", kind: "tool", category: "utilities", size: { width: 560, height: 380 }, create: createTerminal },
   { id: "clock", title: "Clock", kind: "tool", category: "utilities", size: { width: 300, height: 340 }, create: createClock },
@@ -208,6 +215,43 @@ export const APP_ENTRIES: readonly AppEntry[] = [
       const { MeshesDemo } = await import("@vector-demos/meshes");
       return demoApp(new MeshesDemo({ meshIndex: 0 }), { brightness: 1 });
     },
+  },
+  {
+    id: "asteroids",
+    title: "Asteroids",
+    kind: "demo",
+    category: "arcade",
+    page: "arcade/asteroids",
+    size: { width: 600, height: 540 },
+    create: async () => createArcadeApp((await import("@vector-games/asteroids")).createCabinet()),
+  },
+  {
+    id: "lunar-lander",
+    title: "Lunar Lander",
+    kind: "demo",
+    category: "arcade",
+    page: "arcade/lunar-lander",
+    size: { width: 600, height: 550 },
+    // Its page glows less than the OS does, and its small lettering runs together in a window unless it is dimmed.
+    create: async () => createArcadeApp((await import("@vector-games/lunar-lander")).createCabinet(), { brightness: 0.7 }),
+  },
+  {
+    id: "battlezone",
+    title: "Battlezone",
+    kind: "demo",
+    category: "arcade",
+    page: "arcade/battlezone",
+    size: { width: 620, height: 520 },
+    create: async () => createArcadeApp((await import("@vector-games/battlezone")).createCabinet()),
+  },
+  {
+    id: "tempest",
+    title: "Tempest",
+    kind: "demo",
+    category: "arcade",
+    page: "arcade/tempest",
+    size: { width: 460, height: 660 },
+    create: async () => createArcadeApp((await import("@vector-games/tempest")).createCabinet()),
   },
 ];
 

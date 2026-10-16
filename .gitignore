@@ -4,3 +4,4 @@ dist
 dist-standalone
 demos/travel-globe/src/data/backups
 .claude
+site/public/arcade

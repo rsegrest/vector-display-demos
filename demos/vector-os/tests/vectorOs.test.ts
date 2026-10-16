@@ -55,6 +55,11 @@ describe("SegmentBlitter", () => {
     expect([segment.x0, segment.y0, segment.x1, segment.y1]).toEqual([105, 210, 115, 220]);
   });
 
+  it("can scale heights apart from widths, for a screen not the shape of its coordinates", () => {
+    const [segment] = blit(listOf([10, 20, 30, 40]), { offsetX: 100, offsetY: 200, scale: 0.5, scaleY: 2 });
+    expect([segment.x0, segment.y0, segment.x1, segment.y1]).toEqual([105, 240, 115, 280]);
+  });
+
   it("keeps each stroke's colour and scales its brightness", () => {
     const source = listOf([0, 0, 10, 0], { red: 0.25, green: 1, blue: 1 }, 0.8);
     source.setColor({ red: 0.75, green: 0, blue: 0 });
@@ -727,13 +732,13 @@ describe("the real programs", () => {
   it("are all listed, each with its own id", () => {
     expect(new Set(APP_ENTRIES.map((entry) => entry.id)).size).toBe(APP_ENTRIES.length);
     expect(APP_ENTRIES.filter((entry) => entry.kind === "tool").map((entry) => entry.id)).toEqual(["terminal", "clock", "beam", "calc"]);
-    expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(15);
+    expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(19);
     const inCategory = (category: string): string[] => APP_ENTRIES.filter((entry) => entry.category === category).map((entry) => entry.id);
     expect(inCategory("utilities")).toEqual(["terminal", "clock", "beam", "calc"]);
     expect(inCategory("alife")).toEqual(["particle-life", "lenia", "life", "boids", "slime-mold", "biomorphs"]);
     expect(inCategory("simulation")).toEqual(["ca-terrain", "attractors", "gray-scott", "live-earth"]);
     expect(inCategory("creative")).toEqual(["polytopes", "oscilloscope", "text-crawl", "epicycles", "meshes"]);
-    expect(inCategory("arcade")).toEqual([]);
+    expect(inCategory("arcade")).toEqual(["asteroids", "lunar-lander", "battlezone", "tempest"]);
   });
 
   // Lenia needs a Web Worker and Live Earth fetches from the network, so those two are left to the browser.

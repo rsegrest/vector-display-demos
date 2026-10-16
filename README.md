@@ -24,7 +24,7 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/live-earth` | Live Earth: real satellites, the ISS ground track and recent earthquakes on a wireframe globe |
 | `demos/meshes` | Feature Edges: the teapot, the bunny and other meshes as line drawings, with hidden lines removed |
 | `demos/docs` | Live Guide: documentation for the `@vector-display` packages in which every example is editable and running |
-| `demos/vector-os` | Vector OS: a desktop drawn by one beam, with windows that run the other demos, a terminal, a clock, a beam control panel and a scientific calculator |
+| `demos/vector-os` | Vector OS: a desktop drawn by one beam, with windows that run the other demos, the arcade games from `../vector-games`, a terminal, a clock, a beam control panel and a scientific calculator |
 | `demos/type-specimen` | Type Specimen: the Hershey stroke fonts (`StrokeFont` and `getHersheyFont` in `demo-kit`) at small sizes, to judge readability. At `/type-specimen/` on the dev server; not in the catalog, so not in the menu or the build |
 | `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots. `--chrome-flags` passes extra switches, e.g. `--autoplay-policy=no-user-gesture-required` to test audio |
 
@@ -36,7 +36,8 @@ Each demo package exports a `start…(canvas)` function and implements the `Demo
 npm install
 npm run dev                    # http://localhost:5180 (also on the LAN: binds 0.0.0.0)
 npm test                       # all workspaces
-npm run build                  # static multi-page site in site/dist
+npm run build:arcade           # the arcade games' own pages, into site/public/arcade/ (needs ../vector-games)
+npm run build                  # static multi-page site in site/dist (runs build:arcade first)
 npm run screenshot -- site /tmp/shot --path particle-life/ --at 3,10 --query "seed=777&preset=1"
 ```
 
@@ -342,11 +343,11 @@ The guide is written from the packages' own READMEs and type declarations at ver
 
 A desktop on a vector display, at `/os/`. One beam draws all of it: the menu bar, the list of programs, the window frames, and every program running in every window. It is a shell, not an operating system: its job is to launch the other demos.
 
-After a short power-on sequence (any key skips it; `?boot=0` leaves it out), the desktop opens with a terminal, a clock and a demo. The list on the left groups the programs into categories (Utilities, Creative, Simulation, Artificial Life, and Arcade once it has any): click a name to open a program, or a category's heading to fold it away or open it out. Each program's category is set in `demos/vector-os/src/apps/registry.ts`. Windows open with the classic zoom-rectangle animation, land wherever they cover least of what is already open, and can be moved by their title bar and resized by their bottom right corner.
+After a short power-on sequence (any key skips it; `?boot=0` leaves it out), the desktop opens with a terminal, a clock and a demo. The list on the left groups the programs into categories (Utilities, Creative, Simulation, Artificial Life, Arcade): click a name to open a program, or a category's heading to fold it away or open it out. Each program's category is set in `demos/vector-os/src/apps/registry.ts`. Windows open with the classic zoom-rectangle animation, land wherever they cover least of what is already open, and can be moved by their title bar and resized by their bottom right corner.
 
 **How windows work** (`SegmentBlitter.ts`). Programs never draw to the screen. Each has a display list of its own, and draws into it exactly as it would full screen. Each frame the OS copies those lists into the real one: every stroke is moved and scaled into its window, trimmed at the window's edges, and cut wherever another window lies on top. That last step matters more here than on an ordinary screen. The beam's light adds up, so anything drawn "behind" a window would shine straight through it. Connected strokes stay connected through the copy, so joints stay seamless.
 
-This is the payoff of every demo implementing one small interface (`update`, `draw`, optional `resize`): all fifteen run in windows with no changes. Each demo's code is loaded only when it is first launched, and at most eight windows are open at once.
+This is the payoff of every demo implementing one small interface (`update`, `draw`, optional `resize`): all fifteen run in windows with no changes, and the four games need only a small adapter (`apps/arcade/arcadeApp.ts`). Each demo's code is loaded only when it is first launched, and at most eight windows are open at once.
 
 **Programs written for the OS:**
 
@@ -356,7 +357,7 @@ This is the payoff of every demo implementing one small interface (`update`, `dr
 
 **One phosphor for everything.** There is one beam and so one set of beam settings for the whole desktop; a demo in a window does not get the persistence it uses on its own page. Slime Mold, whose network *is* the phosphor trail, shows this most: it looks best with persistence turned up, and then every window trails. Demos whose look depends on their own settings are best seen on their own pages, which the box at the right of each demo's title bar opens.
 
-**What windows pass through.** Keys go to the window in front; only the terminal uses them. The pointer goes to the program under it, for the demos where a click has one obvious meaning: Slime Mold and Gray-Scott (drop chemical), Biomorphs (breed), Text Crawl (shatter), Fourier Epicycles (sketch a shape) and the Beam Settings sliders. The rest are for watching. The Oscilloscope is silent in a window; sound belongs to its own page.
+**What windows pass through.** Keys go to the window in front; the terminal, the calculator and the games use them. The pointer goes to the program under it, for the demos where a click has one obvious meaning: Slime Mold and Gray-Scott (drop chemical), Biomorphs (breed), Text Crawl (shatter), Fourier Epicycles (sketch a shape) and the Beam Settings sliders. The rest are for watching. The Oscilloscope is silent in a window; sound belongs to its own page.
 
 | Input | Action |
 | --- | --- |
@@ -366,6 +367,13 @@ This is the payoff of every demo implementing one small interface (`update`, `dr
 | Box at the left of a title bar | Close the window |
 | Box at the right of a demo's title bar | Open that demo full screen |
 | Typing | Goes to the window in front |
+| Box at the right of a game's title bar | Open that game's own page |
 | `Esc` | Back to the menu |
+
+**The arcade games.** Asteroids, Lunar Lander, Battlezone and Tempest are the ROM ports in `../vector-games`, each its own repository, checked against MAME there. They are not copied or changed here: Vector OS imports each one's `src/embed.ts`, the game without its page (the same engine, input adapter, picture and sound, put together as the page puts them), under the name `@vector-games/<game>`. The site's Vite config and the OS's test config point those names at the game folders (`demos/vector-os/arcadeGames.ts`; set `VECTOR_GAMES_DIR` if the games live elsewhere), and resolve the vector-display packages to this workspace's copy, so each game still builds and checks on its own.
+
+- **Playing.** A game plays its attract mode in the background. With its window in front it has the keyboard, held keys and all, with the keys its own page uses; they are listed under the picture. Tempest's spinner is the mouse moved over its window (no pointer capture here) or the arrow keys, and a click fires. Gamepads are left to the games' own pages. A key held while another window comes to the front is let go, so nothing is left thrusting. Each game runs at its board's own rate (`FixedStepClock.ts`): 62.5 steps a second for Asteroids, 41.7 for Lunar Lander, 246.1 for Battlezone and Tempest, not the OS's sixty.
+- **Sound.** One game is heard at a time: the one most recently in front (a window that makes no sound, such as the terminal, leaves it where it was). It starts only after a key or click in that game, as browsers require, and stops when the window closes.
+- **Their own pages.** The box on a game's title bar opens `/arcade/<game>/`: the game's own build, made by `npm run build:arcade` in the game's folder with its own Vite and config, into `site/public/arcade/` (not committed). Vite serves that folder as it is in development and copies it into `site/dist`, so the pages are part of the site, on the same origin, and share their stored high scores with the windows. Run `npm run build:arcade` once before `npm run dev` for those links to work; `npm run build` runs it itself.
 
 The demo list on the index page is still there. Replacing it with the OS, so that the site opens straight into the desktop, would be a one-line change to the index, but it would put a pointer-driven desktop in front of every visitor, including those on phones and keyboards. For now the OS is one entry on the list.

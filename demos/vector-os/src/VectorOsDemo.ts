@@ -1,8 +1,9 @@
 import { DisplayList, SCREEN_SPACE_PLACEMENT, type BeamColor } from "@vector-display/core";
 import { BeamSettingsStore, DynamicGeometry, getDemoFont, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
-import { APP_CATEGORIES, type AppCategory, type AppEntry, type OsApp, type OsServices, type PointerKind } from "./apps/OsApp.js";
+import { APP_CATEGORIES, type AppCategory, type AppEntry, type KeyPress, type OsApp, type OsServices, type PointerKind } from "./apps/OsApp.js";
 import { APP_ENTRIES } from "./apps/registry.js";
 import { BootSequence } from "./Boot.js";
+import { HeldKeys } from "./HeldKeys.js";
 import { SegmentBlitter } from "./SegmentBlitter.js";
 import { TITLE_BAR_HEIGHT, TITLE_BOX_SIZE, RESIZE_GRIP, WindowManager, contains, toClipRect, type OsWindow, type Rect } from "./WindowManager.js";
 
@@ -63,8 +64,9 @@ export interface VectorOsOptions {
 // here unchanged: they draw exactly as they do full screen.
 export class VectorOsDemo implements Demo {
   public readonly beam: BeamSettingsStore;
-  // Called when a window's "open full screen" box is clicked, with the program's id.
-  public onNavigate: (id: string) => void = () => {};
+  // Called when a window's "open full screen" box is clicked, with the path of the
+  // program's own page: its id, or for the games arcade/ and its id.
+  public onNavigate: (page: string) => void = () => {};
 
   private readonly entries: readonly AppEntry[];
   private readonly windows = new WindowManager<Running>();
@@ -86,6 +88,12 @@ export class VectorOsDemo implements Demo {
   private readonly collapsed = new Set<AppCategory>();
   // The window that has the pointer while its button is held in that window's contents.
   private captured: OsWindow<Running> | null = null;
+  // The keys that are down, each with the window it went down to.
+  private readonly heldKeys = new HeldKeys<OsWindow<Running>>();
+  // The window last known to be in front, so that the change can be noticed and told.
+  private focusedWindow: OsWindow<Running> | null = null;
+  // The one window whose program is heard: the most recent in front of those that make sound.
+  private soundWindow: OsWindow<Running> | null = null;
   private segmentCount = 0;
 
   public constructor(options: VectorOsOptions = {}) {
@@ -120,6 +128,15 @@ export class VectorOsDemo implements Demo {
     return this.windows.focused?.title ?? null;
   }
 
+  // The window whose program is heard, if any.
+  public get audibleTitle(): string | null {
+    return this.soundWindow?.title ?? null;
+  }
+
+  public get heldKeyCount(): number {
+    return this.heldKeys.count;
+  }
+
   public get windowManager(): WindowManager<Running> {
     return this.windows;
   }
@@ -141,6 +158,9 @@ export class VectorOsDemo implements Demo {
       if (this.boot.isDone) this.finishBoot();
       return;
     }
+    this.syncFocus();
+    // A closing window is silenced at once, not when it has finished shrinking away.
+    if (this.soundWindow && this.soundWindow.state === "closing") this.giveSoundTo(null);
     for (const closed of this.windows.update(deltaSeconds)) closed.payload.app?.dispose?.();
     for (const window of this.windows.windows) {
       const running = window.payload;
@@ -195,13 +215,45 @@ export class VectorOsDemo implements Demo {
 
   // --- Input ---------------------------------------------------------------------------------------------
 
-  // A key press. Goes to the program in the window in front.
+  // A key typed: pressed and let go at once. Goes to the program in the window in front.
   public key(key: string): void {
+    const press: KeyPress = { key, code: "", repeat: false };
+    this.keyDown(press);
+    this.keyUp(press);
+  }
+
+  // A key going down. Goes to the program in the window in front: as typing to
+  // those that take it (repeats and all), and as a key held down to those that
+  // want that. Returns whether the program used it, for the page to keep it from the browser.
+  public keyDown(press: KeyPress): boolean {
     if (this.boot) {
       this.boot.skip();
-      return;
+      return false;
     }
-    this.windows.focused?.payload.app?.onKey?.(key);
+    this.syncFocus();
+    const window = this.windows.focused;
+    const app = window?.payload.app;
+    if (!window || !app) return false;
+    app.onKey?.(press.key);
+    if (!app.onKeyDown) return false;
+    // A key already down is not pressed again: its repeats, or a second press after the browser lost its release.
+    const held = this.heldKeys.find(press);
+    if (held) return held.used;
+    const used = app.onKeyDown(press);
+    this.heldKeys.press(press, window, used);
+    return used;
+  }
+
+  // A key coming up. It goes to the program it went down to, if that still holds it.
+  public keyUp(press: KeyPress): void {
+    const held = this.heldKeys.release(press);
+    if (held) held.recipient.payload.app?.onKeyUp?.(held.press);
+  }
+
+  // Lets go of every key held, for when the browser stops sending keys (its window
+  // has lost focus) and the releases would never arrive.
+  public releaseKeys(): void {
+    for (const held of this.heldKeys.releaseAll()) held.recipient.payload.app?.onKeyUp?.(held.press);
   }
 
   // The pointer, in screen (world) coordinates.
@@ -239,6 +291,7 @@ export class VectorOsDemo implements Demo {
     const existing = this.windows.windows.find((window) => window.payload.entry === entry && window.state !== "closing");
     if (existing) {
       this.windows.bringToFront(existing);
+      this.syncFocus();
       return true;
     }
     const live = this.windows.windows.filter((window) => window.state !== "closing");
@@ -248,12 +301,17 @@ export class VectorOsDemo implements Demo {
     const row = rows.find((candidate) => candidate.entry === entry) ?? rows.find((candidate) => candidate.entry === null && candidate.category === entry.category);
     const from = origin ?? row?.rect ?? { x: this.width / 2, y: this.height / 2, width: 0, height: 0 };
     const running: Running = { entry, app: null, failed: false, list: new DisplayList(), worldWidth: 0, worldHeight: 0 };
-    this.windows.open(entry.title, running, entry.size, from, entry.kind === "demo");
+    const window = this.windows.open(entry.title, running, entry.size, from, entry.kind === "demo");
+    this.syncFocus();
     // Tools are ready at once; demos arrive when their code has loaded.
     Promise.resolve()
       .then(() => entry.create(this.services))
       .then((app) => {
         running.app = app;
+        // The program is told where it stands: in front (and heard, if it makes sound), or not.
+        if (window.state === "closing") return;
+        if (window === this.focusedWindow) this.welcome(window);
+        else app.setFocused?.(false);
       })
       .catch((error: unknown) => {
         console.error(error);
@@ -274,6 +332,10 @@ export class VectorOsDemo implements Demo {
   }
 
   private reboot(): void {
+    // Every program is about to stop, so none need be told it has lost the keys, the front or the sound.
+    this.heldKeys.releaseAll();
+    this.focusedWindow = null;
+    this.soundWindow = null;
     for (const window of this.windows.windows) {
       window.payload.app?.dispose?.();
       this.windows.close(window);
@@ -282,6 +344,35 @@ export class VectorOsDemo implements Demo {
     this.windows.update(1);
     this.captured = null;
     this.boot = new BootSequence(this.entries.length);
+  }
+
+  // Notices when a different window has come to the front. The one that left lets
+  // go of every key it holds and is told; the new one is told, and is heard if it makes sound.
+  private syncFocus(): void {
+    const focused = this.windows.focused;
+    if (focused === this.focusedWindow) return;
+    const previous = this.focusedWindow;
+    this.focusedWindow = focused;
+    if (previous) {
+      for (const held of this.heldKeys.releaseAll(previous)) previous.payload.app?.onKeyUp?.(held.press);
+      previous.payload.app?.setFocused?.(false);
+    }
+    // A program still loading is told when it arrives.
+    if (focused?.payload.app) this.welcome(focused);
+  }
+
+  private welcome(window: OsWindow<Running>): void {
+    const app = window.payload.app;
+    app?.setFocused?.(true);
+    // A window that makes no sound leaves the sound with the game last in front.
+    if (app?.setAudible) this.giveSoundTo(window);
+  }
+
+  private giveSoundTo(window: OsWindow<Running> | null): void {
+    if (this.soundWindow === window) return;
+    this.soundWindow?.payload.app?.setAudible?.(false);
+    this.soundWindow = window;
+    window?.payload.app?.setAudible?.(true);
   }
 
   private closeByName(name: string): number {
@@ -318,7 +409,10 @@ export class VectorOsDemo implements Demo {
     }
     this.windows.bringToFront(hit.window);
     if (hit.part === "close") this.windows.close(hit.window);
-    else if (hit.part === "launch") this.onNavigate(hit.window.payload.entry.id);
+    // Told at once, so that a click on a game's picture already reaches it as the game in front.
+    this.syncFocus();
+    if (hit.part === "close") return;
+    if (hit.part === "launch") this.onNavigate(hit.window.payload.entry.page ?? hit.window.payload.entry.id);
     else if (hit.part === "title") this.windows.beginDrag(hit.window, "move", x, y);
     else if (hit.part === "resize") this.windows.beginDrag(hit.window, "resize", x, y);
     else {

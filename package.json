@@ -11,7 +11,8 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @vector-demos/site",
-    "build": "npm run build -w @vector-demos/site",
+    "build": "npm run build:arcade && npm run build -w @vector-demos/site",
+    "build:arcade": "node tools/build-arcade.mjs",
     "preview": "npm run preview -w @vector-demos/site",
     "test": "vitest run",
     "typecheck": "npm run typecheck --workspaces --if-present",

@@ -29,19 +29,24 @@ export function startVectorOs(canvas: HTMLCanvasElement): void {
       flickerFrequencyHz: 12,
     });
   });
-  os.onNavigate = (id) => {
-    location.href = `../${id}/`;
+  os.onNavigate = (page) => {
+    location.href = `../${page}/`;
   };
   bindEscapeToIndex();
 
   window.addEventListener("keydown", (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
     // Escape is left to the handler above, which returns to the index.
-    if (event.key === "Escape") return;
-    os.key(event.key);
-    // Keep keys the browser would act on (space scrolls, backspace goes back) for the OS.
-    if (event.key.length === 1 || ["Backspace", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(event.key)) event.preventDefault();
+    if (event.key === "Escape" || event.key === "Meta") return;
+    // Shortcuts are left to the browser. Ctrl and Alt alone are not shortcuts: the games use them as buttons.
+    if ((event.metaKey || event.ctrlKey || event.altKey) && event.key !== "Control" && event.key !== "Alt") return;
+    const used = os.keyDown({ key: event.key, code: event.code, repeat: event.repeat });
+    // Keep keys the browser would act on (space scrolls, backspace goes back) for the OS, and any key a game uses.
+    if (used || event.key.length === 1 || ["Backspace", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Tab"].includes(event.key)) event.preventDefault();
   });
+  // A key held down in a game is held until it comes up, so every release is passed on;
+  // and when the browser window loses focus the releases will not come, so all are let go.
+  window.addEventListener("keyup", (event) => os.keyUp({ key: event.key, code: event.code, repeat: false }));
+  window.addEventListener("blur", () => os.releaseKeys());
 
   const at = (event: PointerEvent): { x: number; y: number } => host.clientToWorld(event.clientX, event.clientY);
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());

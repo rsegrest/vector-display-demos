@@ -6,6 +6,9 @@ export interface BlitTransform {
   readonly offsetX: number;
   readonly offsetY: number;
   readonly scale: number;
+  // A different scale for heights, for a picture whose screen was not the shape of its
+  // coordinates (Tempest's tube is taller than its units are wide). By default, `scale`.
+  readonly scaleY?: number;
   // Multiplies the brightness of everything copied.
   readonly intensity: number;
   // Only what falls inside this rectangle is kept...
@@ -41,6 +44,7 @@ export class SegmentBlitter {
   public blit(source: DisplayList, target: DisplayList, transform: BlitTransform): number {
     const data = source.getSegmentData();
     const { offsetX, offsetY, scale, inside, outside } = transform;
+    const scaleY = transform.scaleY ?? scale;
     const firstBatch = this.used;
     let batch: Batch | null = null;
     let red = Number.NaN;
@@ -63,9 +67,9 @@ export class SegmentBlitter {
       }
       const geometry = batch!.geometry;
       const x0 = offsetX + data[offset] * scale;
-      const y0 = offsetY + data[offset + 1] * scale;
+      const y0 = offsetY + data[offset + 1] * scaleY;
       const x1 = offsetX + data[offset + 2] * scale;
-      const y1 = offsetY + data[offset + 3] * scale;
+      const y1 = offsetY + data[offset + 3] * scaleY;
 
       // A stroke of no length is a dot: it is either there or not.
       if (x0 === x1 && y0 === y1) {
