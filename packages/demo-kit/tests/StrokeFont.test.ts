@@ -45,6 +45,14 @@ describe("Hershey fonts", () => {
     expect(segmentCount(font, "“”’")).toBeGreaterThan(0);
     expect(segmentCount(font, "é")).toBe(segmentCount(font, "e"));
   });
+
+  it("draw a middle dot for multiplying, small and level with the minus sign", () => {
+    for (const id of HERSHEY_FONT_IDS) {
+      const font = getHersheyFont(id);
+      expect(segmentCount(font, "·"), id).toBeGreaterThan(0);
+      expect(font.measureWidth("·", 21), id).toBeLessThan(font.measureWidth("−", 21));
+    }
+  });
 });
 
 describe("StrokeFont", () => {

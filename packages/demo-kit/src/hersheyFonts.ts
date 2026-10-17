@@ -60,6 +60,18 @@ function dash(advance: number): StrokeGlyph {
   return { polylines: [{ points: [{ x: 2, y: DASH_Y }, { x: advance - 2, y: DASH_Y }], isClosed: false }], advance };
 }
 
+// A small dot for multiplying, at the height of the minus sign, so equations can be set as they are printed.
+function middleDot(minus: StrokeGlyph): StrokeGlyph {
+  const y = minus.polylines[0]?.points[0]?.y ?? DASH_Y;
+  const radius = 1.2;
+  const advance = 8;
+  const centre = advance / 2;
+  return {
+    polylines: [{ points: [{ x: centre, y: y - radius }, { x: centre + radius, y }, { x: centre, y: y + radius }, { x: centre - radius, y }], isClosed: true }],
+    advance,
+  };
+}
+
 function repeated(glyph: StrokeGlyph, times: number): StrokeGlyph {
   const polylines: Polyline[] = [];
   for (let copy = 0; copy < times; copy++) {
@@ -86,6 +98,7 @@ function buildHersheyFont(id: HersheyFontId): StrokeFont {
   glyphs["–"] = dash(18);
   glyphs["—"] = dash(28);
   glyphs["…"] = repeated(glyphs["."], 3);
+  glyphs["·"] = middleDot(glyphs["−"]);
   glyphs["•"] = {
     polylines: [{ points: [{ x: 7, y: 11 }, { x: 10, y: 14 }, { x: 7, y: 17 }, { x: 4, y: 14 }], isClosed: true }],
     advance: 14,
@@ -95,7 +108,7 @@ function buildHersheyFont(id: HersheyFontId): StrokeFont {
 
 const hersheyFonts = new Map<HersheyFontId, StrokeFont>();
 
-// A Hershey font with lowercase, full ASCII punctuation, dashes, an ellipsis and a bullet.
+// A Hershey font with lowercase, full ASCII punctuation, dashes, an ellipsis, a bullet and a middle dot.
 // Draw it from Demo.drawText, never from draw: these fonts are for reading, and that layer has no glow.
 export function getHersheyFont(id: HersheyFontId): StrokeFont {
   let font = hersheyFonts.get(id);

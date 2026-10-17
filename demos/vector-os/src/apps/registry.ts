@@ -4,6 +4,7 @@ import { createArcadeApp } from "./arcade/arcadeApp.js";
 import { createBeamPanel } from "./beamPanel.js";
 import { createCalculator } from "./calculator/Calculator.js";
 import { createClock } from "./clock.js";
+import { createGearSpirals } from "./gearSpirals/GearSpirals.js";
 import type { AppEntry, OsApp } from "./OsApp.js";
 import { createTerminal } from "./terminal.js";
 
@@ -27,6 +28,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
   { id: "clock", title: "Clock", kind: "tool", category: "utilities", size: { width: 300, height: 340 }, create: createClock },
   { id: "beam", title: "Beam Settings", kind: "tool", category: "utilities", size: { width: 520, height: 350 }, create: createBeamPanel },
   { id: "calc", title: "Calculator", kind: "tool", category: "utilities", size: { width: 500, height: 430 }, create: createCalculator },
+  { id: "gear-spirals", title: "Gear Spirals", kind: "tool", category: "creative", size: { width: 980, height: 680 }, create: createGearSpirals },
   {
     id: "particle-life",
     title: "Particle Life",
