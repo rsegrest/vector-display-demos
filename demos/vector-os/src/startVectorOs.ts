@@ -66,5 +66,10 @@ export function startVectorOs(canvas: HTMLCanvasElement): void {
   };
   canvas.addEventListener("pointerup", release);
   canvas.addEventListener("pointercancel", release);
+  // Off the page: a window following the pointer (a game steered by it) is told it has gone.
+  canvas.addEventListener("pointerleave", (event) => {
+    const point = at(event);
+    os.pointer("leave", point.x, point.y, event.shiftKey);
+  });
   (window as unknown as { vectorOs: unknown }).vectorOs = { os, host };
 }

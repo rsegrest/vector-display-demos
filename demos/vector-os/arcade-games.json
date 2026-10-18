@@ -1,4 +1,4 @@
 {
   "comment": "The games in vector-games that Vector OS runs, by folder name. Read by arcadeGames.ts (the Vite configs) and tools/build-arcade.mjs (their pages under /arcade/).",
-  "games": ["asteroids", "lunar-lander", "battlezone", "tempest"]
+  "games": ["asteroids", "lunar-lander", "battlezone", "tempest", "red-baron"]
 }

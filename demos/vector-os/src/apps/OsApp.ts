@@ -34,6 +34,9 @@ export interface OsApp {
   onKeyUp?(press: KeyPress): void;
   // The pointer over the window's contents, in the program's own coordinates.
   onPointer?(kind: PointerKind, x: number, y: number, shiftKey: boolean): void;
+  // The pointer has left the window's contents: for another window, the desk, or off the
+  // page. For programs that follow the pointer without a button held (a game steered by it).
+  onPointerLeave?(): void;
   // Told when the window comes to the front or leaves it, and once when the program
   // has loaded. The pointer and keys go to the window in front; this is for
   // programs that act differently there.

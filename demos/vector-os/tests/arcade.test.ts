@@ -143,6 +143,15 @@ function fakeCabinet(stepsPerSecond = 246) {
   return { cabinet, record };
 }
 
+// A stand-in for a game steered by where the pointer is (Red Baron's stick): no spinner.
+function stickCabinet() {
+  const { cabinet, record } = fakeCabinet();
+  const points: ({ x: number; y: number } | null)[] = [];
+  const { mouseMove: _spinner, ...rest } = cabinet;
+  const steered: ArcadeCabinet = { ...rest, pointerAt: (point) => void points.push(point && { ...point }) };
+  return { cabinet: steered, record, points };
+}
+
 function gameEntry(id: string, cabinet: ArcadeCabinet): AppEntry {
   return { id, title: id.toUpperCase(), kind: "demo", category: "arcade", page: `arcade/${id}`, size: { width: 500, height: 420 }, create: () => createArcadeApp(cabinet) };
 }
@@ -304,6 +313,45 @@ describe("arcade games in Vector OS", () => {
     expect(first.moved - movedBefore).toBe(30);
   });
 
+  it("steers a stick by where the pointer is over the picture, only in front, and centres it when the pointer leaves", async () => {
+    const stick = stickCabinet();
+    const typed: string[] = [];
+    const os = new VectorOsDemo({ skipBoot: true, entries: [gameEntry("stick", stick.cabinet), toolEntry("term", typed)], startup: [] });
+    os.resize(FRAME.width, FRAME.height);
+    os.launch("stick");
+    await settle(os);
+    // The picture's place in the window is known once it has been drawn.
+    os.draw(new DisplayList(), FRAME);
+    const content = os.windowManager.contentRect(windowOf(os, "STICK"));
+    const middle = { x: content.x + content.width / 2, y: content.y + (content.height - 24) / 2 };
+    os.pointer("move", middle.x, middle.y);
+    const over = stick.points.at(-1)!;
+    expect(over.x).toBeCloseTo(0.5, 2);
+    expect(over.y).toBeGreaterThan(0.3);
+    expect(over.y).toBeLessThan(0.7);
+    // A click is the game's: the point first, so a click that takes the stick takes it from there, then the button.
+    os.pointer("down", middle.x + 50, middle.y);
+    os.pointer("up", middle.x + 50, middle.y);
+    expect(stick.points.at(-1)!.x).toBeGreaterThan(0.5);
+    expect(stick.record.buttons.slice(-2)).toEqual(["0down", "0up"]);
+    // Onto the title bar: the pointer has left the contents, and the stick is let go.
+    const count = stick.points.length;
+    os.pointer("move", content.x + 40, content.y - 10);
+    expect(stick.points.slice(count)).toEqual([null]);
+    // And off the page.
+    os.pointer("move", middle.x, middle.y);
+    os.pointer("leave", -1, -1);
+    expect(stick.points.at(-1)).toBeNull();
+    // Behind another window it is only watched: no steering, and it was let go as it left the front.
+    os.pointer("move", middle.x, middle.y);
+    os.launch("term");
+    await settle(os);
+    expect(stick.points.at(-1)).toBeNull();
+    const behind = stick.points.length;
+    os.pointer("move", content.x + 5, content.y + content.height - 5);
+    expect(stick.points.slice(behind).every((point) => point === null)).toBe(true);
+  });
+
   it("draws the game's picture inside its window, with its controls under it", async () => {
     const { os } = createDesk();
     os.launch("first");
@@ -341,8 +389,8 @@ describe("arcade games in Vector OS", () => {
 // The real games, from vector-games next to this repository, when it is there.
 const gamesPresent = ARCADE_GAMES.every((game) => existsSync(arcadeGameDirectory(game)));
 
-describe.skipIf(!gamesPresent)("the four games, as the launcher runs them", () => {
-  it("lists all four under Arcade", () => {
+describe.skipIf(!gamesPresent)("the five games, as the launcher runs them", () => {
+  it("lists all five under Arcade", () => {
     expect(APP_ENTRIES.filter((entry) => entry.category === "arcade").map((entry) => entry.id)).toEqual(ARCADE_GAMES);
   });
 
@@ -363,4 +411,26 @@ describe.skipIf(!gamesPresent)("the four games, as the launcher runs them", () =
       app.dispose?.();
     });
   }
+
+  it("steers Red Baron's stick with the mouse once a click on its picture has handed it over, as its page does", async () => {
+    const entry = APP_ENTRIES.find((candidate) => candidate.id === "red-baron")!;
+    const app = await entry.create({} as never);
+    app.setFocused?.(true);
+    const frame = { width: 640, height: 520, seconds: 0 };
+    app.demo.resize?.(frame.width, frame.height);
+    for (let update = 0; update < 30; update++) app.demo.update(1 / 60);
+    // The picture's place in the window is known once it has been drawn.
+    app.demo.draw(new DisplayList(), frame);
+    // The game's own cabinet, to read its line of controls (the OS draws it under the picture).
+    const cabinet = (app.demo as unknown as { cabinet: ArcadeCabinet }).cabinet;
+    expect(cabinet.controls).toContain("CLICK FOR MOUSE STEERING");
+    // Near the picture's right edge, then the click that hands the stick over.
+    app.onPointer?.("hover", frame.width - 20, frame.height / 3, false);
+    app.onPointer?.("down", frame.width - 20, frame.height / 3, false);
+    app.onPointer?.("up", frame.width - 20, frame.height / 3, false);
+    expect(cabinet.controls).toContain("M LETS GO");
+    expect(app.onKeyDown?.(press("m", "KeyM"))).toBe(true);
+    expect(cabinet.controls).toContain("CLICK FOR MOUSE STEERING");
+    app.dispose?.();
+  });
 });

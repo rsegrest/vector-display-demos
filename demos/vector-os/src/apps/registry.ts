@@ -19,8 +19,8 @@ const DEMO_BRIGHTNESS = 0.75;
 // A few demos are given the pointer, where what a click means is simple. The rest
 // are for watching; the box at the right of the title bar opens the real thing.
 //
-// The arcade games are the exception: they are played here, with the keyboard,
-// while their window is in front, and play their attract mode behind. Each is
+// The arcade games are the exception: they are played here, with the keyboard
+// (and the mouse, for Tempest's spinner and Red Baron's stick) while their window is in front, and play their attract mode behind. Each is
 // the game from vector-games itself, through its src/embed.ts, and its title
 // bar's box opens its own page, built into the site under arcade/.
 export const APP_ENTRIES: readonly AppEntry[] = [
@@ -254,6 +254,16 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     page: "arcade/tempest",
     size: { width: 460, height: 660 },
     create: async () => createArcadeApp((await import("@vector-games/tempest")).createCabinet()),
+  },
+  {
+    id: "red-baron",
+    title: "Red Baron",
+    kind: "demo",
+    category: "arcade",
+    page: "arcade/red-baron",
+    // The 4:3 screen, with room under it for two lines of controls.
+    size: { width: 640, height: 560 },
+    create: async () => createArcadeApp((await import("@vector-games/red-baron")).createCabinet()),
   },
 ];
 

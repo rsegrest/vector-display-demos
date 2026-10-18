@@ -60,7 +60,8 @@ export function wrapControls(text: string, width: number, measure: (line: string
 //
 // It is never paused. In the background it carries on as the cabinet would,
 // playing its attract mode (or a game, until the ships run out); in front it
-// has the keyboard, and, for Tempest, the mouse as its spinner. The game keeps
+// has the keyboard, and the mouse: for Tempest its spinner, for Red Baron its
+// flight stick, steered by where the pointer is over the picture. The game keeps
 // its own time: the OS's updates are turned into the game's own steps.
 class ArcadeGameDemo implements Demo {
   private readonly clock: FixedStepClock;
@@ -69,6 +70,8 @@ class ArcadeGameDemo implements Demo {
   private seconds = 0;
   private isFocused = false;
   private lastPointer: { x: number; seconds: number } | null = null;
+  // Where the picture was last drawn, to say where the pointer is over it.
+  private layout: ArcadeLayout | null = null;
 
   public constructor(private readonly cabinet: ArcadeCabinet) {
     this.clock = new FixedStepClock(cabinet.stepsPerSecond, cabinet.mostStepsAtOnce);
@@ -84,6 +87,7 @@ class ArcadeGameDemo implements Demo {
     const font = getDemoFont();
     const controls = wrapControls(this.cabinet.controls, frame.width - 2 * CONTROLS_MARGIN, (line) => font.measureText(line, CONTROLS_TEXT_SIZE).width);
     const layout = arcadeLayout(frame.width, frame.height, this.cabinet.screen, controls.length);
+    this.layout = layout;
     this.picture.clear();
     this.cabinet.draw(this.picture);
     this.blitter.beginFrame();
@@ -113,7 +117,10 @@ class ArcadeGameDemo implements Demo {
     this.isFocused = focused;
     this.lastPointer = null;
     // A button held as the window left the front would otherwise stay down.
-    if (!focused) this.cabinet.mouseButton?.(0, false);
+    if (!focused) {
+      this.cabinet.mouseButton?.(0, false);
+      this.cabinet.pointerAt?.(null);
+    }
   }
 
   public keyDown(press: KeyPress): boolean {
@@ -126,19 +133,36 @@ class ArcadeGameDemo implements Demo {
     this.cabinet.keyUp(press);
   }
 
-  // The pointer turns a spinner by how far it moves sideways, and its button fires.
-  // Only in front: a window behind is only being watched.
-  public pointer(kind: PointerKind, x: number): void {
-    if (!this.isFocused || !this.cabinet.mouseMove) return;
+  // The pointer turns a spinner by how far it moves sideways, or steers a stick by
+  // where it is over the picture; its button is the game's to use (fire, or for Red
+  // Baron first taking the stick). Only in front: a window behind is only being watched.
+  public pointer(kind: PointerKind, x: number, y: number): void {
+    const { mouseMove, mouseButton, pointerAt } = this.cabinet;
+    if (!this.isFocused || (!mouseMove && !pointerAt)) return;
+    // Told where the pointer is before its button, so a click that takes the stick takes it from there.
+    pointerAt?.call(this.cabinet, this.pointOverPicture(x, y));
     if (kind === "down") {
       this.cabinet.enableSound();
-      this.cabinet.mouseButton?.(0, true);
+      mouseButton?.call(this.cabinet, 0, true);
     } else if (kind === "up") {
-      this.cabinet.mouseButton?.(0, false);
+      mouseButton?.call(this.cabinet, 0, false);
     }
+    if (!mouseMove) return;
     const last = this.lastPointer;
-    if (last && this.seconds - last.seconds < POINTER_GAP_SECONDS) this.cabinet.mouseMove(x - last.x);
+    if (last && this.seconds - last.seconds < POINTER_GAP_SECONDS) mouseMove.call(this.cabinet, x - last.x);
     this.lastPointer = { x, seconds: this.seconds };
+  }
+
+  public pointerLeave(): void {
+    this.lastPointer = null;
+    this.cabinet.pointerAt?.(null);
+  }
+
+  // The pointer as a point across the picture, each axis 0 to 1; null off the picture.
+  private pointOverPicture(x: number, y: number): { x: number; y: number } | null {
+    const picture = this.layout?.picture;
+    if (!picture || x < picture.left || x > picture.right || y < picture.top || y > picture.bottom) return null;
+    return { x: (x - picture.left) / (picture.right - picture.left), y: (y - picture.top) / (picture.bottom - picture.top) };
   }
 }
 
@@ -156,7 +180,8 @@ export function createArcadeApp(cabinet: ArcadeCabinet, options: ArcadeAppOption
     brightness: options.brightness ?? 1,
     onKeyDown: (press) => demo.keyDown(press),
     onKeyUp: (press) => demo.keyUp(press),
-    onPointer: (kind, x) => demo.pointer(kind, x),
+    onPointer: (kind, x, y) => demo.pointer(kind, x, y),
+    onPointerLeave: () => demo.pointerLeave(),
     setFocused: (focused) => demo.setFocused(focused),
     setAudible: (audible) => cabinet.setAudible(audible),
     dispose: () => cabinet.dispose(),

@@ -21,9 +21,12 @@ export interface ArcadeCabinet {
   // Returns whether the game uses the key.
   keyDown(key: KeyPress): boolean;
   keyUp(key: KeyPress): void;
-  // Sideways mouse movement and the mouse buttons, for a game with a spinner (Tempest).
+  // Sideways mouse movement and the mouse buttons, for a game with a spinner (Tempest); the buttons also for Red Baron.
   mouseMove?(dx: number): void;
   mouseButton?(button: number, down: boolean): void;
+  // Where the pointer is over the picture, for a game steered by it (Red Baron's flight stick):
+  // x and y from 0 to 1 across the picture, or null when it has left the picture or the window.
+  pointerAt?(point: { readonly x: number; readonly y: number } | null): void;
   // Runs this many steps, then does what the page does once a display frame (sound, saving scores).
   advance(steps: number): void;
   draw(displayList: DisplayList): void;

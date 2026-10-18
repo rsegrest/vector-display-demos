@@ -5,7 +5,7 @@ import { APP_ENTRIES } from "./apps/registry.js";
 import { BootSequence } from "./Boot.js";
 import { HeldKeys } from "./HeldKeys.js";
 import { SegmentBlitter } from "./SegmentBlitter.js";
-import { TITLE_BAR_HEIGHT, TITLE_BOX_SIZE, RESIZE_GRIP, WindowManager, contains, toClipRect, type OsWindow, type Rect } from "./WindowManager.js";
+import { TITLE_BAR_HEIGHT, TITLE_BOX_SIZE, RESIZE_GRIP, WindowManager, contains, toClipRect, type Hit, type OsWindow, type Rect } from "./WindowManager.js";
 
 export const VECTOR_OS_WORLD_HEIGHT = 1000;
 export const MENU_BAR_HEIGHT = 44;
@@ -88,6 +88,8 @@ export class VectorOsDemo implements Demo {
   private readonly collapsed = new Set<AppCategory>();
   // The window that has the pointer while its button is held in that window's contents.
   private captured: OsWindow<Running> | null = null;
+  // The window whose contents the pointer is over, to tell it when the pointer leaves.
+  private pointerOver: OsWindow<Running> | null = null;
   // The keys that are down, each with the window it went down to.
   private readonly heldKeys = new HeldKeys<OsWindow<Running>>();
   // The window last known to be in front, so that the change can be noticed and told.
@@ -256,12 +258,14 @@ export class VectorOsDemo implements Demo {
     for (const held of this.heldKeys.releaseAll()) held.recipient.payload.app?.onKeyUp?.(held.press);
   }
 
-  // The pointer, in screen (world) coordinates.
-  public pointer(kind: "down" | "move" | "up", x: number, y: number, shiftKey = false): void {
+  // The pointer, in screen (world) coordinates. "leave" is the pointer leaving the page.
+  public pointer(kind: "down" | "move" | "up" | "leave", x: number, y: number, shiftKey = false): void {
     if (this.boot) {
       if (kind === "down") this.boot.skip();
       return;
     }
+    this.notePointerOver(kind === "leave" ? null : this.windows.hitTest(x, y));
+    if (kind === "leave") return;
     if (kind === "down") this.pointerDown(x, y, shiftKey);
     else if (kind === "move") this.pointerMove(x, y, shiftKey);
     else this.pointerUp(x, y, shiftKey);
@@ -343,6 +347,7 @@ export class VectorOsDemo implements Demo {
     // The closing animations are cut short: a reboot is abrupt.
     this.windows.update(1);
     this.captured = null;
+    this.pointerOver = null;
     this.boot = new BootSequence(this.entries.length);
   }
 
@@ -397,6 +402,13 @@ export class VectorOsDemo implements Demo {
       running.app.demo.resize?.(worldWidth, worldHeight);
     }
     return content.height / worldHeight;
+  }
+
+  // Tells the window the pointer was over, if it has left its contents.
+  private notePointerOver(hit: Hit<Running> | null): void {
+    const over = hit?.part === "content" ? hit.window : null;
+    if (this.pointerOver && this.pointerOver !== over) this.pointerOver.payload.app?.onPointerLeave?.();
+    this.pointerOver = over;
   }
 
   private pointerDown(x: number, y: number, shiftKey: boolean): void {

@@ -2,7 +2,7 @@
 //
 // The OS updates its programs at its own rate, sixty times a second. The games
 // were not built for that: Asteroids steps 62.5 times a second, Lunar Lander
-// 41.7, Battlezone and Tempest 246.1, because those are the rates their boards
+// 41.7, Battlezone, Tempest and Red Baron 246.1, because those are the rates their boards
 // ran at, and what they do in a step is what the board did. So each game keeps
 // its own count of the steps it is owed, runs the whole ones, and carries the
 // fraction to the next update, as the game's own page does on each display frame.
