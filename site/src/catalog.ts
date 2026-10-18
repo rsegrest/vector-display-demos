@@ -97,4 +97,9 @@ export const DEMO_CATALOG: readonly DemoEntry[] = [
     title: "Vector OS",
     description: "A desktop drawn by one beam: windows running the demos, a terminal, a clock",
   },
+  {
+    path: "vr",
+    title: "Vector OS VR",
+    description: "Vector OS and its games on a big screen in a dark room, in a WebXR headset",
+  },
 ];
