@@ -5,6 +5,7 @@ import { BeamPanel, ROW_HEIGHT, TOP_MARGIN } from "../src/apps/beamPanel.js";
 import { handAngles } from "../src/apps/clock.js";
 import type { AppEntry, OsServices } from "../src/apps/OsApp.js";
 import { APP_ENTRIES } from "../src/apps/registry.js";
+import { hasArcadeGame } from "../arcadeGames.js";
 import { Terminal, runCommand } from "../src/apps/terminal.js";
 import { BootSequence } from "../src/Boot.js";
 import { SegmentBlitter, type BlitTransform } from "../src/SegmentBlitter.js";
@@ -741,8 +742,10 @@ describe("the real programs", () => {
     expect(inCategory("arcade")).toEqual(["asteroids", "lunar-lander", "battlezone", "tempest"]);
   });
 
-  // Lenia needs a Web Worker and Live Earth fetches from the network, so those two are left to the browser.
-  const runnable = APP_ENTRIES.filter((entry) => entry.id !== "lenia" && entry.id !== "live-earth");
+  // Lenia needs a Web Worker, Live Earth fetches from the network, and arcade games require ../vector-games.
+  const runnable = APP_ENTRIES.filter(
+    (entry) => entry.id !== "lenia" && entry.id !== "live-earth" && (entry.category !== "arcade" || hasArcadeGame(entry.id)),
+  );
 
   it.each(runnable.map((entry) => [entry.id, entry] as const))("%s runs in a window and draws inside it", async (_id, entry) => {
     const os = new VectorOsDemo({ skipBoot: true, entries: [entry], startup: [entry.id] });
