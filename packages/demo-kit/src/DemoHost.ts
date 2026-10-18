@@ -36,6 +36,22 @@ export interface DemoHostOptions {
   readonly phosphor?: Partial<PhosphorSettings>;
 }
 
+/**
+ * What runs the host's frames: the window's animation frames by default.  An
+ * immersive WebXR session stops those on most headsets and calls its own
+ * (XRSession.requestAnimationFrame) instead, so a host drawn into a VR scene is
+ * handed the session's (setFrameScheduler).
+ */
+export interface FrameScheduler {
+  request(callback: (time: number) => void): number;
+  cancel(id: number): void;
+}
+
+const WINDOW_FRAMES: FrameScheduler = {
+  request: (callback) => requestAnimationFrame(callback),
+  cancel: (id) => cancelAnimationFrame(id),
+};
+
 const DEFAULT_LINE_STYLE_CSS: LineStyle = {
   beamWidth: 1.3,
   glowRadius: 2.6,
@@ -86,6 +102,7 @@ export class DemoHost {
   private elapsedSeconds = 0;
   private pendingSingleSteps = 0;
   private animationFrameId = 0;
+  private scheduler: FrameScheduler = WINDOW_FRAMES;
   private readonly onResize = (): void => this.layout();
 
   private constructor(
@@ -116,8 +133,23 @@ export class DemoHost {
     host.layout();
     window.addEventListener("resize", host.onResize);
     host.previousTime = performance.now();
-    host.animationFrameId = requestAnimationFrame((time) => host.frame(time));
+    host.animationFrameId = host.scheduler.request((time) => host.frame(time));
     return host;
+  }
+
+  /**
+   * Hands the frame loop to another scheduler (a WebXR session's), or back to the
+   * window's with none.  The pending frame moves to the new one at once.
+   */
+  public setFrameScheduler(scheduler: FrameScheduler | null): void {
+    this.scheduler.cancel(this.animationFrameId);
+    this.scheduler = scheduler ?? WINDOW_FRAMES;
+    this.animationFrameId = this.scheduler.request((time) => this.frame(time));
+  }
+
+  /** The canvas the host draws into (a VR scene uses it as a texture). */
+  public get canvasElement(): HTMLCanvasElement {
+    return this.canvas;
   }
 
   public get worldSize(): { readonly width: number; readonly height: number } {
@@ -161,7 +193,7 @@ export class DemoHost {
   // browsers allow only a handful at once, so a page with many displays must
   // release the ones it is not showing. The canvas cannot be drawn to again.
   public stop(): void {
-    cancelAnimationFrame(this.animationFrameId);
+    this.scheduler.cancel(this.animationFrameId);
     window.removeEventListener("resize", this.onResize);
     this.phosphor.dispose();
     this.renderer.dispose();
@@ -244,6 +276,6 @@ export class DemoHost {
       this.applyLineStyle();
     }
     this.lastFrameMilliseconds = performance.now() - workStart;
-    this.animationFrameId = requestAnimationFrame((nextTime) => this.frame(nextTime));
+    this.animationFrameId = this.scheduler.request((nextTime) => this.frame(nextTime));
   }
 }

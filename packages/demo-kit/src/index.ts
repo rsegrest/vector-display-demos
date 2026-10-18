@@ -1,5 +1,5 @@
 export { DEFAULT_TEXT_BEAM_WIDTH, DemoHost } from "./DemoHost.js";
-export type { Demo, DemoFrame, DemoHostOptions } from "./DemoHost.js";
+export type { Demo, DemoFrame, DemoHostOptions, FrameScheduler } from "./DemoHost.js";
 export { DemoHud, HUD_MARGIN, HUD_TEXT_COLOR } from "./DemoHud.js";
 export type { DemoHudContent } from "./DemoHud.js";
 export { DynamicGeometry } from "./DynamicGeometry.js";
