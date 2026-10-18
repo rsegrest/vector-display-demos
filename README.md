@@ -35,11 +35,26 @@ Each demo package exports a `start…(canvas)` function and implements the `Demo
 ```sh
 npm install
 npm run dev                    # http://localhost:5180 (also on the LAN: binds 0.0.0.0)
+npm run dev:https              # the same over https (self-signed), for WebXR on the Quest: /vr/
 npm test                       # all workspaces
 npm run build:arcade           # the arcade games' own pages, into site/public/arcade/ (needs ../vector-games)
 npm run build                  # static multi-page site in site/dist (runs build:arcade first)
 npm run screenshot -- site /tmp/shot --path particle-life/ --at 3,10 --query "seed=777&preset=1"
 ```
+
+## Vector OS VR (`/vr/`)
+
+Vector OS, games and all, on a 3.6 m screen in a dark room, in a WebXR headset (Meta Quest's browser).
+The code is `demos/vector-os/src/vr/`; Vector OS and the games are unchanged.
+
+- **On the Quest:** run `npm run dev:https` on this PC and open `https://192.168.1.148:5180/vr/` in the Quest's
+  browser. The certificate is self-signed: accept the warning once (Advanced, Proceed). Press ENTER VR.
+  (Plain http works only as `localhost`, e.g. over USB with `adb reverse tcp:5180 tcp:5180`.)
+- **Controls:** the right controller's ray is the mouse, its trigger clicks. The left controller plays:
+  thumbstick turns and thrusts (arrows), trigger fires (Space), grip raises shields / hyperspace (Shift),
+  X drops a coin (1), Y starts (Enter); right A is Enter, right B is 2 (two players). A Bluetooth keyboard works.
+- **Without a headset** the page is a flat preview of the room; the mouse clicks on the screen.
+- Not done yet: comfort options (screen distance and size), sound check in the headset, true 3D games (stage 2).
 
 To add a demo: create `demos/<name>` exporting a start function, add an entry to `site/src/catalog.ts`, and add `site/<name>/index.html` plus `site/src/pages/<name>.ts`.
 
