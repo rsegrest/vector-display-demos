@@ -24,9 +24,13 @@ const outRoot = join(root, "site/public/arcade");
 rmSync(outRoot, { recursive: true, force: true });
 for (const game of games) {
   const gameDir = join(gamesDir, game);
+  if (!existsSync(gameDir)) {
+    console.warn(`Skipping ${game}: ${gameDir} is not present.`);
+    continue;
+  }
   if (!existsSync(join(gameDir, "node_modules"))) {
-    console.error(`${gameDir} is missing or has no node_modules: run npm install there first.`);
-    process.exit(1);
+    console.warn(`Skipping ${game}: ${gameDir}/node_modules is missing (run npm install there first).`);
+    continue;
   }
   const outDir = join(outRoot, game);
   console.log(`Building ${game} into ${outDir}`);
