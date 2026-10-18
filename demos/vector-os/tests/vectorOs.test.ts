@@ -733,13 +733,13 @@ describe("the real programs", () => {
   it("are all listed, each with its own id", () => {
     expect(new Set(APP_ENTRIES.map((entry) => entry.id)).size).toBe(APP_ENTRIES.length);
     expect(APP_ENTRIES.filter((entry) => entry.kind === "tool").map((entry) => entry.id)).toEqual(["terminal", "clock", "beam", "calc", "gear-spirals"]);
-    expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(20);
+    expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(21);
     const inCategory = (category: string): string[] => APP_ENTRIES.filter((entry) => entry.category === category).map((entry) => entry.id);
     expect(inCategory("utilities")).toEqual(["terminal", "clock", "beam", "calc"]);
     expect(inCategory("alife")).toEqual(["particle-life", "lenia", "life", "boids", "slime-mold", "biomorphs"]);
     expect(inCategory("simulation")).toEqual(["ca-terrain", "attractors", "gray-scott", "live-earth"]);
     expect(inCategory("creative")).toEqual(["gear-spirals", "polytopes", "oscilloscope", "text-crawl", "epicycles", "meshes"]);
-    expect(inCategory("arcade")).toEqual(["asteroids", "lunar-lander", "battlezone", "tempest", "red-baron"]);
+    expect(inCategory("arcade")).toEqual(["asteroids", "lunar-lander", "battlezone", "tempest", "red-baron", "asteroids-deluxe"]);
   });
 
   // Lenia needs a Web Worker, Live Earth fetches from the network, and arcade games require ../vector-games.

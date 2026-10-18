@@ -265,6 +265,16 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     size: { width: 640, height: 560 },
     create: async () => createArcadeApp((await import("@vector-games/red-baron")).createCabinet()),
   },
+  {
+    id: "asteroids-deluxe",
+    title: "Asteroids Deluxe",
+    kind: "demo",
+    category: "arcade",
+    page: "arcade/asteroids-deluxe",
+    // The 4:3 screen, with room under it for a line of controls.
+    size: { width: 640, height: 540 },
+    create: async () => createArcadeApp((await import("@vector-games/asteroids-deluxe")).createCabinet()),
+  },
 ];
 
 function demoApp(demo: OsApp["demo"], options: Partial<Omit<OsApp, "demo">> = {}): OsApp {
