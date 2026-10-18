@@ -6,6 +6,7 @@
   "description": "The demo website: a vector-font index at / and one route per demo.",
   "scripts": {
     "dev": "vite",
+    "dev:https": "HTTPS=1 vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
@@ -33,5 +34,8 @@
     "@vector-demos/type-specimen": "*",
     "@vector-demos/vector-os": "*",
     "@vector-display/core": "^0.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^1.1.0"
   }
 }

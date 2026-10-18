@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import { defineConfig, type Plugin } from "vitest/config";
 import { DEMO_CATALOG } from "./src/catalog.js";
 import { travelEditApi } from "../demos/travel-globe/src/server/vitePlugin.js";
@@ -41,12 +42,15 @@ function serveArcadePages(): Plugin {
 }
 
 const siteRoot = dirname(fileURLToPath(import.meta.url));
+// HTTPS=1 (npm run dev:https) serves over https with a self-signed certificate: WebXR runs only on
+// secure pages, so the Quest's browser can open /vr/ from this PC only this way (or over adb reverse).
+const https = process.env.HTTPS === "1";
 
 export default defineConfig({
   base: "./",
   appType: "mpa",
   // travelEditApi only runs in the dev server: it lets this PC and Rick's Mac edit the travel globe's data.
-  plugins: [addTrailingSlash(), serveArcadePages(), travelEditApi()],
+  plugins: [addTrailingSlash(), serveArcadePages(), travelEditApi(), ...(https ? [basicSsl()] : [])],
   // Vector OS runs the arcade games from vector-games, next to this repository.
   resolve: arcadeGamesViteConfig.resolve,
   build: {
