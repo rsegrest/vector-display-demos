@@ -250,6 +250,9 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     let rightStickWasPressed = false;
     let leftStickWasPressed = false;
     let rightGripWasPressed = false;
+    let rightFlickWas = 0;
+    // What the page sees of the style controls, for the panel (the owner could not switch styles: this says where it stops).
+    let styleDiagnosis = "";
     // The 3D style just chosen (right grip), shown on the panel for a moment.
     let styleShown: { name: string; until: number } | null = null;
     // Where the room stands: recentred on the head when the session starts, when a program goes
@@ -307,6 +310,15 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
             styleShown = { name: name ?? "none for this game", until: performance.now() + 2000 };
           }
           rightGripWasPressed = gripPressed;
+          // The right thumbstick flicked left or right: the same, a second way (games with treads use it to drive).
+          const across = pad.axes[2] ?? 0;
+          const flick = !profileFor(os.focusedProgramId).treads && Math.abs(across) > 0.7 ? Math.sign(across) : Math.abs(across) < 0.3 ? 0 : rightFlickWas;
+          if (flick !== 0 && rightFlickWas === 0) {
+            const name = os.cycleFullScreen3dStyle();
+            styleShown = { name: name ?? "none for this game", until: performance.now() + 2000 };
+          }
+          rightFlickWas = flick;
+          styleDiagnosis = `right pad: ${pad.buttons.length} buttons, grip ${gripPressed ? "DOWN" : "up"}, stick x ${across.toFixed(1)}; ${os.focusedProgramId ?? "none"}`;
           // The right thumbstick, pressed: back from a program full screen to the desktop.
           const stickPressed = pad.buttons[3]?.pressed === true;
           if (stickPressed && !rightStickWasPressed) os.exitFullScreen();
@@ -346,8 +358,15 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
         recentreWanted = false;
       }
       const showingStyle = styleShown && performance.now() < styleShown.until;
-      if (showingStyle) showStatus(["3D STYLE", styleShown!.name.toUpperCase(), "RIGHT GRIP: next style"]);
-      else if (frames % 10 === 1) {
+      if (showingStyle) showStatus(["3D STYLE", styleShown!.name.toUpperCase(), "RIGHT GRIP or RIGHT STICK LEFT/RIGHT: next style"]);
+      else if (frames % 10 === 1 && showing3d) {
+        showStatus([
+          "IN 3D: RIGHT GRIP or RIGHT STICK LEFT/RIGHT: next 3D style",
+          "RIGHT STICK PRESS: exit full screen   LEFT STICK PRESS: recentre",
+          "LEFT: stick turn/thrust, trigger fire, grip shields/zap, X coin, Y start",
+          styleDiagnosis || "right controller: not seen",
+        ]);
+      } else if (frames % 10 === 1) {
         showStatus(
           profileFor(os.focusedProgramId).treads
             ? ["BATTLEZONE", "LEFT STICK: left tread    RIGHT STICK: right tread", "LEFT TRIGGER: fire    X: coin    Y: start", "RIGHT: trigger click, GRIP 3D style, STICK PRESS exit full screen", "LEFT STICK PRESS: recentre the view"]
