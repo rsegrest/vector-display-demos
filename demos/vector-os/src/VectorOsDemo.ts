@@ -30,6 +30,8 @@ interface Running {
   // Null until the program has loaded.
   app: OsApp | null;
   failed: boolean;
+  // Why it could not load (the error's first line), shown under COULD NOT LOAD: in a headset there is no console.
+  failure?: string;
   // The program's own display list: it draws here, with no idea it is in a window.
   readonly list: DisplayList;
   // The size of the space last given to the program.
@@ -371,6 +373,7 @@ export class VectorOsDemo implements Demo {
       .catch((error: unknown) => {
         console.error(error);
         running.failed = true;
+        running.failure = String(error instanceof Error ? error.message : error).split("\n")[0].toUpperCase().slice(0, 60);
       });
     return true;
   }
@@ -640,6 +643,16 @@ export class VectorOsDemo implements Demo {
         alignment: "center",
         intensity: 0.5 + 0.4 * Math.abs(Math.sin(this.seconds * 3)),
       });
+      if (running.failure) {
+        getDemoFont().addText(this.chromeList, {
+          text: running.failure,
+          x: content.x + content.width / 2,
+          y: content.y + content.height / 2 + 20,
+          size: 10,
+          alignment: "center",
+          intensity: 0.8,
+        });
+      }
       this.blitter.blit(this.chromeList, displayList, { offsetX: 0, offsetY: 0, scale: 1, intensity: 1, inside, outside: inFront });
       return;
     }
