@@ -20,6 +20,7 @@ interface XrView extends XrPose {
 }
 interface XrInputSource {
   readonly handedness: string;
+  readonly targetRayMode?: string;
   readonly targetRaySpace: unknown;
   readonly gamepad?: { readonly buttons: readonly { readonly pressed: boolean }[]; readonly axes: readonly number[] };
 }
@@ -161,31 +162,64 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     host.setFrameScheduler(sessionFrames);
 
     const heldByHand = new Map<string, Set<string>>();
-    let triggerWasDown = false;
+    // The click is WebXR's "select": a controller's trigger, or a pinch with hand tracking.  The
+    // pointing hand is the right one, or whichever hand last selected (a lone hand, a left-hander).
+    let pointingHand = "right";
+    let lastFrame: XrFrame | null = null;
+    const hitOf = (source: XrInputSource, frame: XrFrame | null) => {
+      const pose = frame?.getPose(source.targetRaySpace, floor);
+      if (!pose) return null;
+      const { origin, direction } = rayOfPose(pose.transform.matrix);
+      return rayOnScreen(origin, direction, screen);
+    };
+    // The left controller's trigger is the fire button, not a click (it has a gamepad: controllerKeys.ts).
+    const clicks = (source: XrInputSource) => !(source.handedness === "left" && source.gamepad && pointingHand === "right");
+    session.addEventListener("selectstart", (event) => {
+      const source = (event as unknown as { inputSource: XrInputSource }).inputSource;
+      if (!clicks(source)) return;
+      pointingHand = source.handedness;
+      const hit = hitOf(source, (event as unknown as { frame?: XrFrame }).frame ?? lastFrame);
+      if (hit) {
+        const point = toDesktop(hit);
+        os.pointer("down", point.x, point.y, false);
+      }
+    });
+    session.addEventListener("selectend", (event) => {
+      const source = (event as unknown as { inputSource: XrInputSource }).inputSource;
+      if (!clicks(source) || source.handedness !== pointingHand) return;
+      const hit = hitOf(source, (event as unknown as { frame?: XrFrame }).frame ?? lastFrame);
+      const point = hit ? toDesktop(hit) : { x: 0, y: 0 };
+      os.pointer(hit ? "up" : "leave", point.x, point.y, false);
+    });
     const onFrame = (time: number, frame: XrFrame) => {
       session.requestAnimationFrame(onFrame);
+      lastFrame = frame;
       const run = pendingFrame;
       pendingFrame = null;
-      run?.(time); // Vector OS steps and draws its desktop
+      try {
+        run?.(time); // Vector OS steps and draws its desktop
+      } catch (error) {
+        // Keep the room drawn whatever the desktop does; the error is in the console (remote debugging).
+        console.error(error);
+      }
 
       const rays: { origin: number[]; end: number[] }[] = [];
       for (const source of session.inputSources) {
         const pose = frame.getPose(source.targetRaySpace, floor);
         const pad = source.gamepad;
-        if (source.handedness === "right" && pose) {
+        if (pose) {
           const { origin, direction } = rayOfPose(pose.transform.matrix);
-          const hit = rayOnScreen(origin, direction, screen);
-          const reach = 6;
+          // The ray stops at the screen when it meets it, so its end is the cursor.
+          const t = direction[2] < -1e-6 ? (screen.centre[2] - origin[2]) / direction[2] : 6;
+          const reach = rayOnScreen(origin, direction, screen) ? t : 6;
           rays.push({ origin, end: [origin[0] + direction[0] * reach, origin[1] + direction[1] * reach, origin[2] + direction[2] * reach] });
-          const trigger = pad?.buttons[0]?.pressed === true;
-          if (hit) {
-            const point = toDesktop(hit);
-            if (trigger !== triggerWasDown) os.pointer(trigger ? "down" : "up", point.x, point.y, false);
-            else os.pointer("move", point.x, point.y, false);
-          } else if (triggerWasDown && !trigger) {
-            os.pointer("leave", 0, 0, false);
+          if (source.handedness === pointingHand) {
+            const hit = rayOnScreen(origin, direction, screen);
+            if (hit) {
+              const point = toDesktop(hit);
+              os.pointer("move", point.x, point.y, false);
+            }
           }
-          triggerWasDown = trigger;
         }
         if (pad) {
           const before = heldByHand.get(source.handedness) ?? new Set<string>();
