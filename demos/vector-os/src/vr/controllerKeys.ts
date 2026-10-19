@@ -9,6 +9,8 @@
 //   X                         the coin key of the game in front (1; Tempest's is 5)
 //   Y                         Enter (start)
 // Right hand's A is Enter too, and B is 2 (two players).
+// Battlezone (its cabinet scheme, a stick per tread): the left thumbstick's up/down is the left
+// tread (W / S), the right thumbstick's up/down the right tread (ArrowUp / ArrowDown).
 // Pure: it takes button states and gives key edges, so it is tested without a headset.
 
 export interface ControllerState {
@@ -36,24 +38,45 @@ export function coinKeyFor(programId: string | null): string {
   return (programId && COIN_KEYS[programId]) || "1";
 }
 
+/** How the controllers play the program in front. */
+export interface ControlProfile {
+  readonly coinKey: string;
+  /** A thumbstick per tread (Battlezone), instead of the left stick as arrows. */
+  readonly treads: boolean;
+}
+
+export function profileFor(programId: string | null): ControlProfile {
+  return { coinKey: coinKeyFor(programId), treads: programId === "battlezone" };
+}
+
 /** The keys each hand holds down now, given which it held before (for the thumbstick's hysteresis). */
-export function heldKeys(state: ControllerState, before: ReadonlySet<string>, coinKey = "1"): Set<string> {
+export function heldKeys(state: ControllerState, before: ReadonlySet<string>, profile: ControlProfile = { coinKey: "1", treads: false }): Set<string> {
   const held = new Set<string>();
   const p = (i: number) => state.pressed[i] === true;
+  const [x, y] = state.stick;
+  const axis = (value: number, key: string) => {
+    if (value > STICK_ON || (before.has(key) && value > STICK_OFF)) held.add(key);
+  };
+  const coinKey = profile.coinKey;
   if (state.hand === "left") {
-    const [x, y] = state.stick;
-    const axis = (value: number, key: string) => {
-      if (value > STICK_ON || (before.has(key) && value > STICK_OFF)) held.add(key);
-    };
-    axis(-x, "ArrowLeft");
-    axis(x, "ArrowRight");
-    axis(-y, "ArrowUp");
-    axis(y, "ArrowDown");
+    if (profile.treads) {
+      axis(-y, "w");
+      axis(y, "s");
+    } else {
+      axis(-x, "ArrowLeft");
+      axis(x, "ArrowRight");
+      axis(-y, "ArrowUp");
+      axis(y, "ArrowDown");
+    }
     if (p(0)) held.add(" ");
     if (p(1)) held.add("Shift");
     if (p(4)) held.add(coinKey);
     if (p(5)) held.add("Enter");
   } else if (state.hand === "right") {
+    if (profile.treads) {
+      axis(-y, "ArrowUp");
+      axis(y, "ArrowDown");
+    }
     if (p(4)) held.add("Enter");
     if (p(5)) held.add("2");
   }
@@ -74,5 +97,6 @@ export function codeOf(key: string): string {
   if (key === "Shift") return "ShiftLeft";
   if (key === "Enter") return "Enter";
   if (/^[0-9]$/.test(key)) return `Digit${key}`;
+  if (/^[a-z]$/.test(key)) return `Key${key.toUpperCase()}`;
   return key;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coinKeyFor, heldKeys, keyEdges } from "../src/vr/controllerKeys.js";
+import { coinKeyFor, heldKeys, keyEdges, profileFor } from "../src/vr/controllerKeys.js";
 import { lookAt, multiply, perspective, rayOfPose, rayOnScreen, screenFor } from "../src/vr/geometry.js";
 
 describe("the virtual cabinet's room", () => {
@@ -53,7 +53,14 @@ describe("the controllers as keys", () => {
     expect(coinKeyFor("tempest")).toBe("5");
     expect(coinKeyFor("asteroids")).toBe("1");
     expect(coinKeyFor(null)).toBe("1");
-    expect(heldKeys({ hand: "left", pressed: [false, false, false, false, true], stick: [0, 0] }, new Set(), "5").has("5")).toBe(true);
+    expect(heldKeys({ hand: "left", pressed: [false, false, false, false, true], stick: [0, 0] }, new Set(), profileFor("tempest")).has("5")).toBe(true);
+  });
+
+  it("drives Battlezone's treads with a thumbstick each: left W/S, right ArrowUp/ArrowDown", () => {
+    const treads = profileFor("battlezone");
+    expect([...heldKeys({ ...idle, hand: "left", stick: [0.9, -0.8] }, new Set(), treads)]).toEqual(["w"]);
+    expect([...heldKeys({ ...idle, hand: "right", stick: [0, 0.8] }, new Set(), treads)]).toEqual(["ArrowDown"]);
+    expect(heldKeys({ ...idle, hand: "right", stick: [0, -0.8] }, new Set(), profileFor("asteroids")).size).toBe(0);
   });
 
   it("reports releases before presses", () => {
