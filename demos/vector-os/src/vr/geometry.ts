@@ -82,6 +82,25 @@ export function lookAt(eye: readonly [number, number, number], target: readonly 
   return Float32Array.from([x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -dot(x, eye), -dot(y, eye), -dot(z, eye), 1]);
 }
 
+/** The controls panel under a screen: 1.6 m x 0.4 m, its top 0.15 m below the screen's bottom, a hair in front. */
+export function panelFor(screen: Screen): Screen {
+  const top = screen.centre[1] - screen.height / 2 - 0.15;
+  return { centre: [screen.centre[0], top - 0.2, screen.centre[2] + 0.01], width: 1.6, height: 0.4 };
+}
+
+/**
+ * How visible the controls panel is for a gaze (the head's forward ray): 0 until the gaze comes
+ * within the bottom `start` of the screen's height, rising to 1 as it reaches the panel's middle.
+ */
+export function panelOpacity(origin: readonly [number, number, number], direction: readonly [number, number, number], screen: Screen, start = 0.15): number {
+  if (direction[2] >= -1e-6) return 0;
+  const t = (screen.centre[2] - origin[2]) / direction[2];
+  const gazeY = origin[1] + direction[1] * t;
+  const fadeFrom = screen.centre[1] - screen.height / 2 + start * screen.height;
+  const fullAt = panelFor(screen).centre[1];
+  return Math.max(0, Math.min(1, (fadeFrom - gazeY) / (fadeFrom - fullAt)));
+}
+
 /** The screen's two triangles: x, y, z, u, v per corner (u right, v down the picture). */
 export function screenVertices(screen: Screen): Float32Array {
   const [cx, cy, cz] = screen.centre;

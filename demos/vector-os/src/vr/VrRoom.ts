@@ -3,14 +3,14 @@
 // controllers' rays.  One draw call each; nothing here knows about WebXR, so
 // the page's flat preview draws through it too.
 
-import { floorLines, multiply, screenVertices, type Screen } from "./geometry.js";
+import { floorLines, multiply, panelFor, screenVertices, type Screen } from "./geometry.js";
 
 const TEXTURED_VS = `#version 300 es
 in vec3 a_position; in vec2 a_uv; uniform mat4 u_mvp; out vec2 v_uv;
 void main() { v_uv = a_uv; gl_Position = u_mvp * vec4(a_position, 1.0); }`;
 const TEXTURED_FS = `#version 300 es
-precision mediump float; in vec2 v_uv; uniform sampler2D u_picture; out vec4 colour;
-void main() { colour = vec4(texture(u_picture, v_uv).rgb, 1.0); }`;
+precision mediump float; in vec2 v_uv; uniform sampler2D u_picture; uniform float u_alpha; out vec4 colour;
+void main() { colour = vec4(texture(u_picture, v_uv).rgb, u_alpha); }`;
 const LINE_VS = `#version 300 es
 in vec3 a_position; uniform mat4 u_mvp;
 void main() { gl_Position = u_mvp * vec4(a_position, 1.0); }`;
@@ -39,8 +39,11 @@ export class VrRoom {
   private readonly lines: WebGLProgram;
   private readonly screenVao: WebGLVertexArrayObject;
   private readonly screenBuffer: WebGLBuffer;
-  /** Whether the floor grid and the status panel are drawn (not while a program is full screen). */
+  /** Whether the floor grid is drawn (not while a program is full screen). */
   public showRoom = true;
+  /** How visible the controls panel is, 0..1 (it fades in as the viewer looks down at it). */
+  public panelOpacity = 0;
+  private readonly statusBuffer: WebGLBuffer;
   private readonly floorVao: WebGLVertexArrayObject;
   private readonly floorCount: number;
   private readonly rayVao: WebGLVertexArrayObject;
@@ -55,9 +58,9 @@ export class VrRoom {
 
     this.screenVao = this.texturedVao(screenVertices(screen));
     this.screenBuffer = this.lastBuffer!;
-    // A status panel under the screen: 1.6 m x 0.4 m, its top 0.15 m below the screen's bottom.
-    const statusTop = screen.centre[1] - screen.height / 2 - 0.15;
-    this.statusVao = this.texturedVao(screenVertices({ centre: [0, statusTop - 0.2, screen.centre[2] + 0.01], width: 1.6, height: 0.4 }));
+    // The controls panel under the screen.
+    this.statusVao = this.texturedVao(screenVertices(panelFor(screen)));
+    this.statusBuffer = this.lastBuffer!;
 
     const floor = floorLines();
     this.floorCount = floor.length / 3;
@@ -90,6 +93,8 @@ export class VrRoom {
     const gl = this.gl;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.screenBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, screenVertices(screen));
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.statusBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, screenVertices(panelFor(screen)));
   }
 
   private texturedVao(vertices: Float32Array): WebGLVertexArrayObject {
@@ -162,12 +167,17 @@ export class VrRoom {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.uniform1i(gl.getUniformLocation(this.textured, "u_picture"), 0);
+    gl.uniform1f(gl.getUniformLocation(this.textured, "u_alpha"), 1);
     gl.bindVertexArray(this.screenVao);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-    if (this.showRoom) {
+    if (this.panelOpacity > 0.01) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.uniform1f(gl.getUniformLocation(this.textured, "u_alpha"), this.panelOpacity);
       gl.bindTexture(gl.TEXTURE_2D, this.statusTexture);
       gl.bindVertexArray(this.statusVao);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.disable(gl.BLEND);
     }
 
     gl.useProgram(this.lines);

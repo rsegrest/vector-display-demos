@@ -8,7 +8,7 @@
 import { DemoHost, showFatalError, type FrameScheduler } from "@vector-demos/demo-kit";
 import { VECTOR_OS_WORLD_HEIGHT, VectorOsDemo } from "../VectorOsDemo.js";
 import { codeOf, heldKeys, keyEdges, profileFor } from "./controllerKeys.js";
-import { lookAt, perspective, rayOfPose, rayOnScreen, screenFor } from "./geometry.js";
+import { lookAt, panelOpacity, perspective, rayOfPose, rayOnScreen, screenFor } from "./geometry.js";
 import { VrRoom } from "./VrRoom.js";
 
 // The few WebXR shapes used here (TypeScript's DOM library leaves WebXR out).
@@ -25,7 +25,7 @@ interface XrInputSource {
   readonly gamepad?: { readonly buttons: readonly { readonly pressed: boolean }[]; readonly axes: readonly number[] };
 }
 interface XrFrame {
-  getViewerPose(space: unknown): { readonly views: readonly XrView[] } | null;
+  getViewerPose(space: unknown): (XrPose & { readonly views: readonly XrView[] }) | null;
   getPose(space: unknown, base: unknown): XrPose | null;
 }
 interface XrLayer {
@@ -86,18 +86,17 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     room.setScreen(screen);
     room.showRoom = !os.isFullScreen;
   };
-  // The status panel under the screen in the headset: what the controllers report, and the last error.
+  // The controls panel under the screen in the headset (it fades in as the viewer looks down at it).
   const statusCanvas = document.createElement("canvas");
   statusCanvas.width = 1024;
   statusCanvas.height = 256;
   const statusPen = statusCanvas.getContext("2d")!;
-  let lastError = "";
   const showStatus = (lines: string[]) => {
     statusPen.fillStyle = "#020608";
     statusPen.fillRect(0, 0, statusCanvas.width, statusCanvas.height);
     statusPen.fillStyle = "#8ff";
     statusPen.font = "26px monospace";
-    lines.forEach((line, i) => statusPen.fillText(line.slice(0, 70), 16, 36 + i * 36));
+    lines.forEach((line, i) => statusPen.fillText(line.slice(0, 70), 16, 48 + i * 44));
     room.takeStatus(statusCanvas);
   };
   const toDesktop = (point: { x: number; y: number }) => ({ x: point.x * host.worldSize.width, y: point.y * host.worldSize.height });
@@ -228,22 +227,18 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       fitScreen();
       lastFrame = frame;
       frames += 1;
-      const status: string[] = [];
       try {
-        handleInputs(frame, status);
+        handleInputs(frame);
       } catch (error) {
-        lastError = String(error);
         console.error(error);
       }
-      draw(time, frame, status);
+      draw(time, frame);
     };
-    const handleInputs = (frame: XrFrame, status: string[]) => {
+    const handleInputs = (frame: XrFrame) => {
       const rays: { origin: number[]; end: number[] }[] = [];
       for (const source of session.inputSources) {
         const pose = frame.getPose(source.targetRaySpace, floor);
         const pad = source.gamepad;
-        const pressedNow = pad ? pad.buttons.map((b, i) => (b.pressed ? i : -1)).filter((i) => i >= 0).join(",") : "no pad";
-        status.push(`${source.handedness} ${source.targetRayMode ?? ""}: pose ${pose ? "yes" : "NO"}, pressed [${pressedNow}]`);
         if (pose) {
           const { origin, direction } = rayOfPose(pose.transform.matrix);
           // The ray stops at the screen when it meets it, so its end is the cursor.
@@ -279,13 +274,12 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       currentRays = rays;
     };
     let currentRays: { origin: number[]; end: number[] }[] = [];
-    const draw = (time: number, frame: XrFrame, status: string[]) => {
+    const draw = (time: number, frame: XrFrame) => {
       const run = pendingFrame;
       pendingFrame = null;
       try {
         run?.(time); // Vector OS steps and draws its desktop
       } catch (error) {
-        lastError = String(error);
         console.error(error);
       }
       const rays = currentRays;
@@ -293,16 +287,15 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       const layer = session.renderState.baseLayer;
       if (!pose || !layer) return;
       if (frames % 10 === 1) {
-        const keys = [...heldByHand.values()].flatMap((held) => [...held]).map((key) => (key === " " ? "Space" : key));
-        showStatus([
-          `RIGHT: ray + trigger click, A start, B 2 players, stick press: exit full screen`,
+        showStatus(
           profileFor(os.focusedProgramId).treads
-            ? `BATTLEZONE: left stick left tread, right stick right tread, left trigger fire, X coin, Y start`
-            : `LEFT: X coin, Y start, trigger fire, grip shields/zap, stick turn/thrust`,
-          ...status,
-          `keys held: ${keys.join(" ") || "none"}   ${lastError ? `error: ${lastError}` : ""}`,
-        ]);
+            ? ["BATTLEZONE", "LEFT STICK: left tread    RIGHT STICK: right tread", "LEFT TRIGGER: fire    X: coin    Y: start", "RIGHT: point + trigger to click, stick press: exit full screen"]
+            : ["CONTROLS", "LEFT STICK: turn / thrust    TRIGGER: fire    GRIP: shields / zap", "X: coin    Y: start    RIGHT B: two players", "RIGHT: point + trigger to click, stick press: exit full screen"],
+        );
       }
+      // The head's forward ray: the panel fades in as the gaze goes below the screen.
+      const head = rayOfPose(pose.transform.matrix);
+      room.panelOpacity = panelOpacity(head.origin, head.direction, screen);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
       room.takePicture(desktop);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);

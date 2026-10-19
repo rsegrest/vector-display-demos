@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { coinKeyFor, heldKeys, keyEdges, profileFor } from "../src/vr/controllerKeys.js";
-import { lookAt, multiply, perspective, rayOfPose, rayOnScreen, screenFor } from "../src/vr/geometry.js";
+import { lookAt, multiply, panelFor, panelOpacity, perspective, rayOfPose, rayOnScreen, screenFor } from "../src/vr/geometry.js";
 
 describe("the virtual cabinet's room", () => {
   const screen = screenFor(16 / 10);
@@ -68,5 +68,26 @@ describe("the controllers as keys", () => {
       { key: "ArrowLeft", down: false },
       { key: "ArrowRight", down: true },
     ]);
+  });
+});
+
+describe("the controls panel under the screen", () => {
+  const screen = screenFor(16 / 9, 3.6);
+  const eye: [number, number, number] = [0, 1.6, 0];
+  const lookingAt = (y: number): [number, number, number] => [0, y - eye[1], screen.centre[2] - eye[2]];
+
+  it("stays hidden while the gaze is on the screen above its bottom 15%", () => {
+    expect(panelOpacity(eye, lookingAt(screen.centre[1]), screen)).toBe(0);
+    const bottom = screen.centre[1] - screen.height / 2;
+    expect(panelOpacity(eye, lookingAt(bottom + 0.2 * screen.height), screen)).toBe(0);
+  });
+
+  it("fades in below that, and is fully shown when the gaze reaches it", () => {
+    const bottom = screen.centre[1] - screen.height / 2;
+    const between = panelOpacity(eye, lookingAt(bottom), screen);
+    expect(between).toBeGreaterThan(0);
+    expect(between).toBeLessThan(1);
+    expect(panelOpacity(eye, lookingAt(panelFor(screen).centre[1]), screen)).toBe(1);
+    expect(panelOpacity(eye, lookingAt(-1), screen)).toBe(1);
   });
 });
