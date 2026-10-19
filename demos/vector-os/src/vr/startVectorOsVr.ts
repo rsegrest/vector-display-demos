@@ -78,12 +78,24 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
   const desktopScreen = screenFor(DESKTOP.width / DESKTOP.height, 3.6);
   const fullScreen = screenFor(DESKTOP.width / DESKTOP.height, 4.8 * (DESKTOP.width / DESKTOP.height));
   let screen = desktopScreen;
+  // Whether a game stands in the room in 3D: then there is no screen to point at, and the ray is not a mouse.
+  let showing3d = false;
   const room = new VrRoom(gl, screen);
   const fitScreen = () => {
     // A game full screen that projects its own 3D (Tempest) stands in the room in 3D instead of
     // on the screen; on its flat screens (text, the score table) the big screen comes back.
     const picture = os.isFullScreen ? os.fullScreenPicture3d() : null;
     room.setPicture3d(picture);
+    if (picture && !showing3d) {
+      // The pointer leaves the game, and a game the mouse steers (Red Baron, once clicked) lets go of it
+      // (its M key, as on its page): in 3D it is flown with the controllers.
+      os.pointer("leave", 0, 0, false);
+      if (os.focusedProgramId === "red-baron") {
+        os.keyDown({ key: "m", code: "KeyM", repeat: false });
+        os.keyUp({ key: "m", code: "KeyM", repeat: false });
+      }
+    }
+    showing3d = picture !== null;
     const wanted = os.isFullScreen ? fullScreen : desktopScreen;
     if (wanted === screen) return;
     screen = wanted;
@@ -209,7 +221,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     const clicks = (source: XrInputSource) => !(source.handedness === "left" && source.gamepad && pointingHand === "right");
     session.addEventListener("selectstart", (event) => {
       const source = (event as unknown as { inputSource: XrInputSource }).inputSource;
-      if (!clicks(source)) return;
+      if (!clicks(source) || showing3d) return;
       pointingHand = source.handedness;
       const hit = hitOf(source, (event as unknown as { frame?: XrFrame }).frame ?? lastFrame);
       if (hit) {
@@ -219,7 +231,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     });
     session.addEventListener("selectend", (event) => {
       const source = (event as unknown as { inputSource: XrInputSource }).inputSource;
-      if (!clicks(source) || source.handedness !== pointingHand) return;
+      if (!clicks(source) || source.handedness !== pointingHand || showing3d) return;
       const hit = hitOf(source, (event as unknown as { frame?: XrFrame }).frame ?? lastFrame);
       const point = hit ? toDesktop(hit) : { x: 0, y: 0 };
       os.pointer(hit ? "up" : "leave", point.x, point.y, false);
@@ -263,7 +275,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
           const t = direction[2] < -1e-6 ? (screen.centre[2] - origin[2]) / direction[2] : 6;
           const reach = rayOnScreen(origin, direction, screen) ? t : 6;
           rays.push({ origin, end: [origin[0] + direction[0] * reach, origin[1] + direction[1] * reach, origin[2] + direction[2] * reach] });
-          if (source.handedness === pointingHand) {
+          if (source.handedness === pointingHand && !showing3d) {
             const hit = rayOnScreen(origin, direction, screen);
             if (hit) {
               const point = toDesktop(hit);
