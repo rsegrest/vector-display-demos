@@ -106,3 +106,23 @@ describe("recentring the room on the head", () => {
   });
 });
 
+
+describe("the space backdrop", () => {
+  it("has stars all round, a nebula of contour lines, and a solar system, all far behind the playfield", async () => {
+    const { spaceBackdrop, STAR_COUNT } = await import("../src/vr/backdrop.js");
+    const space = spaceBackdrop();
+    const lines = space.positions.length / 6;
+    expect(space.colours.length / 4).toBe(lines);
+    expect(lines).toBeGreaterThan(STAR_COUNT + 500); // stars, plus the nebula's and the system's lines
+    let nearest = Infinity;
+    let behind = 0;
+    for (let i = 0; i < space.positions.length; i += 3) {
+      nearest = Math.min(nearest, Math.hypot(space.positions[i], space.positions[i + 1], space.positions[i + 2]));
+      if (space.positions[i + 2] > 0) behind += 1;
+    }
+    expect(nearest).toBeGreaterThan(30);
+    expect(behind).toBeGreaterThan(0); // stars all round, not only ahead
+    for (let i = 3; i < space.colours.length; i += 4) expect(space.colours[i]).toBeLessThan(0.7); // dim
+    expect(spaceBackdrop().positions).toEqual(space.positions); // the same every time
+  });
+});

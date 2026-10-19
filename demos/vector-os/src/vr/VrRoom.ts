@@ -4,6 +4,7 @@
 // the page's flat preview draws through it too.
 
 import { floorLines, multiply, panelFor, screenVertices, type Screen } from "./geometry.js";
+import { spaceBackdrop } from "./backdrop.js";
 import { Lines3d } from "./Lines3d.js";
 
 /**
@@ -17,6 +18,9 @@ import { Lines3d } from "./Lines3d.js";
 const RIM_DISTANCE = 1.5;
 const DEFAULT_SPREAD = 0.25;
 const DEFAULT_DROP = 0.3;
+
+/** The backdrop is in metres about the eye: moved up to the room's eye height. */
+const BACKDROP_MODEL = Float32Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1.6, 0, 1]);
 
 function pictureModel(spread: number, drop: number): Float32Array {
   const across = RIM_DISTANCE * spread;
@@ -69,6 +73,9 @@ export class VrRoom {
   private readonly rayBuffer: WebGLBuffer;
   private readonly texture: WebGLTexture;
   private readonly lines: Lines3d;
+  /** The backdrop's lines (built when first asked for), and whether the picture wants it. */
+  private backdrop: Lines3d | null = null;
+  private showBackdrop = false;
   /** Whether a 3D picture stands in place of the flat screen (setPicture3d), and where it stands. */
   private picture3d = false;
   private pictureModel = pictureModel(DEFAULT_SPREAD, DEFAULT_DROP);
@@ -145,9 +152,15 @@ export class VrRoom {
 
   /** A game's picture in 3D in place of the flat screen (ArcadeCabinet.picture3d), or null for the screen. */
   public setPicture3d(
-    picture: { readonly positions: Float32Array; readonly colours: Float32Array; readonly spread?: number; readonly drop?: number } | null,
+    picture: { readonly positions: Float32Array; readonly colours: Float32Array; readonly spread?: number; readonly drop?: number; readonly backdrop?: "space" } | null,
   ): void {
     this.picture3d = picture !== null;
+    this.showBackdrop = picture?.backdrop === "space";
+    if (this.showBackdrop && !this.backdrop) {
+      const space = spaceBackdrop();
+      this.backdrop = new Lines3d(this.gl);
+      this.backdrop.setLines(space.positions, space.colours);
+    }
     if (!picture) return;
     this.lines.setLines(picture.positions, picture.colours);
     this.pictureModel = pictureModel(picture.spread ?? DEFAULT_SPREAD, picture.drop ?? DEFAULT_DROP);
@@ -228,6 +241,7 @@ export class VrRoom {
       gl.disable(gl.BLEND);
     }
 
+    if (this.picture3d && this.showBackdrop && this.backdrop) this.backdrop.draw(multiply(mvp, BACKDROP_MODEL), viewport);
     if (this.picture3d) this.lines.draw(multiply(mvp, this.pictureModel), viewport);
 
     gl.useProgram(this.lineProgram);

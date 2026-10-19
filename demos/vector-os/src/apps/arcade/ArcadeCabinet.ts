@@ -49,6 +49,8 @@ export interface Picture3d {
   readonly spread?: number;
   /** How far below the viewer's eye the picture's eye goes, in metres (default 0.3, Tempest's). */
   readonly drop?: number;
+  /** Something for the room to draw behind the picture: "space" (stars, a nebula, a solar system; vr/backdrop.ts). */
+  readonly backdrop?: "space";
 }
 
 export interface ArcadeModule {
