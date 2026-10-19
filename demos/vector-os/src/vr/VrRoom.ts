@@ -4,6 +4,23 @@
 // the page's flat preview draws through it too.
 
 import { floorLines, multiply, panelFor, screenVertices, type Screen } from "./geometry.js";
+import { Lines3d } from "./Lines3d.js";
+
+/**
+ * Where a game's 3D picture stands in the room: its eye (the picture's origin) at standing eye
+ * height where the viewer starts, its nearest drawing (1 in the picture's units) RIM_DISTANCE
+ * metres ahead, and its width and height squeezed by SPREAD (Tempest's eye sits so close to the
+ * rim that the picture spans 150 degrees; squeezed, about 90), depth kept.
+ */
+const PICTURE_EYE_HEIGHT = 1.6;
+const RIM_DISTANCE = 1.5;
+const SPREAD = 0.25;
+const PICTURE_MODEL = Float32Array.from([
+  RIM_DISTANCE * SPREAD, 0, 0, 0,
+  0, RIM_DISTANCE * SPREAD, 0, 0,
+  0, 0, RIM_DISTANCE, 0,
+  0, PICTURE_EYE_HEIGHT, 0, 1,
+]);
 
 const TEXTURED_VS = `#version 300 es
 in vec3 a_position; in vec2 a_uv; uniform mat4 u_mvp; out vec2 v_uv;
@@ -36,7 +53,7 @@ function program(gl: WebGL2RenderingContext, vertex: string, fragment: string): 
 
 export class VrRoom {
   private readonly textured: WebGLProgram;
-  private readonly lines: WebGLProgram;
+  private readonly lineProgram: WebGLProgram;
   private readonly screenVao: WebGLVertexArrayObject;
   private readonly screenBuffer: WebGLBuffer;
   /** Whether the floor grid is drawn (not while a program is full screen). */
@@ -49,12 +66,15 @@ export class VrRoom {
   private readonly rayVao: WebGLVertexArrayObject;
   private readonly rayBuffer: WebGLBuffer;
   private readonly texture: WebGLTexture;
+  private readonly lines: Lines3d;
+  /** Whether a 3D picture stands in place of the flat screen (setPicture3d). */
+  private picture3d = false;
   private readonly statusVao: WebGLVertexArrayObject;
   private readonly statusTexture: WebGLTexture;
 
   public constructor(private readonly gl: WebGL2RenderingContext, screen: Screen) {
     this.textured = program(gl, TEXTURED_VS, TEXTURED_FS);
-    this.lines = program(gl, LINE_VS, LINE_FS);
+    this.lineProgram = program(gl, LINE_VS, LINE_FS);
 
     this.screenVao = this.texturedVao(screenVertices(screen));
     this.screenBuffer = this.lastBuffer!;
@@ -70,6 +90,7 @@ export class VrRoom {
     this.rayBuffer = ray.buffer;
     gl.bindVertexArray(null);
 
+    this.lines = new Lines3d(gl);
     this.texture = this.newTexture();
     this.statusTexture = this.newTexture();
   }
@@ -113,6 +134,12 @@ export class VrRoom {
     return vao;
   }
 
+  /** A game's picture in 3D in place of the flat screen (ArcadeCabinet.picture3d), or null for the screen. */
+  public setPicture3d(picture: { readonly positions: Float32Array; readonly colours: Float32Array } | null): void {
+    this.picture3d = picture !== null;
+    if (picture) this.lines.setLines(picture.positions, picture.colours);
+  }
+
   /** Copies a status picture (a 2D canvas of text) for the panel under the screen. */
   public takeStatus(source: HTMLCanvasElement): void {
     const gl = this.gl;
@@ -127,7 +154,7 @@ export class VrRoom {
     const buffer = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, data, usage);
-    const position = gl.getAttribLocation(this.lines, "a_position");
+    const position = gl.getAttribLocation(this.lineProgram, "a_position");
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 3, gl.FLOAT, false, 12, 0);
     return { vao, buffer };
@@ -148,15 +175,20 @@ export class VrRoom {
   }
 
   /** Draws the room for one eye into the bound framebuffer's current viewport. */
-  public draw(projection: ArrayLike<number>, view: ArrayLike<number>, rays: readonly { origin: number[]; end: number[] }[] = []): void {
+  public draw(
+    projection: ArrayLike<number>,
+    view: ArrayLike<number>,
+    rays: readonly { origin: number[]; end: number[] }[] = [],
+    viewport: { width: number; height: number } = { width: 1000, height: 1000 },
+  ): void {
     const gl = this.gl;
     const mvp = multiply(projection, view);
     gl.enable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
 
-    gl.useProgram(this.lines);
-    gl.uniformMatrix4fv(gl.getUniformLocation(this.lines, "u_mvp"), false, mvp);
-    gl.uniform4f(gl.getUniformLocation(this.lines, "u_colour"), 0.05, 0.16, 0.18, 1);
+    gl.useProgram(this.lineProgram);
+    gl.uniformMatrix4fv(gl.getUniformLocation(this.lineProgram, "u_mvp"), false, mvp);
+    gl.uniform4f(gl.getUniformLocation(this.lineProgram, "u_colour"), 0.05, 0.16, 0.18, 1);
     if (this.showRoom) {
       gl.bindVertexArray(this.floorVao);
       gl.drawArrays(gl.LINES, 0, this.floorCount);
@@ -168,8 +200,10 @@ export class VrRoom {
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.uniform1i(gl.getUniformLocation(this.textured, "u_picture"), 0);
     gl.uniform1f(gl.getUniformLocation(this.textured, "u_alpha"), 1);
-    gl.bindVertexArray(this.screenVao);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    if (!this.picture3d) {
+      gl.bindVertexArray(this.screenVao);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
     if (this.panelOpacity > 0.01) {
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -180,8 +214,10 @@ export class VrRoom {
       gl.disable(gl.BLEND);
     }
 
-    gl.useProgram(this.lines);
-    gl.uniform4f(gl.getUniformLocation(this.lines, "u_colour"), 0.55, 1, 1, 1);
+    if (this.picture3d) this.lines.draw(multiply(mvp, PICTURE_MODEL), viewport);
+
+    gl.useProgram(this.lineProgram);
+    gl.uniform4f(gl.getUniformLocation(this.lineProgram, "u_colour"), 0.55, 1, 1, 1);
     gl.bindVertexArray(this.rayVao);
     for (const ray of rays) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.rayBuffer);

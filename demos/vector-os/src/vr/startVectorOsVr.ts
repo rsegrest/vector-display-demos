@@ -80,6 +80,9 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
   let screen = desktopScreen;
   const room = new VrRoom(gl, screen);
   const fitScreen = () => {
+    // A game full screen that projects its own 3D (Tempest) stands in the room in 3D instead of
+    // on the screen; on its flat screens (text, the score table) the big screen comes back.
+    room.setPicture3d(os.isFullScreen ? os.fullScreenPicture3d() : null);
     const wanted = os.isFullScreen ? fullScreen : desktopScreen;
     if (wanted === screen) return;
     screen = wanted;
@@ -150,7 +153,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     fitScreen();
     room.takePicture(desktop);
     room.clear();
-    room.draw(perspective(fovY, width / Math.max(1, height), 0.05, 50), lookAt(PREVIEW_EYE, [PREVIEW_EYE[0], PREVIEW_EYE[1], PREVIEW_EYE[2] - 1]));
+    room.draw(perspective(fovY, width / Math.max(1, height), 0.05, 50), lookAt(PREVIEW_EYE, [PREVIEW_EYE[0], PREVIEW_EYE[1], PREVIEW_EYE[2] - 1]), [], { width, height });
     requestAnimationFrame(drawPreview);
   };
   requestAnimationFrame(drawPreview);
@@ -303,7 +306,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       for (const eye of pose.views) {
         const viewport = layer.getViewport(eye);
         gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-        room.draw(eye.projectionMatrix, eye.transform.inverse.matrix, rays);
+        room.draw(eye.projectionMatrix, eye.transform.inverse.matrix, rays, viewport);
       }
     };
     session.requestAnimationFrame(onFrame);

@@ -77,6 +77,13 @@ export class VectorOsDemo implements Demo {
     return this.fullScreenWindow !== null;
   }
 
+  /** The full-screen program's picture in 3D, if it has one (VR draws it in place of the flat screen). */
+  public fullScreenPicture3d(): import("./apps/arcade/ArcadeCabinet.js").Picture3d | null {
+    const window = this.fullScreenWindow;
+    if (!window || window.state !== "open") return null;
+    return window.payload.app?.picture3d?.() ?? null;
+  }
+
   // Back from full screen to the desktop, the window where it was.
   public exitFullScreen(): void {
     const window = this.fullScreenWindow;

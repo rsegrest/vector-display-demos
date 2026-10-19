@@ -184,6 +184,7 @@ export function createArcadeApp(cabinet: ArcadeCabinet, options: ArcadeAppOption
     onPointerLeave: () => demo.pointerLeave(),
     setFocused: (focused) => demo.setFocused(focused),
     setAudible: (audible) => cabinet.setAudible(audible),
+    ...(cabinet.picture3d ? { picture3d: () => cabinet.picture3d!() } : {}),
     dispose: () => cabinet.dispose(),
   };
 }

@@ -27,6 +27,10 @@ export interface ArcadeCabinet {
   // Where the pointer is over the picture, for a game steered by it (Red Baron's flight stick):
   // x and y from 0 to 1 across the picture, or null when it has left the picture or the window.
   pointerAt?(point: { readonly x: number; readonly y: number } | null): void;
+  // The picture in 3D, for a VR headset (a game whose program projects its own 3D: Tempest): line
+  // ends as x, y, z with the eye at the origin looking down -z and the nearest drawing at 1, and
+  // r, g, b, brightness per line; null when the game cannot say.
+  picture3d?(): Picture3d | null;
   // Runs this many steps, then does what the page does once a display frame (sound, saving scores).
   advance(steps: number): void;
   draw(displayList: DisplayList): void;
@@ -34,6 +38,11 @@ export interface ArcadeCabinet {
   enableSound(): void;
   setAudible(audible: boolean): void;
   dispose(): void;
+}
+
+export interface Picture3d {
+  readonly positions: Float32Array;
+  readonly colours: Float32Array;
 }
 
 export interface ArcadeModule {
