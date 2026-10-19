@@ -15,9 +15,9 @@ import { Lines3d } from "./Lines3d.js";
 /**
  * The picture's eye sits this far below the viewer's eye, so the well is looked down into rather
  * than straight along (the owner's try on the Quest, 2026-10-18: centred on the eye it sat too
- * high; standing up 0.4-0.5 m after recentring seated looked right).
+ * high; 0.45 m below a little too low; 0.3 m).
  */
-const PICTURE_DROP = 0.45;
+const PICTURE_DROP = 0.3;
 const PICTURE_EYE_HEIGHT = 1.6 - PICTURE_DROP;
 const RIM_DISTANCE = 1.5;
 const SPREAD = 0.25;
