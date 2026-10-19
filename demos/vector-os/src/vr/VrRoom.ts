@@ -43,21 +43,17 @@ export class VrRoom {
   private readonly rayVao: WebGLVertexArrayObject;
   private readonly rayBuffer: WebGLBuffer;
   private readonly texture: WebGLTexture;
+  private readonly statusVao: WebGLVertexArrayObject;
+  private readonly statusTexture: WebGLTexture;
 
   public constructor(private readonly gl: WebGL2RenderingContext, screen: Screen) {
     this.textured = program(gl, TEXTURED_VS, TEXTURED_FS);
     this.lines = program(gl, LINE_VS, LINE_FS);
 
-    this.screenVao = gl.createVertexArray()!;
-    gl.bindVertexArray(this.screenVao);
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ARRAY_BUFFER, screenVertices(screen), gl.STATIC_DRAW);
-    const position = gl.getAttribLocation(this.textured, "a_position");
-    const uv = gl.getAttribLocation(this.textured, "a_uv");
-    gl.enableVertexAttribArray(position);
-    gl.vertexAttribPointer(position, 3, gl.FLOAT, false, 20, 0);
-    gl.enableVertexAttribArray(uv);
-    gl.vertexAttribPointer(uv, 2, gl.FLOAT, false, 20, 12);
+    this.screenVao = this.texturedVao(screenVertices(screen));
+    // A status panel under the screen: 1.6 m x 0.4 m, its top 0.15 m below the screen's bottom.
+    const statusTop = screen.centre[1] - screen.height / 2 - 0.15;
+    this.statusVao = this.texturedVao(screenVertices({ centre: [0, statusTop - 0.2, screen.centre[2] + 0.01], width: 1.6, height: 0.4 }));
 
     const floor = floorLines();
     this.floorCount = floor.length / 3;
@@ -67,12 +63,42 @@ export class VrRoom {
     this.rayBuffer = ray.buffer;
     gl.bindVertexArray(null);
 
-    this.texture = gl.createTexture()!;
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    this.texture = this.newTexture();
+    this.statusTexture = this.newTexture();
+  }
+
+  private newTexture(): WebGLTexture {
+    const gl = this.gl;
+    const texture = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+    return texture;
+  }
+
+  private texturedVao(vertices: Float32Array): WebGLVertexArrayObject {
+    const gl = this.gl;
+    const vao = gl.createVertexArray()!;
+    gl.bindVertexArray(vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+    const position = gl.getAttribLocation(this.textured, "a_position");
+    const uv = gl.getAttribLocation(this.textured, "a_uv");
+    gl.enableVertexAttribArray(position);
+    gl.vertexAttribPointer(position, 3, gl.FLOAT, false, 20, 0);
+    gl.enableVertexAttribArray(uv);
+    gl.vertexAttribPointer(uv, 2, gl.FLOAT, false, 20, 12);
+    return vao;
+  }
+
+  /** Copies a status picture (a 2D canvas of text) for the panel under the screen. */
+  public takeStatus(source: HTMLCanvasElement): void {
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.statusTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
   }
 
   private lineVao(data: Float32Array, usage: number): { vao: WebGLVertexArrayObject; buffer: WebGLBuffer } {
@@ -121,6 +147,9 @@ export class VrRoom {
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
     gl.uniform1i(gl.getUniformLocation(this.textured, "u_picture"), 0);
     gl.bindVertexArray(this.screenVao);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.bindTexture(gl.TEXTURE_2D, this.statusTexture);
+    gl.bindVertexArray(this.statusVao);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
     gl.useProgram(this.lines);

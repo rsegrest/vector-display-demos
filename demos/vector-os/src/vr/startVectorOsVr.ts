@@ -75,6 +75,20 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
   }
   const screen = screenFor(DESKTOP.width / DESKTOP.height, 3.6);
   const room = new VrRoom(gl, screen);
+  // The status panel under the screen in the headset: what the controllers report, and the last error.
+  const statusCanvas = document.createElement("canvas");
+  statusCanvas.width = 1024;
+  statusCanvas.height = 256;
+  const statusPen = statusCanvas.getContext("2d")!;
+  let lastError = "";
+  const showStatus = (lines: string[]) => {
+    statusPen.fillStyle = "#020608";
+    statusPen.fillRect(0, 0, statusCanvas.width, statusCanvas.height);
+    statusPen.fillStyle = "#8ff";
+    statusPen.font = "26px monospace";
+    lines.forEach((line, i) => statusPen.fillText(line.slice(0, 70), 16, 36 + i * 36));
+    room.takeStatus(statusCanvas);
+  };
   const toDesktop = (point: { x: number; y: number }) => ({ x: point.x * host.worldSize.width, y: point.y * host.worldSize.height });
 
   // --- the keyboard, as on Vector OS's page ---------------------------------
@@ -191,22 +205,27 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       const point = hit ? toDesktop(hit) : { x: 0, y: 0 };
       os.pointer(hit ? "up" : "leave", point.x, point.y, false);
     });
+    let frames = 0;
     const onFrame = (time: number, frame: XrFrame) => {
       session.requestAnimationFrame(onFrame);
       lastFrame = frame;
-      const run = pendingFrame;
-      pendingFrame = null;
+      frames += 1;
+      const status: string[] = [];
       try {
-        run?.(time); // Vector OS steps and draws its desktop
+        handleInputs(frame, status);
       } catch (error) {
-        // Keep the room drawn whatever the desktop does; the error is in the console (remote debugging).
+        lastError = String(error);
         console.error(error);
       }
-
+      draw(time, frame, status);
+    };
+    const handleInputs = (frame: XrFrame, status: string[]) => {
       const rays: { origin: number[]; end: number[] }[] = [];
       for (const source of session.inputSources) {
         const pose = frame.getPose(source.targetRaySpace, floor);
         const pad = source.gamepad;
+        const pressedNow = pad ? pad.buttons.map((b, i) => (b.pressed ? i : -1)).filter((i) => i >= 0).join(",") : "no pad";
+        status.push(`${source.handedness} ${source.targetRayMode ?? ""}: pose ${pose ? "yes" : "NO"}, pressed [${pressedNow}]`);
         if (pose) {
           const { origin, direction } = rayOfPose(pose.transform.matrix);
           // The ray stops at the screen when it meets it, so its end is the cursor.
@@ -233,9 +252,23 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
         }
       }
 
+      currentRays = rays;
+    };
+    let currentRays: { origin: number[]; end: number[] }[] = [];
+    const draw = (time: number, frame: XrFrame, status: string[]) => {
+      const run = pendingFrame;
+      pendingFrame = null;
+      try {
+        run?.(time); // Vector OS steps and draws its desktop
+      } catch (error) {
+        lastError = String(error);
+        console.error(error);
+      }
+      const rays = currentRays;
       const pose = frame.getViewerPose(floor);
       const layer = session.renderState.baseLayer;
       if (!pose || !layer) return;
+      if (frames % 10 === 1) showStatus([`frame ${frames}, ${status.length} input sources, pointing: ${pointingHand}`, ...status, lastError ? `error: ${lastError}` : "no errors"]);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
       room.takePicture(desktop);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
