@@ -94,6 +94,10 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
   // --- the keyboard, as on Vector OS's page ---------------------------------
   window.addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.key === "Escape") {
+      os.exitFullScreen();
+      return;
+    }
     if (os.keyDown({ key: event.key, code: event.code, repeat: event.repeat }) || event.key === " " || event.key.startsWith("Arrow")) event.preventDefault();
   });
   window.addEventListener("keyup", (event) => os.keyUp({ key: event.key, code: event.code, repeat: false }));
@@ -206,6 +210,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       os.pointer(hit ? "up" : "leave", point.x, point.y, false);
     });
     let frames = 0;
+    let rightStickWasPressed = false;
     const onFrame = (time: number, frame: XrFrame) => {
       session.requestAnimationFrame(onFrame);
       lastFrame = frame;
@@ -240,6 +245,12 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
             }
           }
         }
+        if (pad && source.handedness === "right") {
+          // The right thumbstick, pressed: back from a program full screen to the desktop.
+          const stickPressed = pad.buttons[3]?.pressed === true;
+          if (stickPressed && !rightStickWasPressed) os.exitFullScreen();
+          rightStickWasPressed = stickPressed;
+        }
         if (pad) {
           const before = heldByHand.get(source.handedness) ?? new Set<string>();
           const now = heldKeys({ hand: source.handedness, pressed: pad.buttons.map((b) => b.pressed), stick: [pad.axes[2] ?? 0, pad.axes[3] ?? 0] }, before, coinKeyFor(os.focusedProgramId));
@@ -271,7 +282,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       if (frames % 10 === 1) {
         const keys = [...heldByHand.values()].flatMap((held) => [...held]).map((key) => (key === " " ? "Space" : key));
         showStatus([
-          `RIGHT: ray + trigger click, A start, B 2 players`,
+          `RIGHT: ray + trigger click, A start, B 2 players, stick press: exit full screen`,
           `LEFT: X coin, Y start, trigger fire, grip shields/zap, stick turn/thrust`,
           ...status,
           `keys held: ${keys.join(" ") || "none"}   ${lastError ? `error: ${lastError}` : ""}`,

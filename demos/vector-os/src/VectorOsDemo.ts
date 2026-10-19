@@ -67,9 +67,29 @@ export class VectorOsDemo implements Demo {
   // Called when a window's "open full screen" box is clicked, with the path of the
   // program's own page: its id, or for the games arcade/ and its id.
   public onNavigate: (page: string) => void = () => {};
-  // When set (in VR, where a program's own page cannot open), that box makes the window fill the
-  // desktop instead, and a second click puts it back.
+  // When set (in VR, where a program's own page cannot open), that box shows the program full
+  // screen inside Vector OS instead: its contents fill the whole screen, with no menu, launcher,
+  // desktop or title bar, until exitFullScreen().
   public launchMaximizes = false;
+  private fullScreenWindow: OsWindow<Running> | null = null;
+
+  public get isFullScreen(): boolean {
+    return this.fullScreenWindow !== null;
+  }
+
+  // Back from full screen to the desktop, the window where it was.
+  public exitFullScreen(): void {
+    const window = this.fullScreenWindow;
+    this.fullScreenWindow = null;
+    if (window && this.windows.windows.includes(window)) this.windows.toggleMaximized(window);
+  }
+
+  private enterFullScreen(window: OsWindow<Running>): void {
+    this.exitFullScreen();
+    // The title bar goes above the top of the screen, so the contents are the whole screen.
+    this.windows.toggleMaximized(window, { x: 0, y: -TITLE_BAR_HEIGHT, width: this.width, height: this.height + TITLE_BAR_HEIGHT });
+    this.fullScreenWindow = window;
+  }
 
   /** The id of the program in the window in front (its registry entry), or null. */
   public get focusedProgramId(): string | null {
@@ -188,6 +208,14 @@ export class VectorOsDemo implements Demo {
     }
     const screen = { left: 0, top: 0, right: frame.width, bottom: frame.height };
     this.blitter.beginFrame();
+    const full = this.fullScreenWindow;
+    if (full && (full.state !== "open" || !this.windows.windows.includes(full))) this.fullScreenWindow = null;
+    if (this.fullScreenWindow) {
+      // Only the program: no desktop, no other windows, no frame.
+      this.drawContents(displayList, this.fullScreenWindow, frame.seconds, []);
+      this.segmentCount = displayList.segmentCount;
+      return;
+    }
 
     // The desktop is behind everything, so every window is cut out of it.
     this.desktopList.clear();
@@ -214,6 +242,7 @@ export class VectorOsDemo implements Demo {
     for (const window of this.windows.windows) {
       const running = window.payload;
       if (window.state !== "open" || !running.app?.demo.drawText) continue;
+      if (this.fullScreenWindow && window !== this.fullScreenWindow) continue;
       const content = this.windows.contentRect(window);
       const inside = toClipRect({ x: content.x + 1, y: content.y + 1, width: content.width - 2, height: content.height - 2 });
       const scale = this.sizeWorld(window);
@@ -433,7 +462,7 @@ export class VectorOsDemo implements Demo {
     this.syncFocus();
     if (hit.part === "close") return;
     if (hit.part === "launch") {
-      if (this.launchMaximizes) this.windows.toggleMaximized(hit.window);
+      if (this.launchMaximizes) this.enterFullScreen(hit.window);
       else this.onNavigate(hit.window.payload.entry.page ?? hit.window.payload.entry.id);
     }
     else if (hit.part === "title") this.windows.beginDrag(hit.window, "move", x, y);

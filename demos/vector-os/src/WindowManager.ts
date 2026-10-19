@@ -93,15 +93,15 @@ export class WindowManager<Payload> {
     if (this.drag?.window === window) this.drag = null;
   }
 
-  // Makes a window fill the part of the screen windows may occupy, or puts it back where it was.
-  public toggleMaximized(window: OsWindow<Payload>): void {
+  // Makes a window fill the part of the screen windows may occupy (or `rect`), or puts it back where it was.
+  public toggleMaximized(window: OsWindow<Payload>, rect: Rect = this.bounds): void {
     const saved = this.restoreRects.get(window);
     if (saved) {
       Object.assign(window.rect, saved);
       this.restoreRects.delete(window);
     } else {
       this.restoreRects.set(window, { ...window.rect });
-      Object.assign(window.rect, this.bounds);
+      Object.assign(window.rect, rect);
     }
   }
 
