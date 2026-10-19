@@ -117,6 +117,12 @@ export class VrRoom {
     const gl = this.gl;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.screenBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, screenVertices(screen));
+    this.setPanelUnder(screen);
+  }
+
+  /** Puts the controls panel under a screen (or under the place a 3D picture's panel goes). */
+  public setPanelUnder(screen: Screen): void {
+    const gl = this.gl;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.statusBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, screenVertices(panelFor(screen)));
   }

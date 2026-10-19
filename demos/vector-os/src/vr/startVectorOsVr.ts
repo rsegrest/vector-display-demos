@@ -78,6 +78,10 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
   const desktopScreen = screenFor(DESKTOP.width / DESKTOP.height, 3.6);
   const fullScreen = screenFor(DESKTOP.width / DESKTOP.height, 4.8 * (DESKTOP.width / DESKTOP.height));
   let screen = desktopScreen;
+  // With a game in 3D there is no screen: the panel goes under this one instead, a stand-in 1.4 m ahead
+  // at eye height, so it sits about 0.75 m below the eye (under the 4.8 m full screen it was below the floor).
+  const panelPlace3d = { centre: [0, 1.6, -1.4] as const, width: 1.6, height: 0.8 };
+  let panelPlace = desktopScreen as typeof desktopScreen;
   // Whether a game stands in the room in 3D: then there is no screen to point at, and the ray is not a mouse.
   let showing3d = false;
   const room = new VrRoom(gl, screen);
@@ -97,10 +101,16 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     }
     showing3d = picture !== null;
     const wanted = os.isFullScreen ? fullScreen : desktopScreen;
-    if (wanted === screen) return;
-    screen = wanted;
-    room.setScreen(screen);
-    room.showRoom = !os.isFullScreen;
+    if (wanted !== screen) {
+      screen = wanted;
+      room.setScreen(screen);
+      room.showRoom = !os.isFullScreen;
+    }
+    const wantedPanel = showing3d ? panelPlace3d : screen;
+    if (wantedPanel !== panelPlace) {
+      panelPlace = wantedPanel;
+      room.setPanelUnder(panelPlace);
+    }
   };
   // The controls panel under the screen in the headset (it fades in as the viewer looks down at it).
   const statusCanvas = document.createElement("canvas");
@@ -294,7 +304,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
           const gripPressed = pad.buttons[1]?.pressed === true;
           if (gripPressed && !rightGripWasPressed) {
             const name = os.cycleFullScreen3dStyle();
-            if (name) styleShown = { name, until: performance.now() + 2000 };
+            styleShown = { name: name ?? "none for this game", until: performance.now() + 2000 };
           }
           rightGripWasPressed = gripPressed;
           // The right thumbstick, pressed: back from a program full screen to the desktop.
@@ -340,13 +350,13 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       else if (frames % 10 === 1) {
         showStatus(
           profileFor(os.focusedProgramId).treads
-            ? ["BATTLEZONE", "LEFT STICK: left tread    RIGHT STICK: right tread", "LEFT TRIGGER: fire    X: coin    Y: start", "RIGHT: point + trigger to click, stick press: exit full screen", "LEFT STICK PRESS: recentre the view"]
-            : ["CONTROLS", "LEFT STICK: turn / thrust    TRIGGER: fire    GRIP: shields / zap", "X: coin    Y: start    RIGHT B: two players", "RIGHT: point + trigger to click, stick press: exit full screen", "LEFT STICK PRESS: recentre the view"],
+            ? ["BATTLEZONE", "LEFT STICK: left tread    RIGHT STICK: right tread", "LEFT TRIGGER: fire    X: coin    Y: start", "RIGHT: trigger click, GRIP 3D style, STICK PRESS exit full screen", "LEFT STICK PRESS: recentre the view"]
+            : ["CONTROLS", "LEFT STICK: turn / thrust    TRIGGER: fire    GRIP: shields / zap", "X: coin    Y: start    RIGHT B: two players", "RIGHT: trigger click, GRIP 3D style, STICK PRESS exit full screen", "LEFT STICK PRESS: recentre the view"],
         );
       }
       // The head's forward ray: the panel fades in as the gaze goes below the screen.
       const head = roomRay(pose.transform.matrix);
-      room.panelOpacity = showingStyle ? 1 : panelOpacity(head.origin, head.direction, screen);
+      room.panelOpacity = showingStyle ? 1 : panelOpacity(head.origin, head.direction, panelPlace);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
       room.takePicture(desktop);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
