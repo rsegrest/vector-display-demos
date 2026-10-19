@@ -9,7 +9,7 @@ import { DemoHost, showFatalError, type FrameScheduler } from "@vector-demos/dem
 import { VECTOR_OS_WORLD_HEIGHT, VectorOsDemo } from "../VectorOsDemo.js";
 import { codeOf, heldKeys, keyEdges, profileFor } from "./controllerKeys.js";
 import { anchorAt, lookAt, multiply, panelOpacity, perspective, rayOfPose, rayOnScreen, screenFor, transformRay } from "./geometry.js";
-import { levellingTilt, VrRoom } from "./VrRoom.js";
+import { VrRoom } from "./VrRoom.js";
 
 // The few WebXR shapes used here (TypeScript's DOM library leaves WebXR out).
 interface XrPose {
@@ -79,20 +79,11 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
   const fullScreen = screenFor(DESKTOP.width / DESKTOP.height, 4.8 * (DESKTOP.width / DESKTOP.height));
   let screen = desktopScreen;
   const room = new VrRoom(gl, screen);
-  // The 3D picture's tilt is set when the view is recentred, or when a picture first appears, and
-  // kept (levelled anew each frame it would sway with what is drawn).
-  let levelPicture = true;
-  let hadPicture = false;
   const fitScreen = () => {
     // A game full screen that projects its own 3D (Tempest) stands in the room in 3D instead of
     // on the screen; on its flat screens (text, the score table) the big screen comes back.
     const picture = os.isFullScreen ? os.fullScreenPicture3d() : null;
     room.setPicture3d(picture);
-    if (picture && (levelPicture || !hadPicture)) {
-      room.setPictureTilt(levellingTilt(picture.positions));
-      levelPicture = false;
-    }
-    hadPicture = picture !== null;
     const wanted = os.isFullScreen ? fullScreen : desktopScreen;
     if (wanted === screen) return;
     screen = wanted;
@@ -321,7 +312,6 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       if (recentreWanted || !anchor) {
         anchor = anchorAt(pose.transform.matrix);
         recentreWanted = false;
-        levelPicture = true;
       }
       if (frames % 10 === 1) {
         showStatus(

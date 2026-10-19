@@ -106,13 +106,3 @@ describe("recentring the room on the head", () => {
   });
 });
 
-describe("levelling a 3D picture", () => {
-  it("tilts a picture that lies below the eye up, by half its span", async () => {
-    const { levellingTilt } = await import("../src/vr/VrRoom.js");
-    // Two ends, both below the eye: at distance 1, 0.4 and 4.0 below (before the squeeze of 0.25).
-    const tilt = levellingTilt(Float32Array.from([0, -0.4, -1, 0, -4, -1]));
-    const expected = -(Math.atan2(-0.1, 1) + Math.atan2(-1, 1)) / 2;
-    expect(tilt).toBeCloseTo(expected);
-    expect(tilt).toBeGreaterThan(0);
-  });
-});

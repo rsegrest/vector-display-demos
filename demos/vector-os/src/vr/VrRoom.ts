@@ -12,35 +12,23 @@ import { Lines3d } from "./Lines3d.js";
  * metres ahead, and its width and height squeezed by SPREAD (Tempest's eye sits so close to the
  * rim that the picture spans 150 degrees; squeezed, about 90), depth kept.
  */
-const PICTURE_EYE_HEIGHT = 1.6;
+/**
+ * The picture's eye sits this far below the viewer's eye, so the well is looked down into rather
+ * than straight along (the owner's try on the Quest, 2026-10-18: centred on the eye it sat too
+ * high; standing up 0.4-0.5 m after recentring seated looked right).
+ */
+const PICTURE_DROP = 0.45;
+const PICTURE_EYE_HEIGHT = 1.6 - PICTURE_DROP;
 const RIM_DISTANCE = 1.5;
 const SPREAD = 0.25;
-/** The picture's model matrix: squeezed, tilted by `tilt` radians about its eye (up positive), placed. */
-function pictureModel(tilt: number): Float32Array {
-  const c = Math.cos(tilt);
-  const s = Math.sin(tilt);
-  const a = RIM_DISTANCE * SPREAD;
-  const d = RIM_DISTANCE;
-  // translate(eye) · rotateX(tilt) · scale(a, a, d), column-major.
-  return Float32Array.from([a, 0, 0, 0, 0, a * c, a * s, 0, 0, -d * s, d * c, 0, 0, PICTURE_EYE_HEIGHT, 0, 1]);
-}
+/** The picture's model matrix: squeezed across, placed with its eye at PICTURE_EYE_HEIGHT. */
+const PICTURE_MODEL = Float32Array.from([
+  RIM_DISTANCE * SPREAD, 0, 0, 0,
+  0, RIM_DISTANCE * SPREAD, 0, 0,
+  0, 0, RIM_DISTANCE, 0,
+  0, PICTURE_EYE_HEIGHT, 0, 1,
+]);
 
-/**
- * The tilt that puts the middle of a picture's height level with the eye: the angle up to the
- * highest and down to the lowest of its line ends, as the room shows them, halved.
- */
-export function levellingTilt(positions: Float32Array): number {
-  let highest = -Infinity;
-  let lowest = Infinity;
-  for (let i = 0; i < positions.length; i += 3) {
-    const distance = -positions[i + 2];
-    if (distance <= 0) continue;
-    const angle = Math.atan2(positions[i + 1] * SPREAD, distance);
-    highest = Math.max(highest, angle);
-    lowest = Math.min(lowest, angle);
-  }
-  return Number.isFinite(highest) ? -(highest + lowest) / 2 : 0;
-}
 
 const TEXTURED_VS = `#version 300 es
 in vec3 a_position; in vec2 a_uv; uniform mat4 u_mvp; out vec2 v_uv;
@@ -89,7 +77,6 @@ export class VrRoom {
   private readonly lines: Lines3d;
   /** Whether a 3D picture stands in place of the flat screen (setPicture3d). */
   private picture3d = false;
-  private pictureTilt = 0;
   private readonly statusVao: WebGLVertexArrayObject;
   private readonly statusTexture: WebGLTexture;
 
@@ -161,10 +148,6 @@ export class VrRoom {
     if (picture) this.lines.setLines(picture.positions, picture.colours);
   }
 
-  /** Tilts the 3D picture about its eye (radians, up positive): see levellingTilt. */
-  public setPictureTilt(tilt: number): void {
-    this.pictureTilt = tilt;
-  }
 
   /** Copies a status picture (a 2D canvas of text) for the panel under the screen. */
   public takeStatus(source: HTMLCanvasElement): void {
@@ -240,7 +223,7 @@ export class VrRoom {
       gl.disable(gl.BLEND);
     }
 
-    if (this.picture3d) this.lines.draw(multiply(mvp, pictureModel(this.pictureTilt)), viewport);
+    if (this.picture3d) this.lines.draw(multiply(mvp, PICTURE_MODEL), viewport);
 
     gl.useProgram(this.lineProgram);
     gl.uniform4f(gl.getUniformLocation(this.lineProgram, "u_colour"), 0.55, 1, 1, 1);
