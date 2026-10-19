@@ -52,6 +52,8 @@ export class WindowManager<Payload> {
   private bounds: Rect = { x: 0, y: 0, width: 1600, height: 1000 };
   private nextId = 1;
   private drag: Drag<Payload> | null = null;
+  // Where each maximized window was before (toggleMaximized).
+  private readonly restoreRects = new Map<OsWindow<Payload>, Rect>();
 
   // The part of the screen windows may occupy.
   public setBounds(bounds: Rect): void {
@@ -89,6 +91,18 @@ export class WindowManager<Payload> {
     window.state = "closing";
     window.animation = 0;
     if (this.drag?.window === window) this.drag = null;
+  }
+
+  // Makes a window fill the part of the screen windows may occupy, or puts it back where it was.
+  public toggleMaximized(window: OsWindow<Payload>): void {
+    const saved = this.restoreRects.get(window);
+    if (saved) {
+      Object.assign(window.rect, saved);
+      this.restoreRects.delete(window);
+    } else {
+      this.restoreRects.set(window, { ...window.rect });
+      Object.assign(window.rect, this.bounds);
+    }
   }
 
   public bringToFront(window: OsWindow<Payload>): void {

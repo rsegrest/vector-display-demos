@@ -65,8 +65,8 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     showFatalError("The virtual cabinet needs WebGL2, which this browser did not provide.");
     return;
   }
-  // A game's own page cannot open inside the headset; stay in the room.
-  os.onNavigate = () => {};
+  // A program's own page cannot open inside the headset: its title-bar box maximizes the window instead.
+  os.launchMaximizes = true;
 
   const gl = view.getContext("webgl2", { antialias: true, xrCompatible: true } as WebGLContextAttributes);
   if (!gl) {
@@ -268,7 +268,15 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       const pose = frame.getViewerPose(floor);
       const layer = session.renderState.baseLayer;
       if (!pose || !layer) return;
-      if (frames % 10 === 1) showStatus([`frame ${frames}, ${status.length} input sources, pointing: ${pointingHand}`, ...status, lastError ? `error: ${lastError}` : "no errors"]);
+      if (frames % 10 === 1) {
+        const keys = [...heldByHand.values()].flatMap((held) => [...held]).map((key) => (key === " " ? "Space" : key));
+        showStatus([
+          `RIGHT: ray + trigger click, A start, B 2 players`,
+          `LEFT: X coin, Y start, trigger fire, grip shields, stick turn/thrust`,
+          ...status,
+          `keys held: ${keys.join(" ") || "none"}   ${lastError ? `error: ${lastError}` : ""}`,
+        ]);
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
       room.takePicture(desktop);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);

@@ -67,6 +67,9 @@ export class VectorOsDemo implements Demo {
   // Called when a window's "open full screen" box is clicked, with the path of the
   // program's own page: its id, or for the games arcade/ and its id.
   public onNavigate: (page: string) => void = () => {};
+  // When set (in VR, where a program's own page cannot open), that box makes the window fill the
+  // desktop instead, and a second click puts it back.
+  public launchMaximizes = false;
 
   private readonly entries: readonly AppEntry[];
   private readonly windows = new WindowManager<Running>();
@@ -424,7 +427,10 @@ export class VectorOsDemo implements Demo {
     // Told at once, so that a click on a game's picture already reaches it as the game in front.
     this.syncFocus();
     if (hit.part === "close") return;
-    if (hit.part === "launch") this.onNavigate(hit.window.payload.entry.page ?? hit.window.payload.entry.id);
+    if (hit.part === "launch") {
+      if (this.launchMaximizes) this.windows.toggleMaximized(hit.window);
+      else this.onNavigate(hit.window.payload.entry.page ?? hit.window.payload.entry.id);
+    }
     else if (hit.part === "title") this.windows.beginDrag(hit.window, "move", x, y);
     else if (hit.part === "resize") this.windows.beginDrag(hit.window, "resize", x, y);
     else {
