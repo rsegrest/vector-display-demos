@@ -31,6 +31,8 @@ export interface ArcadeCabinet {
   // ends as x, y, z with the eye at the origin looking down -z and the nearest drawing at 1, and
   // r, g, b, brightness per line; null when the game cannot say.
   picture3d?(): Picture3d | null;
+  // For a game whose 3D is a choice (Asteroids: no depth of its own), the next of its styles; returns its name.
+  cycle3dStyle?(): string;
   // Runs this many steps, then does what the page does once a display frame (sound, saving scores).
   advance(steps: number): void;
   draw(displayList: DisplayList): void;

@@ -77,6 +77,13 @@ export class VectorOsDemo implements Demo {
     return this.fullScreenWindow !== null;
   }
 
+  /** Switches the full-screen program's 3D style, if it has a choice; returns the style's name, or null. */
+  public cycleFullScreen3dStyle(): string | null {
+    const window = this.fullScreenWindow;
+    if (!window || window.state !== "open") return null;
+    return window.payload.app?.cycle3dStyle?.() ?? null;
+  }
+
   /** The full-screen program's picture in 3D, if it has one (VR draws it in place of the flat screen). */
   public fullScreenPicture3d(): import("./apps/arcade/ArcadeCabinet.js").Picture3d | null {
     const window = this.fullScreenWindow;

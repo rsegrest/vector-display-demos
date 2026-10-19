@@ -227,6 +227,9 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     let frames = 0;
     let rightStickWasPressed = false;
     let leftStickWasPressed = false;
+    let rightGripWasPressed = false;
+    // The 3D style just chosen (right grip), shown on the panel for a moment.
+    let styleShown: { name: string; until: number } | null = null;
     // Where the room stands: recentred on the head when the session starts, when a program goes
     // full screen, and when the left thumbstick is pressed in (sitting or standing, it faces you).
     let anchor: ReturnType<typeof anchorAt> | null = null;
@@ -275,6 +278,13 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
           leftStickWasPressed = stickPressed;
         }
         if (pad && source.handedness === "right") {
+          // The right grip: the full-screen game's next 3D style, for a game whose 3D is a choice.
+          const gripPressed = pad.buttons[1]?.pressed === true;
+          if (gripPressed && !rightGripWasPressed) {
+            const name = os.cycleFullScreen3dStyle();
+            if (name) styleShown = { name, until: performance.now() + 2000 };
+          }
+          rightGripWasPressed = gripPressed;
           // The right thumbstick, pressed: back from a program full screen to the desktop.
           const stickPressed = pad.buttons[3]?.pressed === true;
           if (stickPressed && !rightStickWasPressed) os.exitFullScreen();
@@ -313,7 +323,9 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
         anchor = anchorAt(pose.transform.matrix);
         recentreWanted = false;
       }
-      if (frames % 10 === 1) {
+      const showingStyle = styleShown && performance.now() < styleShown.until;
+      if (showingStyle) showStatus(["3D STYLE", styleShown!.name.toUpperCase(), "RIGHT GRIP: next style"]);
+      else if (frames % 10 === 1) {
         showStatus(
           profileFor(os.focusedProgramId).treads
             ? ["BATTLEZONE", "LEFT STICK: left tread    RIGHT STICK: right tread", "LEFT TRIGGER: fire    X: coin    Y: start", "RIGHT: point + trigger to click, stick press: exit full screen", "LEFT STICK PRESS: recentre the view"]
@@ -322,7 +334,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       }
       // The head's forward ray: the panel fades in as the gaze goes below the screen.
       const head = roomRay(pose.transform.matrix);
-      room.panelOpacity = panelOpacity(head.origin, head.direction, screen);
+      room.panelOpacity = showingStyle ? 1 : panelOpacity(head.origin, head.direction, screen);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
       room.takePicture(desktop);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);

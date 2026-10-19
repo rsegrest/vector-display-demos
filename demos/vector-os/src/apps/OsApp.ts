@@ -43,6 +43,8 @@ export interface OsApp {
   setFocused?(focused: boolean): void;
   // The program's picture in 3D, for VR (an arcade game that projects its own: ArcadeCabinet.picture3d).
   picture3d?(): import("./arcade/ArcadeCabinet.js").Picture3d | null;
+  // The next 3D style, for a game whose 3D is a choice (ArcadeCabinet.cycle3dStyle).
+  cycle3dStyle?(): string;
   // For programs that make sound. One at a time is heard: the one whose window was
   // most recently in front. Told when that changes, and once when the program has loaded.
   setAudible?(audible: boolean): void;
