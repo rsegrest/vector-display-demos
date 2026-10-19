@@ -63,7 +63,9 @@ export default defineConfig({
       },
     },
   },
-  server: { host: "0.0.0.0", port: 5180, strictPort: true, fs: arcadeGamesViteConfig.server.fs },
+  // With HTTPS (the headset), files are polled for changes: the native watcher stopped seeing edits
+  // during the VR sessions of 2026-10-18/19 and the Quest ran stale code without anyone knowing.
+  server: { host: "0.0.0.0", port: 5180, strictPort: true, fs: arcadeGamesViteConfig.server.fs, ...(https ? { watch: { usePolling: true, interval: 500 } } : {}) },
   preview: { host: "0.0.0.0", port: 5180, strictPort: true },
   test: { environment: "node", include: ["tests/**/*.test.ts"] },
 });

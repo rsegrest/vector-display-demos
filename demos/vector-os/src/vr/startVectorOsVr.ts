@@ -362,15 +362,15 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       else if (frames % 10 === 1 && showing3d) {
         showStatus([
           "IN 3D: RIGHT GRIP or RIGHT STICK LEFT/RIGHT: next 3D style",
-          "RIGHT STICK PRESS: exit full screen   LEFT STICK PRESS: recentre",
+          "RIGHT STICK PRESS: exit full screen   LEFT STICK PRESS: recenter",
           "LEFT: stick turn/thrust, trigger fire, grip shields/zap, X coin, Y start",
           styleDiagnosis || "right controller: not seen",
         ]);
       } else if (frames % 10 === 1) {
         showStatus(
           profileFor(os.focusedProgramId).treads
-            ? ["BATTLEZONE", "LEFT STICK: left tread    RIGHT STICK: right tread", "LEFT TRIGGER: fire    X: coin    Y: start", "RIGHT: trigger click, GRIP 3D style, STICK PRESS exit full screen", "LEFT STICK PRESS: recentre the view"]
-            : ["CONTROLS", "LEFT STICK: turn / thrust    TRIGGER: fire    GRIP: shields / zap", "X: coin    Y: start    RIGHT B: two players", "RIGHT: trigger click, GRIP 3D style, STICK PRESS exit full screen", "LEFT STICK PRESS: recentre the view"],
+            ? ["BATTLEZONE", "LEFT STICK: left tread    RIGHT STICK: right tread", "LEFT TRIGGER: fire    X: coin    Y: start", "RIGHT: trigger click, GRIP 3D style, STICK PRESS exit full screen", "LEFT STICK PRESS: recenter the view"]
+            : ["CONTROLS", "LEFT STICK: turn / thrust    TRIGGER: fire    GRIP: shields / zap", "X: coin    Y: start    RIGHT B: two players", "RIGHT: trigger click, GRIP 3D style, STICK PRESS exit full screen", "LEFT STICK PRESS: recenter the view"],
         );
       }
       // The head's forward ray: the panel fades in as the gaze goes below the screen.
