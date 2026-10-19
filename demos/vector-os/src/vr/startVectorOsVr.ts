@@ -73,8 +73,19 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     showFatalError("The virtual cabinet needs WebGL2, which this browser did not provide.");
     return;
   }
-  const screen = screenFor(DESKTOP.width / DESKTOP.height, 3.6);
+  // The desktop's screen, and the far bigger one a program full screen gets: 4.8 m tall at the
+  // same distance, about 85 degrees of the view, with the room around it gone.
+  const desktopScreen = screenFor(DESKTOP.width / DESKTOP.height, 3.6);
+  const fullScreen = screenFor(DESKTOP.width / DESKTOP.height, 4.8 * (DESKTOP.width / DESKTOP.height));
+  let screen = desktopScreen;
   const room = new VrRoom(gl, screen);
+  const fitScreen = () => {
+    const wanted = os.isFullScreen ? fullScreen : desktopScreen;
+    if (wanted === screen) return;
+    screen = wanted;
+    room.setScreen(screen);
+    room.showRoom = !os.isFullScreen;
+  };
   // The status panel under the screen in the headset: what the controllers report, and the last error.
   const statusCanvas = document.createElement("canvas");
   statusCanvas.width = 1024;
@@ -137,6 +148,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, width, height);
+    fitScreen();
     room.takePicture(desktop);
     room.clear();
     room.draw(perspective(fovY, width / Math.max(1, height), 0.05, 50), lookAt(PREVIEW_EYE, [PREVIEW_EYE[0], PREVIEW_EYE[1], PREVIEW_EYE[2] - 1]));
@@ -213,6 +225,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     let rightStickWasPressed = false;
     const onFrame = (time: number, frame: XrFrame) => {
       session.requestAnimationFrame(onFrame);
+      fitScreen();
       lastFrame = frame;
       frames += 1;
       const status: string[] = [];

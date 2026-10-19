@@ -38,6 +38,9 @@ export class VrRoom {
   private readonly textured: WebGLProgram;
   private readonly lines: WebGLProgram;
   private readonly screenVao: WebGLVertexArrayObject;
+  private readonly screenBuffer: WebGLBuffer;
+  /** Whether the floor grid and the status panel are drawn (not while a program is full screen). */
+  public showRoom = true;
   private readonly floorVao: WebGLVertexArrayObject;
   private readonly floorCount: number;
   private readonly rayVao: WebGLVertexArrayObject;
@@ -51,6 +54,7 @@ export class VrRoom {
     this.lines = program(gl, LINE_VS, LINE_FS);
 
     this.screenVao = this.texturedVao(screenVertices(screen));
+    this.screenBuffer = this.lastBuffer!;
     // A status panel under the screen: 1.6 m x 0.4 m, its top 0.15 m below the screen's bottom.
     const statusTop = screen.centre[1] - screen.height / 2 - 0.15;
     this.statusVao = this.texturedVao(screenVertices({ centre: [0, statusTop - 0.2, screen.centre[2] + 0.01], width: 1.6, height: 0.4 }));
@@ -79,11 +83,21 @@ export class VrRoom {
     return texture;
   }
 
+  private lastBuffer: WebGLBuffer | null = null;
+
+  /** Moves or resizes the screen. */
+  public setScreen(screen: Screen): void {
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.screenBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, screenVertices(screen));
+  }
+
   private texturedVao(vertices: Float32Array): WebGLVertexArrayObject {
     const gl = this.gl;
     const vao = gl.createVertexArray()!;
     gl.bindVertexArray(vao);
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    this.lastBuffer = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.lastBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
     const position = gl.getAttribLocation(this.textured, "a_position");
     const uv = gl.getAttribLocation(this.textured, "a_uv");
@@ -138,8 +152,10 @@ export class VrRoom {
     gl.useProgram(this.lines);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.lines, "u_mvp"), false, mvp);
     gl.uniform4f(gl.getUniformLocation(this.lines, "u_colour"), 0.05, 0.16, 0.18, 1);
-    gl.bindVertexArray(this.floorVao);
-    gl.drawArrays(gl.LINES, 0, this.floorCount);
+    if (this.showRoom) {
+      gl.bindVertexArray(this.floorVao);
+      gl.drawArrays(gl.LINES, 0, this.floorCount);
+    }
 
     gl.useProgram(this.textured);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.textured, "u_mvp"), false, mvp);
@@ -148,9 +164,11 @@ export class VrRoom {
     gl.uniform1i(gl.getUniformLocation(this.textured, "u_picture"), 0);
     gl.bindVertexArray(this.screenVao);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-    gl.bindTexture(gl.TEXTURE_2D, this.statusTexture);
-    gl.bindVertexArray(this.statusVao);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    if (this.showRoom) {
+      gl.bindTexture(gl.TEXTURE_2D, this.statusTexture);
+      gl.bindVertexArray(this.statusVao);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
 
     gl.useProgram(this.lines);
     gl.uniform4f(gl.getUniformLocation(this.lines, "u_colour"), 0.55, 1, 1, 1);
