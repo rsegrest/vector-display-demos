@@ -120,3 +120,41 @@ export function floorLines(half = 6): Float32Array {
   }
   return Float32Array.from(out);
 }
+
+/** The eye height the room is laid out for: its screens and its 3D pictures face an eye here. */
+export const ROOM_EYE_HEIGHT = 1.6;
+
+/**
+ * Where the room stands in the headset's space, from the head's pose at the moment of
+ * recentring: the room's eye (0, ROOM_EYE_HEIGHT, 0) on the head, its -z along the head's
+ * facing (turned about the vertical only).  Returns the room-to-headset matrix and its inverse.
+ */
+export function anchorAt(head: ArrayLike<number>): { toWorld: Mat4; toRoom: Mat4 } {
+  const forwardX = -head[8];
+  const forwardZ = -head[10];
+  const yaw = Math.atan2(-forwardX, -forwardZ);
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const tx = head[12];
+  const ty = head[13] - ROOM_EYE_HEIGHT;
+  const tz = head[14];
+  // Turn about y by yaw, then move: column-major.
+  const toWorld = Float32Array.from([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, tx, ty, tz, 1]);
+  // The inverse of a turn and a move: turn back, and move by the turned-back offset.
+  const toRoom = Float32Array.from([c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, -(c * tx - s * tz), -ty, -(s * tx + c * tz), 1]);
+  return { toWorld, toRoom };
+}
+
+/** A point and a direction moved by a rigid matrix. */
+export function transformRay(
+  matrix: ArrayLike<number>,
+  origin: readonly [number, number, number],
+  direction: readonly [number, number, number],
+): { origin: [number, number, number]; direction: [number, number, number] } {
+  const point = (v: readonly number[], w: number): [number, number, number] => [
+    matrix[0] * v[0] + matrix[4] * v[1] + matrix[8] * v[2] + matrix[12] * w,
+    matrix[1] * v[0] + matrix[5] * v[1] + matrix[9] * v[2] + matrix[13] * w,
+    matrix[2] * v[0] + matrix[6] * v[1] + matrix[10] * v[2] + matrix[14] * w,
+  ];
+  return { origin: point(origin, 1), direction: point(direction, 0) };
+}

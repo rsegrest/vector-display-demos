@@ -8,7 +8,7 @@
 import { DemoHost, showFatalError, type FrameScheduler } from "@vector-demos/demo-kit";
 import { VECTOR_OS_WORLD_HEIGHT, VectorOsDemo } from "../VectorOsDemo.js";
 import { codeOf, heldKeys, keyEdges, profileFor } from "./controllerKeys.js";
-import { lookAt, panelOpacity, perspective, rayOfPose, rayOnScreen, screenFor } from "./geometry.js";
+import { anchorAt, lookAt, multiply, panelOpacity, perspective, rayOfPose, rayOnScreen, screenFor, transformRay } from "./geometry.js";
 import { VrRoom } from "./VrRoom.js";
 
 // The few WebXR shapes used here (TypeScript's DOM library leaves WebXR out).
@@ -201,7 +201,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     const hitOf = (source: XrInputSource, frame: XrFrame | null) => {
       const pose = frame?.getPose(source.targetRaySpace, floor);
       if (!pose) return null;
-      const { origin, direction } = rayOfPose(pose.transform.matrix);
+      const { origin, direction } = roomRay(pose.transform.matrix);
       return rayOnScreen(origin, direction, screen);
     };
     // The left controller's trigger is the fire button, not a click (it has a gamepad: controllerKeys.ts).
@@ -225,6 +225,17 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     });
     let frames = 0;
     let rightStickWasPressed = false;
+    let leftStickWasPressed = false;
+    // Where the room stands: recentred on the head when the session starts, when a program goes
+    // full screen, and when the left thumbstick is pressed in (sitting or standing, it faces you).
+    let anchor: ReturnType<typeof anchorAt> | null = null;
+    let recentreWanted = true;
+    let wasFullScreen = false;
+    // A controller's ray in the room's space.
+    const roomRay = (matrix: ArrayLike<number>) => {
+      const ray = rayOfPose(matrix);
+      return anchor ? transformRay(anchor.toRoom, ray.origin, ray.direction) : ray;
+    };
     const onFrame = (time: number, frame: XrFrame) => {
       session.requestAnimationFrame(onFrame);
       fitScreen();
@@ -243,7 +254,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
         const pose = frame.getPose(source.targetRaySpace, floor);
         const pad = source.gamepad;
         if (pose) {
-          const { origin, direction } = rayOfPose(pose.transform.matrix);
+          const { origin, direction } = roomRay(pose.transform.matrix);
           // The ray stops at the screen when it meets it, so its end is the cursor.
           const t = direction[2] < -1e-6 ? (screen.centre[2] - origin[2]) / direction[2] : 6;
           const reach = rayOnScreen(origin, direction, screen) ? t : 6;
@@ -255,6 +266,12 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
               os.pointer("move", point.x, point.y, false);
             }
           }
+        }
+        if (pad && source.handedness === "left") {
+          // The left thumbstick, pressed: recentre the room on the head.
+          const stickPressed = pad.buttons[3]?.pressed === true;
+          if (stickPressed && !leftStickWasPressed) recentreWanted = true;
+          leftStickWasPressed = stickPressed;
         }
         if (pad && source.handedness === "right") {
           // The right thumbstick, pressed: back from a program full screen to the desktop.
@@ -289,15 +306,21 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       const pose = frame.getViewerPose(floor);
       const layer = session.renderState.baseLayer;
       if (!pose || !layer) return;
+      if (os.isFullScreen && !wasFullScreen) recentreWanted = true;
+      wasFullScreen = os.isFullScreen;
+      if (recentreWanted || !anchor) {
+        anchor = anchorAt(pose.transform.matrix);
+        recentreWanted = false;
+      }
       if (frames % 10 === 1) {
         showStatus(
           profileFor(os.focusedProgramId).treads
-            ? ["BATTLEZONE", "LEFT STICK: left tread    RIGHT STICK: right tread", "LEFT TRIGGER: fire    X: coin    Y: start", "RIGHT: point + trigger to click, stick press: exit full screen"]
-            : ["CONTROLS", "LEFT STICK: turn / thrust    TRIGGER: fire    GRIP: shields / zap", "X: coin    Y: start    RIGHT B: two players", "RIGHT: point + trigger to click, stick press: exit full screen"],
+            ? ["BATTLEZONE", "LEFT STICK: left tread    RIGHT STICK: right tread", "LEFT TRIGGER: fire    X: coin    Y: start", "RIGHT: point + trigger to click, stick press: exit full screen", "LEFT STICK PRESS: recentre the view"]
+            : ["CONTROLS", "LEFT STICK: turn / thrust    TRIGGER: fire    GRIP: shields / zap", "X: coin    Y: start    RIGHT B: two players", "RIGHT: point + trigger to click, stick press: exit full screen", "LEFT STICK PRESS: recentre the view"],
         );
       }
       // The head's forward ray: the panel fades in as the gaze goes below the screen.
-      const head = rayOfPose(pose.transform.matrix);
+      const head = roomRay(pose.transform.matrix);
       room.panelOpacity = panelOpacity(head.origin, head.direction, screen);
       gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
       room.takePicture(desktop);
@@ -306,7 +329,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       for (const eye of pose.views) {
         const viewport = layer.getViewport(eye);
         gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
-        room.draw(eye.projectionMatrix, eye.transform.inverse.matrix, rays, viewport);
+        room.draw(eye.projectionMatrix, multiply(eye.transform.inverse.matrix, anchor.toWorld), rays, viewport);
       }
     };
     session.requestAnimationFrame(onFrame);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { coinKeyFor, heldKeys, keyEdges, profileFor } from "../src/vr/controllerKeys.js";
-import { lookAt, multiply, panelFor, panelOpacity, perspective, rayOfPose, rayOnScreen, screenFor } from "../src/vr/geometry.js";
+import { anchorAt, lookAt, multiply, panelFor, panelOpacity, perspective, rayOfPose, rayOnScreen, ROOM_EYE_HEIGHT, screenFor, transformRay } from "../src/vr/geometry.js";
 
 describe("the virtual cabinet's room", () => {
   const screen = screenFor(16 / 10);
@@ -89,5 +89,19 @@ describe("the controls panel under the screen", () => {
     expect(between).toBeLessThan(1);
     expect(panelOpacity(eye, lookingAt(panelFor(screen).centre[1]), screen)).toBe(1);
     expect(panelOpacity(eye, lookingAt(-1), screen)).toBe(1);
+  });
+});
+
+describe("recentring the room on the head", () => {
+  it("puts the room's eye on a seated head, facing where it faces", () => {
+    // A head 1.1 m up, turned 90 degrees to the left (facing -x), at x 0.3.
+    const head = Float32Array.from([0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0.3, 1.1, 0, 1]);
+    const { toWorld, toRoom } = anchorAt(head);
+    const eye = transformRay(toWorld, [0, ROOM_EYE_HEIGHT, 0], [0, 0, -1]);
+    [0.3, 1.1, 0].forEach((v, i) => expect(eye.origin[i]).toBeCloseTo(v));
+    [-1, 0, 0].forEach((v, i) => expect(eye.direction[i]).toBeCloseTo(v));
+    const back = transformRay(toRoom, eye.origin, eye.direction);
+    [0, ROOM_EYE_HEIGHT, 0].forEach((v, i) => expect(back.origin[i]).toBeCloseTo(v));
+    [0, 0, -1].forEach((v, i) => expect(back.direction[i]).toBeCloseTo(v));
   });
 });
