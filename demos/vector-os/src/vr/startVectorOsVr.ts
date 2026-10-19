@@ -154,7 +154,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     fitScreen();
     room.takePicture(desktop);
     room.clear();
-    room.draw(perspective(fovY, width / Math.max(1, height), 0.05, 50), lookAt(PREVIEW_EYE, [PREVIEW_EYE[0], PREVIEW_EYE[1], PREVIEW_EYE[2] - 1]), [], { width, height });
+    room.draw(perspective(fovY, width / Math.max(1, height), 0.05, 1000), lookAt(PREVIEW_EYE, [PREVIEW_EYE[0], PREVIEW_EYE[1], PREVIEW_EYE[2] - 1]), [], { width, height });
     requestAnimationFrame(drawPreview);
   };
   requestAnimationFrame(drawPreview);

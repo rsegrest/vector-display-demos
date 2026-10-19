@@ -7,27 +7,21 @@ import { floorLines, multiply, panelFor, screenVertices, type Screen } from "./g
 import { Lines3d } from "./Lines3d.js";
 
 /**
- * Where a game's 3D picture stands in the room: its eye (the picture's origin) at standing eye
- * height where the viewer starts, its nearest drawing (1 in the picture's units) RIM_DISTANCE
- * metres ahead, and its width and height squeezed by SPREAD (Tempest's eye sits so close to the
- * rim that the picture spans 150 degrees; squeezed, about 90), depth kept.
+ * Where a game's 3D picture stands in the room: its eye (the picture's origin) where the viewer's
+ * eye is, lowered by its drop, its distance 1 RIM_DISTANCE metres ahead, and its width and height
+ * squeezed by its spread, depth kept.  The defaults are Tempest's: its eye sits so close to the
+ * rim that the picture spans 150 degrees (squeezed to a quarter, about 90), and the owner's tries
+ * on the Quest (2026-10-18) put the well best 0.3 m below the eye.  A game whose picture is right
+ * as it is (Battlezone's) says spread 1, drop 0.
  */
-/**
- * The picture's eye sits this far below the viewer's eye, so the well is looked down into rather
- * than straight along (the owner's try on the Quest, 2026-10-18: centred on the eye it sat too
- * high; 0.45 m below a little too low; 0.3 m).
- */
-const PICTURE_DROP = 0.3;
-const PICTURE_EYE_HEIGHT = 1.6 - PICTURE_DROP;
 const RIM_DISTANCE = 1.5;
-const SPREAD = 0.25;
-/** The picture's model matrix: squeezed across, placed with its eye at PICTURE_EYE_HEIGHT. */
-const PICTURE_MODEL = Float32Array.from([
-  RIM_DISTANCE * SPREAD, 0, 0, 0,
-  0, RIM_DISTANCE * SPREAD, 0, 0,
-  0, 0, RIM_DISTANCE, 0,
-  0, PICTURE_EYE_HEIGHT, 0, 1,
-]);
+const DEFAULT_SPREAD = 0.25;
+const DEFAULT_DROP = 0.3;
+
+function pictureModel(spread: number, drop: number): Float32Array {
+  const across = RIM_DISTANCE * spread;
+  return Float32Array.from([across, 0, 0, 0, 0, across, 0, 0, 0, 0, RIM_DISTANCE, 0, 0, 1.6 - drop, 0, 1]);
+}
 
 
 const TEXTURED_VS = `#version 300 es
@@ -75,8 +69,9 @@ export class VrRoom {
   private readonly rayBuffer: WebGLBuffer;
   private readonly texture: WebGLTexture;
   private readonly lines: Lines3d;
-  /** Whether a 3D picture stands in place of the flat screen (setPicture3d). */
+  /** Whether a 3D picture stands in place of the flat screen (setPicture3d), and where it stands. */
   private picture3d = false;
+  private pictureModel = pictureModel(DEFAULT_SPREAD, DEFAULT_DROP);
   private readonly statusVao: WebGLVertexArrayObject;
   private readonly statusTexture: WebGLTexture;
 
@@ -143,9 +138,13 @@ export class VrRoom {
   }
 
   /** A game's picture in 3D in place of the flat screen (ArcadeCabinet.picture3d), or null for the screen. */
-  public setPicture3d(picture: { readonly positions: Float32Array; readonly colours: Float32Array } | null): void {
+  public setPicture3d(
+    picture: { readonly positions: Float32Array; readonly colours: Float32Array; readonly spread?: number; readonly drop?: number } | null,
+  ): void {
     this.picture3d = picture !== null;
-    if (picture) this.lines.setLines(picture.positions, picture.colours);
+    if (!picture) return;
+    this.lines.setLines(picture.positions, picture.colours);
+    this.pictureModel = pictureModel(picture.spread ?? DEFAULT_SPREAD, picture.drop ?? DEFAULT_DROP);
   }
 
 
@@ -223,7 +222,7 @@ export class VrRoom {
       gl.disable(gl.BLEND);
     }
 
-    if (this.picture3d) this.lines.draw(multiply(mvp, PICTURE_MODEL), viewport);
+    if (this.picture3d) this.lines.draw(multiply(mvp, this.pictureModel), viewport);
 
     gl.useProgram(this.lineProgram);
     gl.uniform4f(gl.getUniformLocation(this.lineProgram, "u_colour"), 0.55, 1, 1, 1);

@@ -43,6 +43,10 @@ export interface ArcadeCabinet {
 export interface Picture3d {
   readonly positions: Float32Array;
   readonly colours: Float32Array;
+  /** How much the headset squeezes the picture's width and height (default 0.25, Tempest's). */
+  readonly spread?: number;
+  /** How far below the viewer's eye the picture's eye goes, in metres (default 0.3, Tempest's). */
+  readonly drop?: number;
 }
 
 export interface ArcadeModule {
