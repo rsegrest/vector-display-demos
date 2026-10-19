@@ -126,3 +126,11 @@ describe("the space backdrop", () => {
     expect(spaceBackdrop().positions).toEqual(space.positions); // the same every time
   });
 });
+
+describe("the backdrop's layout", () => {
+  it("keeps the solar system clear of the nebula", async () => {
+    const { NEBULA, SOLAR_SYSTEM } = await import("../src/vr/backdrop.js");
+    // The system reaches about 15 degrees from its center (its widest orbit, 13 m at 55 m).
+    expect(SOLAR_SYSTEM.azimuth - 15).toBeGreaterThan(NEBULA.azimuthTo);
+  });
+});

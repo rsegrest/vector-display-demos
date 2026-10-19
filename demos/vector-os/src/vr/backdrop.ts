@@ -3,8 +3,9 @@
 // in the room's metres with the eye at the origin looking down -z, y up:
 //
 //   stars          several hundred dots scattered on a shell 40-80 m away, all round;
-//   a nebula       glowing contour lines of a noise field, laid on a patch of sky ahead and above;
-//   a solar system a sun with rays, three planets (one ringed) on dotted orbits, far off to the left.
+//   a nebula       glowing contour lines of a noise field, on a patch of sky up and to the left;
+//   a solar system a sun with rays, three planets (one ringed) on dotted orbits, up and to the right,
+//                  clear of the nebula.
 //
 // Everything is dim (brightness well under the game's), so it frames the field without competing.
 
@@ -92,7 +93,7 @@ function fractalNoise(random: RandomSource): (x: number, y: number) => number {
 }
 
 /** The nebula's patch of sky (degrees) and distance, and its contour levels with their colours. */
-export const NEBULA = { azimuthFrom: -60, azimuthTo: 70, elevationFrom: 5, elevationTo: 55, distance: 60 };
+export const NEBULA = { azimuthFrom: -95, azimuthTo: 5, elevationFrom: 12, elevationTo: 58, distance: 60 };
 const NEBULA_GRID = { across: 80, up: 34 };
 /** How many grid cells one unit of the noise spans: larger is smoother, broader clouds. */
 const NEBULA_SMOOTHNESS = 14;
@@ -149,7 +150,7 @@ function nebula(sink: LineSink, random: RandomSource): void {
 }
 
 /** The solar system's place in the sky (degrees) and distance, and its size (metres at that distance). */
-export const SOLAR_SYSTEM = { azimuth: -55, elevation: 18, distance: 55 };
+export const SOLAR_SYSTEM = { azimuth: 55, elevation: 22, distance: 55 };
 
 function solarSystem(sink: LineSink): void {
   // A plane facing the eye at the system's place, tilted so the orbits are ellipses.
