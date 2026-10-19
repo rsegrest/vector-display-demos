@@ -7,7 +7,7 @@
 
 import { DemoHost, showFatalError, type FrameScheduler } from "@vector-demos/demo-kit";
 import { VECTOR_OS_WORLD_HEIGHT, VectorOsDemo } from "../VectorOsDemo.js";
-import { codeOf, heldKeys, keyEdges } from "./controllerKeys.js";
+import { codeOf, coinKeyFor, heldKeys, keyEdges } from "./controllerKeys.js";
 import { lookAt, perspective, rayOfPose, rayOnScreen, screenFor } from "./geometry.js";
 import { VrRoom } from "./VrRoom.js";
 
@@ -242,7 +242,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
         }
         if (pad) {
           const before = heldByHand.get(source.handedness) ?? new Set<string>();
-          const now = heldKeys({ hand: source.handedness, pressed: pad.buttons.map((b) => b.pressed), stick: [pad.axes[2] ?? 0, pad.axes[3] ?? 0] }, before);
+          const now = heldKeys({ hand: source.handedness, pressed: pad.buttons.map((b) => b.pressed), stick: [pad.axes[2] ?? 0, pad.axes[3] ?? 0] }, before, coinKeyFor(os.focusedProgramId));
           for (const edge of keyEdges(before, now)) {
             const press = { key: edge.key, code: codeOf(edge.key), repeat: false };
             if (edge.down) os.keyDown(press);
@@ -272,7 +272,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
         const keys = [...heldByHand.values()].flatMap((held) => [...held]).map((key) => (key === " " ? "Space" : key));
         showStatus([
           `RIGHT: ray + trigger click, A start, B 2 players`,
-          `LEFT: X coin, Y start, trigger fire, grip shields, stick turn/thrust`,
+          `LEFT: X coin, Y start, trigger fire, grip shields/zap, stick turn/thrust`,
           ...status,
           `keys held: ${keys.join(" ") || "none"}   ${lastError ? `error: ${lastError}` : ""}`,
         ]);

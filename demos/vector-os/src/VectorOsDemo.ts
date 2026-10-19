@@ -71,6 +71,11 @@ export class VectorOsDemo implements Demo {
   // desktop instead, and a second click puts it back.
   public launchMaximizes = false;
 
+  /** The id of the program in the window in front (its registry entry), or null. */
+  public get focusedProgramId(): string | null {
+    return this.windows.focused?.payload.entry.id ?? null;
+  }
+
   private readonly entries: readonly AppEntry[];
   private readonly windows = new WindowManager<Running>();
   private readonly blitter = new SegmentBlitter();

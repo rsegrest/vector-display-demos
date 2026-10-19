@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { heldKeys, keyEdges } from "../src/vr/controllerKeys.js";
+import { coinKeyFor, heldKeys, keyEdges } from "../src/vr/controllerKeys.js";
 import { lookAt, multiply, perspective, rayOfPose, rayOnScreen, screenFor } from "../src/vr/geometry.js";
 
 describe("the virtual cabinet's room", () => {
@@ -47,6 +47,13 @@ describe("the controllers as keys", () => {
 
   it("gives the right hand's A and B as Enter and 2, leaving its trigger to the pointer", () => {
     expect([...heldKeys({ hand: "right", pressed: [true, false, false, false, true, true], stick: [0, 0] }, new Set())].sort()).toEqual(["2", "Enter"]);
+  });
+
+  it("drops a coin with the key of the game in front (Tempest's is 5)", () => {
+    expect(coinKeyFor("tempest")).toBe("5");
+    expect(coinKeyFor("asteroids")).toBe("1");
+    expect(coinKeyFor(null)).toBe("1");
+    expect(heldKeys({ hand: "left", pressed: [false, false, false, false, true], stick: [0, 0] }, new Set(), "5").has("5")).toBe(true);
   });
 
   it("reports releases before presses", () => {
