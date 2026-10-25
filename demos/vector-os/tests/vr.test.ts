@@ -51,6 +51,7 @@ describe("the controllers as keys", () => {
 
   it("drops a coin with the key of the game in front (Tempest's is 5)", () => {
     expect(coinKeyFor("tempest")).toBe("5");
+    expect(coinKeyFor("starwars")).toBe("c");
     expect(coinKeyFor("asteroids")).toBe("1");
     expect(coinKeyFor(null)).toBe("1");
     expect(heldKeys({ hand: "left", pressed: [false, false, false, false, true], stick: [0, 0] }, new Set(), profileFor("tempest")).has("5")).toBe(true);

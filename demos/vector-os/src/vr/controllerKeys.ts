@@ -6,7 +6,7 @@
 //   thumbstick up / down      ArrowUp / ArrowDown (thrust, dive)
 //   trigger                   Space (fire)
 //   grip                      Shift (shields, hyperspace)
-//   X                         the coin key of the game in front (1; Tempest's is 5)
+//   X                         the coin key of the game in front (1; Tempest's is 5, Star Wars' C)
 //   Y                         Enter (start)
 // Right hand's A is Enter too, and B is 2 (two players).
 // Battlezone (its cabinet scheme, a stick per tread): the left thumbstick's up/down is the left
@@ -31,7 +31,7 @@ const STICK_ON = 0.5;
 const STICK_OFF = 0.35;
 
 /** Each game's coin key, where it is not 1 (the games' own bindings). */
-const COIN_KEYS: Readonly<Record<string, string>> = { tempest: "5" };
+const COIN_KEYS: Readonly<Record<string, string>> = { tempest: "5", starwars: "c" };
 
 /** The coin key for the program in front (by its id), 1 for every game but those listed. */
 export function coinKeyFor(programId: string | null): string {
