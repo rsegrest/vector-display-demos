@@ -41,6 +41,27 @@ function serveArcadePages(): Plugin {
   };
 }
 
+// Star Wars runs its board in a worker that sleeps between interrupts (SharedArrayBuffer,
+// Atomics.wait), which a page may do only when cross-origin isolated. Vector OS (/os/, /vr/) and
+// Star Wars' own page get the two headers; COEP "credentialless" still lets the OS's other programs
+// load from other sites (live-earth's CORS feeds). Scripts and workers get them everywhere, which
+// changes nothing for the pages that load them. Other pages are left as they were.
+const ISOLATED_PAGES = ["/os/", "/vr/", "/arcade/starwars/"];
+function crossOriginIsolation(): Plugin {
+  const isolate = (request: { url?: string; headers: Record<string, string | string[] | undefined> }, response: { setHeader(name: string, value: string): void }): void => {
+    const path = (request.url ?? "").split("?")[0];
+    const document = request.headers["sec-fetch-dest"] === "document" || request.headers["sec-fetch-dest"] === "iframe";
+    if (document && !ISOLATED_PAGES.some((page) => path.startsWith(page))) return;
+    response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    response.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+  };
+  return {
+    name: "cross-origin-isolation",
+    configureServer(server) { server.middlewares.use((request, response, next) => { isolate(request, response); next(); }); },
+    configurePreviewServer(server) { server.middlewares.use((request, response, next) => { isolate(request, response); next(); }); },
+  };
+}
+
 const siteRoot = dirname(fileURLToPath(import.meta.url));
 // HTTPS=1 (npm run dev:https) serves over https with a self-signed certificate: WebXR runs only on
 // secure pages, so the Quest's browser can open /vr/ from this PC only this way (or over adb reverse).
@@ -50,9 +71,11 @@ export default defineConfig({
   base: "./",
   appType: "mpa",
   // travelEditApi only runs in the dev server: it lets this PC and Rick's Mac edit the travel globe's data.
-  plugins: [addTrailingSlash(), serveArcadePages(), travelEditApi(), ...(https ? [basicSsl()] : [])],
+  plugins: [crossOriginIsolation(), addTrailingSlash(), serveArcadePages(), travelEditApi(), ...(https ? [basicSsl()] : [])],
   // Vector OS runs the arcade games from vector-games, next to this repository.
   resolve: arcadeGamesViteConfig.resolve,
+  // Star Wars' board worker imports modules.
+  worker: { format: "es" },
   build: {
     target: "es2022",
     sourcemap: true,

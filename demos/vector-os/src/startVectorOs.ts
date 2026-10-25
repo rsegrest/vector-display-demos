@@ -1,12 +1,14 @@
 import { BeamSettingsStore, DemoHost, bindEscapeToIndex, browserSettingsStorage, showFatalError, type BeamSettings } from "@vector-demos/demo-kit";
 import { VECTOR_OS_WORLD_HEIGHT, VectorOsDemo } from "./VectorOsDemo.js";
 
-// Runs Vector OS full screen. ?boot=0 skips the power-on sequence.
+// Runs Vector OS full screen. ?boot=0 skips the power-on sequence; ?open=starwars,clock opens those
+// programs (by their registry ids) instead of the usual ones.
 export function startVectorOs(canvas: HTMLCanvasElement): void {
   const parameters = new URLSearchParams(location.search);
   // The same saved beam settings the Live Guide uses.
   const beam = new BeamSettingsStore(browserSettingsStorage());
-  const os = new VectorOsDemo({ skipBoot: parameters.get("boot") === "0", beam });
+  const open = parameters.get("open");
+  const os = new VectorOsDemo({ skipBoot: parameters.get("boot") === "0", beam, ...(open ? { startup: open.split(",").filter(Boolean) } : {}) });
 
   let host: DemoHost;
   try {

@@ -275,6 +275,17 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     size: { width: 640, height: 540 },
     create: async () => createArcadeApp((await import("@vector-games/asteroids-deluxe")).createCabinet()),
   },
+  {
+    id: "starwars",
+    title: "Star Wars",
+    kind: "demo",
+    category: "arcade",
+    page: "arcade/starwars",
+    // The 4:3 screen, with room under it for a line of controls. Its board needs the page
+    // cross-origin isolated (site/vite.config.ts); elsewhere it says so under COULD NOT LOAD.
+    size: { width: 640, height: 540 },
+    create: async () => createArcadeApp((await import("@vector-games/starwars")).createCabinet()),
+  },
 ];
 
 function demoApp(demo: OsApp["demo"], options: Partial<Omit<OsApp, "demo">> = {}): OsApp {

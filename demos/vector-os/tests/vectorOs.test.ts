@@ -733,18 +733,20 @@ describe("the real programs", () => {
   it("are all listed, each with its own id", () => {
     expect(new Set(APP_ENTRIES.map((entry) => entry.id)).size).toBe(APP_ENTRIES.length);
     expect(APP_ENTRIES.filter((entry) => entry.kind === "tool").map((entry) => entry.id)).toEqual(["terminal", "clock", "beam", "calc", "gear-spirals"]);
-    expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(21);
+    expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(22);
     const inCategory = (category: string): string[] => APP_ENTRIES.filter((entry) => entry.category === category).map((entry) => entry.id);
     expect(inCategory("utilities")).toEqual(["terminal", "clock", "beam", "calc"]);
     expect(inCategory("alife")).toEqual(["particle-life", "lenia", "life", "boids", "slime-mold", "biomorphs"]);
     expect(inCategory("simulation")).toEqual(["ca-terrain", "attractors", "gray-scott", "live-earth"]);
     expect(inCategory("creative")).toEqual(["gear-spirals", "polytopes", "oscilloscope", "text-crawl", "epicycles", "meshes"]);
-    expect(inCategory("arcade")).toEqual(["asteroids", "lunar-lander", "battlezone", "tempest", "red-baron", "asteroids-deluxe"]);
+    expect(inCategory("arcade")).toEqual(["asteroids", "lunar-lander", "battlezone", "tempest", "red-baron", "asteroids-deluxe", "starwars"]);
   });
 
-  // Lenia needs a Web Worker, Live Earth fetches from the network, and arcade games require ../vector-games.
+  // Lenia and Star Wars need a Web Worker (Star Wars a cross-origin isolated page too: its browser check
+  // is vector-games/starwars tools/browser-check.mjs), Live Earth fetches from the network, and arcade
+  // games require ../vector-games.
   const runnable = APP_ENTRIES.filter(
-    (entry) => entry.id !== "lenia" && entry.id !== "live-earth" && (entry.category !== "arcade" || hasArcadeGame(entry.id)),
+    (entry) => entry.id !== "lenia" && entry.id !== "live-earth" && entry.id !== "starwars" && (entry.category !== "arcade" || hasArcadeGame(entry.id)),
   );
 
   it.each(runnable.map((entry) => [entry.id, entry] as const))("%s runs in a window and draws inside it", async (_id, entry) => {
