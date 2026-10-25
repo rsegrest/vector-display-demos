@@ -74,6 +74,8 @@ export class VectorOsDemo implements Demo {
   // desktop or title bar, until exitFullScreen().
   public launchMaximizes = false;
   private fullScreenWindow: OsWindow<Running> | null = null;
+  // The window a ray's button went down to in 3D (aimFullScreen3d), for its coming up.
+  private aimedWindow: OsWindow<Running> | null = null;
 
   public get isFullScreen(): boolean {
     return this.fullScreenWindow !== null;
@@ -91,6 +93,24 @@ export class VectorOsDemo implements Demo {
     const window = this.fullScreenWindow;
     if (!window || window.state !== "open") return null;
     return window.payload.app?.picture3d?.() ?? null;
+  }
+
+  /** Whether the full-screen program is steered by the pointer, and so can be aimed at in 3D (aimFullScreen3d). */
+  public get fullScreenAims3d(): boolean {
+    const window = this.fullScreenWindow;
+    return window !== null && window.state === "open" && window.payload.app?.aim3d !== undefined;
+  }
+
+  /**
+   * A ray aimed at the full-screen program's 3D picture: the point over its flat picture (0..1) and the
+   * button.  The button comes up to the program it went down to, even once it has left full screen.
+   */
+  public aimFullScreen3d(kind: "down" | "move" | "up", point: { readonly x: number; readonly y: number }): void {
+    const window = kind === "up" && this.aimedWindow ? this.aimedWindow : this.fullScreenWindow;
+    if (kind === "down") this.aimedWindow = this.fullScreenWindow;
+    if (kind === "up") this.aimedWindow = null;
+    if (!window || window.state !== "open") return;
+    window.payload.app?.aim3d?.(kind, point);
   }
 
   // Back from full screen to the desktop, the window where it was.

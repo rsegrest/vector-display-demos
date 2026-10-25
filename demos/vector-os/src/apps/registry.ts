@@ -8,6 +8,17 @@ import { createGearSpirals } from "./gearSpirals/GearSpirals.js";
 import type { AppEntry, OsApp } from "./OsApp.js";
 import { createTerminal } from "./terminal.js";
 
+// Where Star Wars' flat picture (251 x 281 AVG units, y down) lies on its 3D picture's distance-1
+// plane: its picture3d (vector-games/starwars, src/engine/rom/depth3d.ts toSpace) puts a flat point at
+// ((x - 124.873) / 127.47, -(y - 166.025) / 127.47, -1), the vanishing point and scale of its projection.
+const STAR_WARS_PROJECTION = { vanishX: 124.873, vanishY: 166.025, unitsPerUnit: 127.47 };
+const STAR_WARS_FLAT_FRAME = {
+  left: -STAR_WARS_PROJECTION.vanishX / STAR_WARS_PROJECTION.unitsPerUnit,
+  right: (251 - STAR_WARS_PROJECTION.vanishX) / STAR_WARS_PROJECTION.unitsPerUnit,
+  top: STAR_WARS_PROJECTION.vanishY / STAR_WARS_PROJECTION.unitsPerUnit,
+  bottom: -(281 - STAR_WARS_PROJECTION.vanishY) / STAR_WARS_PROJECTION.unitsPerUnit,
+};
+
 const DEMO_SIZE = { width: 620, height: 400 };
 // A demo shrunk into a window packs its lines closer together, so it is dimmed to match.
 const DEMO_BRIGHTNESS = 0.75;
@@ -284,7 +295,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     // The 4:3 screen, with room under it for a line of controls. Its board needs the page
     // cross-origin isolated (site/vite.config.ts); elsewhere it says so under COULD NOT LOAD.
     size: { width: 640, height: 540 },
-    create: async () => createArcadeApp((await import("@vector-games/starwars")).createCabinet()),
+    create: async () => createArcadeApp((await import("@vector-games/starwars")).createCabinet(), { flatFrame3d: STAR_WARS_FLAT_FRAME }),
   },
 ];
 

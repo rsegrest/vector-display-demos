@@ -389,6 +389,34 @@ describe("arcade games in Vector OS", () => {
 // The real games, from vector-games next to this repository, when it is there.
 const gamesPresent = ARCADE_GAMES.every((game) => existsSync(arcadeGameDirectory(game)));
 
+describe("a game steered by the pointer, aimed at in 3D", () => {
+  const flatFrame = { left: -1, right: 1, top: 1.3, bottom: -0.9 };
+  const positions = new Float32Array(6);
+  const colours = new Float32Array(4);
+
+  it("gives its 3D picture the flat frame the OS knows for it, and takes the ray's point and button in front", () => {
+    const stick = stickCabinet();
+    const app = createArcadeApp({ ...stick.cabinet, picture3d: () => ({ positions, colours, spread: 1, drop: 0 }) }, { flatFrame3d: flatFrame });
+    expect(app.picture3d!()!.flatFrame).toEqual(flatFrame);
+    // Behind another window it is only watched.
+    app.aim3d!("down", { x: 0.2, y: 0.3 });
+    expect(stick.points).toEqual([]);
+    app.setFocused!(true);
+    app.aim3d!("move", { x: 0.2, y: 0.3 });
+    app.aim3d!("down", { x: 0.25, y: 0.3 });
+    app.aim3d!("up", { x: 0.3, y: 0.3 });
+    expect(stick.points).toEqual([{ x: 0.2, y: 0.3 }, { x: 0.25, y: 0.3 }, { x: 0.3, y: 0.3 }]);
+    expect(stick.record.buttons).toEqual(["0down", "0up"]);
+  });
+
+  it("keeps a frame the cabinet's own picture gives, and offers no aim to a game the pointer does not steer", () => {
+    const own = { left: -2, right: 2, top: 1, bottom: -1 };
+    const stick = stickCabinet();
+    expect(createArcadeApp({ ...stick.cabinet, picture3d: () => ({ positions, colours, flatFrame: own }) }, { flatFrame3d: flatFrame }).picture3d!()!.flatFrame).toEqual(own);
+    expect(createArcadeApp(fakeCabinet().cabinet).aim3d).toBeUndefined();
+  });
+});
+
 describe.skipIf(!gamesPresent)("the five games, as the launcher runs them", () => {
   it("lists all five under Arcade", () => {
     expect(APP_ENTRIES.filter((entry) => entry.category === "arcade").map((entry) => entry.id)).toEqual(ARCADE_GAMES);

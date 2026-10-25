@@ -51,6 +51,11 @@ export interface Picture3d {
   readonly drop?: number;
   /** Something for the room to draw behind the picture: "space" (stars, a nebula, a solar system; vr/backdrop.ts). */
   readonly backdrop?: "space";
+  /**
+   * Where the flat picture lies on the distance-1 plane (x right, y up, in these positions' units), for a
+   * game steered by the pointer (pointerAt): the headset's ray aims at that plane as a mouse at the flat picture.
+   */
+  readonly flatFrame?: { readonly left: number; readonly right: number; readonly top: number; readonly bottom: number };
 }
 
 export interface ArcadeModule {

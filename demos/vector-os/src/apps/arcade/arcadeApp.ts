@@ -2,7 +2,7 @@ import { DisplayList } from "@vector-display/core";
 import { getDemoFont, type ClipRect, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
 import { SegmentBlitter } from "../../SegmentBlitter.js";
 import type { KeyPress, OsApp, PointerKind } from "../OsApp.js";
-import type { ArcadeCabinet } from "./ArcadeCabinet.js";
+import type { ArcadeCabinet, Picture3d } from "./ArcadeCabinet.js";
 import { FixedStepClock } from "./FixedStepClock.js";
 
 // The line of controls under the picture.
@@ -153,6 +153,19 @@ class ArcadeGameDemo implements Demo {
     this.lastPointer = { x, seconds: this.seconds };
   }
 
+  // A headset's ray aimed at the game's 3D picture (VR): the point over the flat picture it meets,
+  // and the trigger as the mouse's button.
+  public aim3d(kind: "down" | "move" | "up", point: { readonly x: number; readonly y: number }): void {
+    if (!this.isFocused || !this.cabinet.pointerAt) return;
+    this.cabinet.pointerAt(point);
+    if (kind === "down") {
+      this.cabinet.enableSound();
+      this.cabinet.mouseButton?.(0, true);
+    } else if (kind === "up") {
+      this.cabinet.mouseButton?.(0, false);
+    }
+  }
+
   public pointerLeave(): void {
     this.lastPointer = null;
     this.cabinet.pointerAt?.(null);
@@ -169,6 +182,9 @@ class ArcadeGameDemo implements Demo {
 export interface ArcadeAppOptions {
   // Brightness of the picture. A game drawn for a screen of its own, with its own glow, can be too bright in a window.
   readonly brightness?: number;
+  // Where the flat picture lies on the 3D picture's distance-1 plane (Picture3d.flatFrame), for a game
+  // steered by the pointer whose own picture3d does not say: the headset's ray then aims it.
+  readonly flatFrame3d?: Picture3d["flatFrame"];
 }
 
 export function createArcadeApp(cabinet: ArcadeCabinet, options: ArcadeAppOptions = {}): OsApp {
@@ -184,8 +200,14 @@ export function createArcadeApp(cabinet: ArcadeCabinet, options: ArcadeAppOption
     onPointerLeave: () => demo.pointerLeave(),
     setFocused: (focused) => demo.setFocused(focused),
     setAudible: (audible) => cabinet.setAudible(audible),
-    ...(cabinet.picture3d ? { picture3d: () => cabinet.picture3d!() } : {}),
+    ...(cabinet.picture3d ? { picture3d: () => withFlatFrame(cabinet.picture3d!(), options.flatFrame3d) } : {}),
+    ...(cabinet.pointerAt ? { aim3d: (kind: "down" | "move" | "up", point: { readonly x: number; readonly y: number }) => demo.aim3d(kind, point) } : {}),
     ...(cabinet.cycle3dStyle ? { cycle3dStyle: () => cabinet.cycle3dStyle!() } : {}),
     dispose: () => cabinet.dispose(),
   };
+}
+
+// The cabinet's 3D picture, with the flat frame the OS knows for it when the picture does not say.
+function withFlatFrame(picture: Picture3d | null, flatFrame: Picture3d["flatFrame"]): Picture3d | null {
+  return picture && flatFrame && !picture.flatFrame ? { ...picture, flatFrame } : picture;
 }

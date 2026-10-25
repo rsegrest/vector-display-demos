@@ -43,6 +43,9 @@ export interface OsApp {
   setFocused?(focused: boolean): void;
   // The program's picture in 3D, for VR (an arcade game that projects its own: ArcadeCabinet.picture3d).
   picture3d?(): import("./arcade/ArcadeCabinet.js").Picture3d | null;
+  // A ray aimed at the 3D picture, for a game steered by the pointer whose picture3d gives a flatFrame:
+  // where it points over the flat picture (0..1 across and down) and its button, as a mouse over the picture.
+  aim3d?(kind: "down" | "move" | "up", point: { readonly x: number; readonly y: number }): void;
   // The next 3D style, for a game whose 3D is a choice (ArcadeCabinet.cycle3dStyle).
   cycle3dStyle?(): string;
   // For programs that make sound. One at a time is heard: the one whose window was

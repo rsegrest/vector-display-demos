@@ -3,29 +3,13 @@
 // controllers' rays.  One draw call each; nothing here knows about WebXR, so
 // the page's flat preview draws through it too.
 
-import { floorLines, multiply, panelFor, screenVertices, type Screen } from "./geometry.js";
+import { DEFAULT_PICTURE_DROP, DEFAULT_PICTURE_SPREAD, floorLines, multiply, panelFor, pictureModel, screenVertices, type Screen } from "./geometry.js";
 import { spaceBackdrop } from "./backdrop.js";
 import { Lines3d } from "./Lines3d.js";
-
-/**
- * Where a game's 3D picture stands in the room: its eye (the picture's origin) where the viewer's
- * eye is, lowered by its drop, its distance 1 RIM_DISTANCE metres ahead, and its width and height
- * squeezed by its spread, depth kept.  The defaults are Tempest's: its eye sits so close to the
- * rim that the picture spans 150 degrees (squeezed to a quarter, about 90), and the owner's tries
- * on the Quest (2026-10-18) put the well best 0.3 m below the eye.  A game whose picture is right
- * as it is (Battlezone's) says spread 1, drop 0.
- */
-const RIM_DISTANCE = 1.5;
-const DEFAULT_SPREAD = 0.25;
-const DEFAULT_DROP = 0.3;
 
 /** The backdrop is in metres about the eye: moved up to the room's eye height. */
 const BACKDROP_MODEL = Float32Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1.6, 0, 1]);
 
-function pictureModel(spread: number, drop: number): Float32Array {
-  const across = RIM_DISTANCE * spread;
-  return Float32Array.from([across, 0, 0, 0, 0, across, 0, 0, 0, 0, RIM_DISTANCE, 0, 0, 1.6 - drop, 0, 1]);
-}
 
 
 const TEXTURED_VS = `#version 300 es
@@ -78,7 +62,7 @@ export class VrRoom {
   private showBackdrop = false;
   /** Whether a 3D picture stands in place of the flat screen (setPicture3d), and where it stands. */
   private picture3d = false;
-  private pictureModel = pictureModel(DEFAULT_SPREAD, DEFAULT_DROP);
+  private pictureModel = pictureModel(DEFAULT_PICTURE_SPREAD, DEFAULT_PICTURE_DROP);
   private readonly statusVao: WebGLVertexArrayObject;
   private readonly statusTexture: WebGLTexture;
 
@@ -163,7 +147,7 @@ export class VrRoom {
     }
     if (!picture) return;
     this.lines.setLines(picture.positions, picture.colours);
-    this.pictureModel = pictureModel(picture.spread ?? DEFAULT_SPREAD, picture.drop ?? DEFAULT_DROP);
+    this.pictureModel = pictureModel(picture.spread ?? DEFAULT_PICTURE_SPREAD, picture.drop ?? DEFAULT_PICTURE_DROP);
   }
 
 

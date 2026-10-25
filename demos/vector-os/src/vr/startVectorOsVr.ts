@@ -3,12 +3,14 @@
 // a dark room, in a WebXR headset (the Meta Quest's browser) or, without one,
 // as a flat preview on the page.  The right controller's ray is the mouse; the
 // left controller is the arcade controls (controllerKeys.ts); a keyboard works
-// too.  Nothing in Vector OS or the games changes.
+// too.  With a game standing in 3D that is steered by the pointer (Star Wars'
+// yoke), the right ray aims at its picture and the right trigger fires.
+// Nothing in Vector OS or the games changes.
 
 import { DemoHost, showFatalError, type FrameScheduler } from "@vector-demos/demo-kit";
 import { VECTOR_OS_WORLD_HEIGHT, VectorOsDemo } from "../VectorOsDemo.js";
 import { codeOf, heldKeys, keyEdges, profileFor } from "./controllerKeys.js";
-import { anchorAt, lookAt, multiply, panelOpacity, perspective, rayOfPose, rayOnScreen, screenFor, transformRay } from "./geometry.js";
+import { anchorAt, lookAt, multiply, panelOpacity, perspective, rayOfPose, rayOnPicture3d, rayOnScreen, screenFor, transformRay, type FlatFrame } from "./geometry.js";
 import { VrRoom } from "./VrRoom.js";
 
 // The few WebXR shapes used here (TypeScript's DOM library leaves WebXR out).
@@ -50,6 +52,8 @@ declare const XRWebGLLayer: new (session: XrSession, gl: WebGL2RenderingContext)
 /** The hidden canvas Vector OS draws into: a 16:9 desktop (its default windows are laid out for one). */
 const DESKTOP = { width: 1920, height: 1080 };
 const PREVIEW_EYE: [number, number, number] = [0, 1.6, 0.4];
+/** Half the size of the cross marking where the ray aims a 3D picture, in metres. */
+const AIM_MARK = 0.03;
 
 export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButtonElement, note: HTMLElement): void {
   // Vector OS on its own canvas, out of sight, sized as a desktop.
@@ -84,6 +88,11 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
   let panelPlace = desktopScreen as typeof desktopScreen;
   // Whether a game stands in the room in 3D: then there is no screen to point at, and the ray is not a mouse.
   let showing3d = false;
+  // Unless the game is steered by the pointer and says where its flat picture lies (Star Wars): then the
+  // ray aims at the 3D picture's distance-1 plane, placed with its spread and drop, and the trigger fires.
+  let aim3d: { frame: FlatFrame; spread: number | undefined; drop: number | undefined } | null = null;
+  // Whether the trigger holds the aimed game's button down (let go when the 3D picture goes).
+  let aimButtonDown = false;
   const room = new VrRoom(gl, screen);
   const fitScreen = () => {
     // A game full screen that projects its own 3D (Tempest) stands in the room in 3D instead of
@@ -94,12 +103,18 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       // The pointer leaves the game, and a game the mouse steers (Red Baron, once clicked) lets go of it
       // (its M key, as on its page): in 3D it is flown with the controllers.
       os.pointer("leave", 0, 0, false);
-      if (os.focusedProgramId === "red-baron") {
+      if (os.focusedProgramId === "red-baron" && !(picture.flatFrame && os.fullScreenAims3d)) {
         os.keyDown({ key: "m", code: "KeyM", repeat: false });
         os.keyUp({ key: "m", code: "KeyM", repeat: false });
       }
     }
     showing3d = picture !== null;
+    const aims = picture?.flatFrame && os.fullScreenAims3d ? picture.flatFrame : null;
+    if (!aims && aimButtonDown) {
+      aimButtonDown = false;
+      os.aimFullScreen3d("up", { x: 0.5, y: 0.5 });
+    }
+    aim3d = aims && picture ? { frame: aims, spread: picture.spread, drop: picture.drop } : null;
     const wanted = os.isFullScreen ? fullScreen : desktopScreen;
     if (wanted !== screen) {
       screen = wanted;
@@ -229,9 +244,24 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     };
     // The left controller's trigger is the fire button, not a click (it has a gamepad: controllerKeys.ts).
     const clicks = (source: XrInputSource) => !(source.handedness === "left" && source.gamepad && pointingHand === "right");
+    // Where the pointing hand's ray meets an aimed 3D picture (aim3d), or null.
+    const aimOf = (source: XrInputSource, frame: XrFrame | null) => {
+      const pose = aim3d && frame?.getPose(source.targetRaySpace, floor);
+      if (!pose || !aim3d) return null;
+      const { origin, direction } = roomRay(pose.transform.matrix);
+      return rayOnPicture3d(origin, direction, aim3d.frame, aim3d.spread, aim3d.drop);
+    };
     session.addEventListener("selectstart", (event) => {
       const source = (event as unknown as { inputSource: XrInputSource }).inputSource;
-      if (!clicks(source) || showing3d) return;
+      if (!clicks(source)) return;
+      if (showing3d) {
+        // In 3D the pointing hand's trigger is the aimed game's button (Star Wars' fire).
+        if (!aim3d || source.handedness !== pointingHand || aimButtonDown) return;
+        const aim = aimOf(source, (event as unknown as { frame?: XrFrame }).frame ?? lastFrame);
+        aimButtonDown = true;
+        os.aimFullScreen3d("down", aim ?? { x: 0.5, y: 0.5 });
+        return;
+      }
       pointingHand = source.handedness;
       const hit = hitOf(source, (event as unknown as { frame?: XrFrame }).frame ?? lastFrame);
       if (hit) {
@@ -241,7 +271,14 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     });
     session.addEventListener("selectend", (event) => {
       const source = (event as unknown as { inputSource: XrInputSource }).inputSource;
-      if (!clicks(source) || source.handedness !== pointingHand || showing3d) return;
+      if (!clicks(source) || source.handedness !== pointingHand) return;
+      if (showing3d) {
+        if (!aimButtonDown) return;
+        const aim = aimOf(source, (event as unknown as { frame?: XrFrame }).frame ?? lastFrame);
+        aimButtonDown = false;
+        os.aimFullScreen3d("up", aim ?? { x: 0.5, y: 0.5 });
+        return;
+      }
       const hit = hitOf(source, (event as unknown as { frame?: XrFrame }).frame ?? lastFrame);
       const point = hit ? toDesktop(hit) : { x: 0, y: 0 };
       os.pointer(hit ? "up" : "leave", point.x, point.y, false);
@@ -284,10 +321,20 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
         const pad = source.gamepad;
         if (pose) {
           const { origin, direction } = roomRay(pose.transform.matrix);
-          // The ray stops at the screen when it meets it, so its end is the cursor.
-          const t = direction[2] < -1e-6 ? (screen.centre[2] - origin[2]) / direction[2] : 6;
-          const reach = rayOnScreen(origin, direction, screen) ? t : 6;
-          rays.push({ origin, end: [origin[0] + direction[0] * reach, origin[1] + direction[1] * reach, origin[2] + direction[2] * reach] });
+          const aim = aim3d && source.handedness === pointingHand ? rayOnPicture3d(origin, direction, aim3d.frame, aim3d.spread, aim3d.drop) : null;
+          if (aim) {
+            // Aiming a 3D picture: the ray stops at its distance-1 plane, and a small cross marks the
+            // point the game is given (held at the picture's edge when the ray is off it).
+            rays.push({ origin, end: aim.hit });
+            const [x, y, z] = aim.aim;
+            rays.push({ origin: [x - AIM_MARK, y, z], end: [x + AIM_MARK, y, z] }, { origin: [x, y - AIM_MARK, z], end: [x, y + AIM_MARK, z] });
+            os.aimFullScreen3d("move", aim);
+          } else {
+            // The ray stops at the screen when it meets it, so its end is the cursor.
+            const t = direction[2] < -1e-6 ? (screen.centre[2] - origin[2]) / direction[2] : 6;
+            const reach = rayOnScreen(origin, direction, screen) ? t : 6;
+            rays.push({ origin, end: [origin[0] + direction[0] * reach, origin[1] + direction[1] * reach, origin[2] + direction[2] * reach] });
+          }
           if (source.handedness === pointingHand && !showing3d) {
             const hit = rayOnScreen(origin, direction, screen);
             if (hit) {
@@ -363,7 +410,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
         showStatus([
           "IN 3D: RIGHT GRIP or RIGHT STICK LEFT/RIGHT: next 3D style",
           "RIGHT STICK PRESS: exit full screen   LEFT STICK PRESS: recenter",
-          "LEFT: stick turn/thrust, trigger fire, grip shields/zap, X coin, Y start",
+          aim3d ? "RIGHT RAY: aim   RIGHT TRIGGER: fire   LEFT: X coin, Y start" : "LEFT: stick turn/thrust, trigger fire, grip shields/zap, X coin, Y start",
           styleDiagnosis || "right controller: not seen",
         ]);
       } else if (frames % 10 === 1) {

@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { coinKeyFor, heldKeys, keyEdges, profileFor } from "../src/vr/controllerKeys.js";
-import { anchorAt, lookAt, multiply, panelFor, panelOpacity, perspective, rayOfPose, rayOnScreen, ROOM_EYE_HEIGHT, screenFor, transformRay } from "../src/vr/geometry.js";
+import {
+  anchorAt,
+  lookAt,
+  multiply,
+  panelFor,
+  panelOpacity,
+  perspective,
+  pictureModel,
+  rayOfPose,
+  rayOnPicture3d,
+  rayOnScreen,
+  ROOM_EYE_HEIGHT,
+  screenFor,
+  transformRay,
+} from "../src/vr/geometry.js";
 
 describe("the virtual cabinet's room", () => {
   const screen = screenFor(16 / 10);
@@ -133,5 +147,61 @@ describe("the backdrop's layout", () => {
     const { NEBULA, SOLAR_SYSTEM } = await import("../src/vr/backdrop.js");
     // The system reaches about 15 degrees from its center (its widest orbit, 13 m at 55 m).
     expect(SOLAR_SYSTEM.azimuth - 15).toBeGreaterThan(NEBULA.azimuthTo);
+  });
+});
+
+describe("aiming at a 3D picture with a ray", () => {
+  // Star Wars' flat picture on its distance-1 plane: 251 x 281 AVG units, seen through its
+  // projection (vanishing point 124.873, 166.025; 127.47 units per unit), y flipped to point up.
+  const projection = { vx: 124.873, vy: 166.025, f: 127.47 };
+  const frame = { left: -projection.vx / projection.f, right: (251 - projection.vx) / projection.f, top: projection.vy / projection.f, bottom: -(281 - projection.vy) / projection.f };
+  // Where the flat picture's point (0..1 across and down) stands in the room, at distance 1, placed with spread and drop.
+  const inRoom = (x: number, y: number, spread: number, drop: number): [number, number, number] => {
+    const model = pictureModel(spread, drop);
+    const local = [(x * 251 - projection.vx) / projection.f, -(y * 281 - projection.vy) / projection.f, -1];
+    return [0, 1, 2].map((row) => model[row] * local[0] + model[4 + row] * local[1] + model[8 + row] * local[2] + model[12 + row]) as [number, number, number];
+  };
+  const toward = (from: readonly number[], to: readonly number[]): [number, number, number] => [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
+
+  it("gives the flat picture's point a ray through its place on the distance-1 plane meets, from the eye or a controller", () => {
+    const eye: [number, number, number] = [0, ROOM_EYE_HEIGHT, 0];
+    const hand: [number, number, number] = [0.25, 1.1, -0.35];
+    for (const [x, y] of [[0.5, 0.5], [0.1, 0.8], [0.9, 0.2]]) {
+      for (const origin of [eye, hand]) {
+        const hit = rayOnPicture3d(origin, toward(origin, inRoom(x, y, 1, 0)), frame, 1, 0)!;
+        expect(hit.x).toBeCloseTo(x);
+        expect(hit.y).toBeCloseTo(y);
+      }
+    }
+    // Looking straight ahead is the vanishing point.
+    const ahead = rayOnPicture3d(eye, [0, 0, -1], frame, 1, 0)!;
+    expect(ahead.x).toBeCloseTo(projection.vx / 251);
+    expect(ahead.y).toBeCloseTo(projection.vy / 281);
+  });
+
+  it("places the plane with the picture's spread and drop", () => {
+    const origin: [number, number, number] = [-0.1, 1.3, -0.2];
+    const hit = rayOnPicture3d(origin, toward(origin, inRoom(0.3, 0.7, 0.25, 0.3)), frame, 0.25, 0.3)!;
+    expect(hit.x).toBeCloseTo(0.3);
+    expect(hit.y).toBeCloseTo(0.7);
+    [0, 1, 2].forEach((i) => expect(hit.aim[i]).toBeCloseTo(inRoom(0.3, 0.7, 0.25, 0.3)[i]));
+  });
+
+  it("clamps a ray off the picture to its edge, and keeps the marker on the edge", () => {
+    const eye: [number, number, number] = [0, ROOM_EYE_HEIGHT, 0];
+    const farRightAbove = rayOnPicture3d(eye, [3, 3, -1], frame, 1, 0)!;
+    expect(farRightAbove.x).toBe(1);
+    expect(farRightAbove.y).toBe(0);
+    [0, 1, 2].forEach((i) => expect(farRightAbove.aim[i]).toBeCloseTo(inRoom(1, 0, 1, 0)[i]));
+    expect(farRightAbove.hit[0]).toBeCloseTo(4.5);
+    const farLeftBelow = rayOnPicture3d(eye, [-3, -3, -1], frame, 1, 0)!;
+    expect(farLeftBelow.x).toBe(0);
+    expect(farLeftBelow.y).toBe(1);
+  });
+
+  it("misses when the ray points away from the plane, or starts beyond it", () => {
+    expect(rayOnPicture3d([0, 1.6, 0], [0, 0, 1], frame, 1, 0)).toBeNull();
+    expect(rayOnPicture3d([0, 1.6, 0], [1, 0, 0], frame, 1, 0)).toBeNull();
+    expect(rayOnPicture3d([0, 1.6, -2], [0, 0, -1], frame, 1, 0)).toBeNull();
   });
 });

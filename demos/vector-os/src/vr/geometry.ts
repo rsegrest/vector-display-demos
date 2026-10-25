@@ -158,3 +158,62 @@ export function transformRay(
   ];
   return { origin: point(origin, 1), direction: point(direction, 0) };
 }
+
+/**
+ * Where a game's 3D picture stands in the room: its eye (the picture's origin) where the viewer's
+ * eye is, lowered by its drop, its distance 1 PICTURE_RIM_DISTANCE metres ahead, and its width and
+ * height squeezed by its spread, depth kept.  The defaults are Tempest's: its eye sits so close to
+ * the rim that the picture spans 150 degrees (squeezed to a quarter, about 90), and the owner's
+ * tries on the Quest (2026-10-18) put the well best 0.3 m below the eye.  A game whose picture is
+ * right as it is (Battlezone's) says spread 1, drop 0.
+ */
+export const PICTURE_RIM_DISTANCE = 1.5;
+export const DEFAULT_PICTURE_SPREAD = 0.25;
+export const DEFAULT_PICTURE_DROP = 0.3;
+
+/** The 3D picture's model matrix (the picture's space to the room's) for its spread and drop. */
+export function pictureModel(spread: number, drop: number): Mat4 {
+  const across = PICTURE_RIM_DISTANCE * spread;
+  return Float32Array.from([across, 0, 0, 0, 0, across, 0, 0, 0, 0, PICTURE_RIM_DISTANCE, 0, 0, ROOM_EYE_HEIGHT - drop, 0, 1]);
+}
+
+/**
+ * Where the flat picture lies on a 3D picture's distance-1 plane, in the 3D picture's own units
+ * (x right, y up): its left and right edges' x, its top and bottom edges' y.
+ */
+export interface FlatFrame {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+/**
+ * Where a ray (origin, direction, in the room) meets a 3D picture's distance-1 plane, placed with
+ * its spread and drop (pictureModel), as a point on the flat picture (0..1 across, 0..1 down, as
+ * a mouse over the flat picture gives), clamped to its edges.  `hit` is where the ray meets the
+ * plane in the room, `aim` the clamped point there (where a marker goes).  Null if the ray points
+ * away from the plane.
+ */
+export function rayOnPicture3d(
+  origin: readonly [number, number, number],
+  direction: readonly [number, number, number],
+  frame: FlatFrame,
+  spread = DEFAULT_PICTURE_SPREAD,
+  drop = DEFAULT_PICTURE_DROP,
+): { x: number; y: number; hit: [number, number, number]; aim: [number, number, number] } | null {
+  // The distance-1 plane is z = -PICTURE_RIM_DISTANCE in the room, facing +z.
+  if (direction[2] >= -1e-6) return null;
+  const t = (-PICTURE_RIM_DISTANCE - origin[2]) / direction[2];
+  if (t <= 0) return null;
+  const z = -PICTURE_RIM_DISTANCE;
+  const hit: [number, number, number] = [origin[0] + direction[0] * t, origin[1] + direction[1] * t, z];
+  // Back into the picture's own units, then across its flat frame.
+  const across = PICTURE_RIM_DISTANCE * spread;
+  const eyeY = ROOM_EYE_HEIGHT - drop;
+  const clamp = (value: number) => Math.max(0, Math.min(1, value));
+  const x = clamp((hit[0] / across - frame.left) / (frame.right - frame.left));
+  const y = clamp((frame.top - (hit[1] - eyeY) / across) / (frame.top - frame.bottom));
+  const aim: [number, number, number] = [(frame.left + x * (frame.right - frame.left)) * across, eyeY + (frame.top - y * (frame.top - frame.bottom)) * across, z];
+  return { x, y, hit, aim };
+}
