@@ -4,14 +4,14 @@ import bunny from "../src/data/bunny.json";
 import spot from "../src/data/spot.json";
 import teapot from "../src/data/teapot.json";
 import { MESHES, MeshesDemo, type MeshEntry } from "../src/MeshesDemo.js";
-import { DepthBuffer } from "../src/render/DepthBuffer.js";
 import { MeshRenderer, type MeshView } from "../src/render/MeshRenderer.js";
-import { buildTopology, loadStored, normalise, parseObj, weld, type StoredMesh } from "../src/sim/mesh.js";
+import { buildMeshTopology, readObj, weldMesh } from "@vector-display/3d";
+import { loadStored, type StoredMesh } from "../src/sim/mesh.js";
 import { cube, gear, torusKnot } from "../src/sim/shapes.js";
 
 const VIEW: MeshView = { yaw: 0.6, pitch: 0.35, centreX: 800, centreY: 500, scale: 300, creaseDegrees: 30, mode: "FEATURES", hiddenLines: true };
 
-function drawCounts(topology: ReturnType<typeof buildTopology>, view: Partial<MeshView> = {}) {
+function drawCounts(topology: ReturnType<typeof buildMeshTopology>, view: Partial<MeshView> = {}) {
   const displayList = new DisplayList();
   const counts = new MeshRenderer().draw(displayList, topology, { ...VIEW, ...view });
   return { counts, displayList };
@@ -28,44 +28,8 @@ function inkLength(displayList: DisplayList): number {
   return total;
 }
 
-describe("parseObj", () => {
-  it("reads vertices and triangles, splitting larger faces into fans", () => {
-    const mesh = parseObj("# a square\nv 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nvn 0 0 1\nf 1/1/1 2/2/1 3/3/1 4/4/1\n");
-    expect(Array.from(mesh.positions)).toEqual([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]);
-    expect(Array.from(mesh.indices)).toEqual([0, 1, 2, 0, 2, 3]);
-  });
-
-  it("counts negative indices back from the latest vertex", () => {
-    const mesh = parseObj("v 0 0 0\nv 1 0 0\nv 0 1 0\nf -3 -2 -1\n");
-    expect(Array.from(mesh.indices)).toEqual([0, 1, 2]);
-  });
-});
-
-describe("weld and normalise", () => {
-  it("merges repeated vertices so neighbouring triangles share them", () => {
-    const separate = parseObj("v 0 0 0\nv 1 0 0\nv 0 1 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nf 1 2 3\nf 4 5 6\n");
-    expect(buildTopology(separate).edgeCount).toBe(6);
-    const welded = weld(separate);
-    expect(welded.positions.length / 3).toBe(4);
-    // Two triangles sharing an edge have five edges between them.
-    expect(buildTopology(welded).edgeCount).toBe(5);
-  });
-
-  it("drops triangles that collapse when their corners merge", () => {
-    const mesh = weld(parseObj("v 0 0 0\nv 0 0 0\nv 1 0 0\nf 1 2 3\n"));
-    expect(mesh.indices.length).toBe(0);
-  });
-
-  it("centres a mesh and fits it to a unit sphere", () => {
-    const mesh = normalise(parseObj("v 10 10 10\nv 14 10 10\nv 10 12 10\nf 1 2 3\n"));
-    let farthest = 0;
-    for (let offset = 0; offset < mesh.positions.length; offset += 3) farthest = Math.max(farthest, Math.hypot(mesh.positions[offset], mesh.positions[offset + 1], mesh.positions[offset + 2]));
-    expect(farthest).toBeCloseTo(1, 5);
-  });
-});
-
-describe("buildTopology", () => {
-  const topology = buildTopology(cube());
+describe("the cube, through buildMeshTopology", () => {
+  const topology = buildMeshTopology(cube());
 
   it("finds the cube's edges and the triangles either side of each", () => {
     expect(topology.faceCount).toBe(12);
@@ -91,11 +55,11 @@ describe("buildTopology", () => {
 
   it("knows a closed surface from one with open borders", () => {
     expect(topology.isClosed).toBe(true);
-    expect(buildTopology(weld(parseObj("v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nf 1 2 3 4\n"))).isClosed).toBe(false);
+    expect(buildMeshTopology(weldMesh(readObj("v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nf 1 2 3 4\n"))).isClosed).toBe(false);
   });
 
   it("marks the border of an open mesh", () => {
-    const sheet = buildTopology(weld(parseObj("v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nf 1 2 3 4\n")));
+    const sheet = buildMeshTopology(weldMesh(readObj("v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nf 1 2 3 4\n")));
     const borders = Array.from({ length: sheet.edgeCount }, (_unused, edge) => sheet.edgeFaces[edge * 2 + 1]).filter((face) => face < 0);
     expect(borders).toHaveLength(4);
   });
@@ -103,14 +67,14 @@ describe("buildTopology", () => {
 
 describe("generated shapes", () => {
   it("makes a closed, smooth torus knot", () => {
-    const topology = buildTopology(torusKnot());
+    const topology = buildMeshTopology(torusKnot());
     for (let edge = 0; edge < topology.edgeCount; edge++) expect(topology.edgeFaces[edge * 2 + 1]).toBeGreaterThanOrEqual(0);
     // No fold anywhere sharper than about 45 degrees.
     expect(Math.min(...topology.edgeCosine)).toBeGreaterThan(0.7);
   });
 
   it("makes a closed gear with plenty of sharp edges", () => {
-    const topology = buildTopology(gear(12));
+    const topology = buildMeshTopology(gear(12));
     for (let edge = 0; edge < topology.edgeCount; edge++) expect(topology.edgeFaces[edge * 2 + 1]).toBeGreaterThanOrEqual(0);
     const sharp = Array.from(topology.edgeCosine).filter((value) => value < 0.5).length;
     expect(sharp).toBeGreaterThan(100);
@@ -123,7 +87,7 @@ describe.each([
   ["spot", spot],
 ] as const)("the bundled %s", (_name, data) => {
   const stored = data as unknown as StoredMesh;
-  const topology = buildTopology(loadStored(stored));
+  const topology = buildMeshTopology(loadStored(stored));
 
   it("is a sensibly sized mesh inside the unit sphere, with a credit", () => {
     expect(stored.credit.length).toBeGreaterThan(5);
@@ -143,70 +107,8 @@ describe.each([
   });
 });
 
-describe("DepthBuffer", () => {
-  it("records the nearest surface over each cell a triangle covers", () => {
-    const depth = new DepthBuffer(16);
-    depth.fillTriangle(2, 2, 0.5, 12, 2, 0.5, 2, 12, 0.5);
-    expect(depth.at(4, 4)).toBeCloseTo(0.5, 6);
-    expect(depth.at(14, 14)).toBe(0);
-    // A nearer triangle over part of it wins; a farther one does not.
-    depth.fillTriangle(2, 2, 0.8, 6, 2, 0.8, 2, 6, 0.8);
-    depth.fillTriangle(2, 2, 0.2, 12, 2, 0.2, 2, 12, 0.2);
-    expect(depth.at(3, 3)).toBeCloseTo(0.8, 6);
-    expect(depth.at(8, 3)).toBeCloseTo(0.5, 6);
-  });
-
-  it("fills the same cells whichever way round the corners are given", () => {
-    const first = new DepthBuffer(16);
-    const second = new DepthBuffer(16);
-    first.fillTriangle(1, 1, 0.4, 13, 3, 0.4, 5, 14, 0.4);
-    second.fillTriangle(5, 14, 0.4, 13, 3, 0.4, 1, 1, 0.4);
-    for (let row = 0; row < 16; row++) for (let column = 0; column < 16; column++) expect(second.at(column, row)).toBe(first.at(column, row));
-  });
-
-  it("leaves no pinholes under a sliver thinner than a cell", () => {
-    const depth = new DepthBuffer(32);
-    depth.fillTriangle(2, 10.4, 0.5, 30, 10.6, 0.5, 30, 10.5, 0.5);
-    for (let column = 4; column < 28; column++) expect(Math.max(depth.at(column, 9), depth.at(column, 10))).toBeGreaterThan(0);
-  });
-
-  it("slopes nearness across a tilted triangle", () => {
-    const depth = new DepthBuffer(16);
-    depth.fillTriangle(0, 0, 0.2, 16, 0, 0.6, 0, 16, 0.2);
-    expect(depth.at(2, 2)).toBeLessThan(depth.at(10, 2));
-    expect(depth.at(10, 2)).toBeCloseTo(0.2 + (10.5 / 16) * 0.4, 5);
-  });
-
-  it("hides the part of a line that passes behind a surface, and only that part", () => {
-    const depth = new DepthBuffer(64);
-    // A wall across the middle columns.
-    depth.fillTriangle(20, 0, 0.5, 40, 0, 0.5, 40, 64, 0.5);
-    depth.fillTriangle(20, 0, 0.5, 40, 64, 0.5, 20, 64, 0.5);
-    const runs: number[][] = [];
-    depth.traceVisible(2, 30, 0.3, 62, 30, 0.3, 0.01, (x0, y0, x1, y1) => runs.push([x0, y0, x1, y1]));
-    expect(runs).toHaveLength(2);
-    expect(runs[0][0]).toBeCloseTo(2, 5);
-    expect(runs[0][2]).toBeGreaterThan(17);
-    expect(runs[0][2]).toBeLessThan(22);
-    expect(runs[1][0]).toBeGreaterThan(38);
-    expect(runs[1][0]).toBeLessThan(43);
-    expect(runs[1][2]).toBeCloseTo(62, 5);
-  });
-
-  it("shows a line in front of the surface, or lying on it, whole", () => {
-    const depth = new DepthBuffer(64);
-    depth.fillTriangle(0, 0, 0.5, 64, 0, 0.5, 0, 64, 0.5);
-    for (const nearness of [0.7, 0.5]) {
-      const runs: number[][] = [];
-      depth.traceVisible(5, 5, nearness, 25, 20, nearness, 0.01, (x0, y0, x1, y1) => runs.push([x0, y0, x1, y1]));
-      expect(runs).toHaveLength(1);
-      expect(runs[0]).toEqual([5, 5, 25, 20]);
-    }
-  });
-});
-
 describe("MeshRenderer", () => {
-  const box = buildTopology(cube());
+  const box = buildMeshTopology(cube());
 
   it("draws a cube's outline and folds but not the diagonals across its faces", () => {
     const { counts } = drawCounts(box);
@@ -236,7 +138,7 @@ describe("MeshRenderer", () => {
   });
 
   it("cuts away what the mesh hides: less ink than with hidden lines shown", () => {
-    const knot = buildTopology(torusKnot());
+    const knot = buildMeshTopology(torusKnot());
     const hidden = drawCounts(knot);
     const shown = drawCounts(knot, { hiddenLines: false });
     // A knot passes in front of itself, so some of its outline is covered.

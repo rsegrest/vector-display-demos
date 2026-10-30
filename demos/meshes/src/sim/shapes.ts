@@ -3,10 +3,13 @@
 // everything drawn is silhouette; the gear is all flat faces, so nearly everything
 // drawn is a crease.
 
-import { normalise, weld, type Mesh } from "./mesh.js";
+import { fitToSphere, fromRightHanded, weldMesh, type TriangleMesh } from "@vector-display/3d";
+
+// The shapes are built in the same right-handed axes as the bundled meshes (z toward the
+// viewer) and converted like them, so the knot keeps its handedness on screen.
 
 // A tube following a (p, q) torus knot: p times round the axis while q times through the hole.
-export function torusKnot(p = 2, q = 3, steps = 220, sides = 12, tubeRadius = 0.16): Mesh {
+export function torusKnot(p = 2, q = 3, steps = 220, sides = 12, tubeRadius = 0.16): TriangleMesh {
   const positions: number[] = [];
   const indices: number[] = [];
   const centre = (step: number): [number, number, number] => {
@@ -39,12 +42,12 @@ export function torusKnot(p = 2, q = 3, steps = 220, sides = 12, tubeRadius = 0.
       indices.push(a, b, c, a, c, d);
     }
   }
-  return normalise({ positions: Float32Array.from(positions), indices: Uint32Array.from(indices) });
+  return fitToSphere(fromRightHanded({ positions: Float32Array.from(positions), indices: Uint32Array.from(indices) }));
 }
 
 // A spur gear with a hole through it: a toothed outline and a round one, pulled
 // out into a slab. Every face is flat, so its edges are creases or nothing.
-export function gear(teeth = 14, thickness = 0.5): Mesh {
+export function gear(teeth = 14, thickness = 0.5): TriangleMesh {
   const outline: [number, number][] = [];
   const hole: [number, number][] = [];
   // Each tooth: root, rise, flat top, fall.
@@ -78,15 +81,15 @@ export function gear(teeth = 14, thickness = 0.5): Mesh {
     indices.push(outer(index, false), outer(index, true), outer(next, true), outer(index, false), outer(next, true), outer(next, false));
     indices.push(inner(index, false), inner(next, true), inner(index, true), inner(index, false), inner(next, false), inner(next, true));
   }
-  return normalise(weld({ positions: Float32Array.from(positions), indices: Uint32Array.from(indices) }));
+  return fitToSphere(weldMesh(fromRightHanded({ positions: Float32Array.from(positions), indices: Uint32Array.from(indices) })));
 }
 
 // A cube made of twelve triangles, for tests: every real edge is a right angle,
 // and each face has one diagonal across which the surface is flat.
-export function cube(): Mesh {
+export function cube(): TriangleMesh {
   const positions = [-1, -1, -1, 1, -1, -1, 1, 1, -1, -1, 1, -1, -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1];
   const indices = [0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7];
-  return { positions: Float32Array.from(positions), indices: Uint32Array.from(indices) };
+  return fromRightHanded({ positions: Float32Array.from(positions), indices: Uint32Array.from(indices) });
 }
 
 function cross(a: readonly number[], b: readonly number[]): [number, number, number] {

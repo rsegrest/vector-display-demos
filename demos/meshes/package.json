@@ -14,6 +14,8 @@
   },
   "dependencies": {
     "@vector-demos/demo-kit": "*",
-    "@vector-display/core": "^0.1.0"
+    "@vector-display/3d": "^0.2.0",
+    "@vector-display/core": "^0.1.0",
+    "es-vector-math": "^0.1.0"
   }
 }

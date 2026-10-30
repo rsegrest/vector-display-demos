@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@vector-demos/demo-kit": "*",
-    "@vector-display/3d": "^0.1.0",
+    "@vector-display/3d": "^0.2.0",
     "@vector-display/beam-fx": "^0.1.0",
     "@vector-display/core": "^0.1.0",
     "@vector-display/font": "^0.1.0",

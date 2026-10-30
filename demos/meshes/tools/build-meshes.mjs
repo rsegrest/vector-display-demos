@@ -25,6 +25,9 @@ const MESHES = [
   { file: "spot", name: "SPOT", credit: "KEENAN CRANE, PUBLIC DOMAIN" },
 ];
 
+// Its own OBJ reader rather than @vector-display/3d's readObj: this keeps full double
+// precision until the final rounding (the library stores 32-bit floats, which would move a
+// few stored coordinates by one unit and change the bundled files for nothing).
 function parseObj(text) {
   const positions = [];
   const indices = [];

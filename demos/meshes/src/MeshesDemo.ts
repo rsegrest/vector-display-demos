@@ -1,7 +1,8 @@
 import type { DisplayList } from "@vector-display/core";
+import { buildMeshTopology, type MeshTopology, type TriangleMesh } from "@vector-display/3d";
 import { DemoHud, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
 import { MeshRenderer, type EdgeCounts, type EdgeMode } from "./render/MeshRenderer.js";
-import { buildTopology, loadStored, type Mesh, type MeshTopology, type StoredMesh } from "./sim/mesh.js";
+import { loadStored, type StoredMesh } from "./sim/mesh.js";
 import { gear, torusKnot } from "./sim/shapes.js";
 
 export const MESHES_WORLD_HEIGHT = 1000;
@@ -21,10 +22,10 @@ export interface MeshEntry {
   readonly credit: string;
   // The crease angle that suits this mesh: lower for crisp parts, higher for lumpy scans.
   readonly creaseDegrees: number;
-  readonly load: () => Promise<Mesh>;
+  readonly load: () => Promise<TriangleMesh>;
 }
 
-const stored = (importer: () => Promise<{ default: unknown }>): (() => Promise<Mesh>) => {
+const stored = (importer: () => Promise<{ default: unknown }>): (() => Promise<TriangleMesh>) => {
   return async () => loadStored((await importer()).default as StoredMesh);
 };
 
@@ -164,7 +165,7 @@ export class MeshesDemo implements Demo {
       statusLines: [
         `${entry.name}  ${entry.credit}`,
         topology
-          ? `${topology.faceCount} TRIANGLES  ${topology.edgeCount} EDGES  DRAWN: ${this.counts.silhouette} SILHOUETTE  ${this.counts.crease} CREASE${this.mode === "ALL EDGES" ? `  ${this.counts.other} OTHER` : ""}`
+          ? `${topology.faceCount} TRIANGLES  ${topology.edgeCount} EDGES  SEGMENTS DRAWN: ${this.counts.silhouette} SILHOUETTE  ${this.counts.crease} CREASE${this.mode === "ALL EDGES" ? `  ${this.counts.other} OTHER` : ""}`
           : "LOADING",
         `${this.mode}  HIDDEN LINES ${this.hiddenLines ? "REMOVED" : "SHOWN"}  CREASE OVER ${this.creaseDegrees} DEGREES  SEGMENTS ${this.counts.segments}${this.isPaused ? "  PAUSED" : ""}`,
       ],
@@ -255,7 +256,7 @@ export class MeshesDemo implements Demo {
   private async load(index: number): Promise<void> {
     this.loading.add(index);
     try {
-      this.loaded.set(index, buildTopology(await this.meshes[index].load()));
+      this.loaded.set(index, buildMeshTopology(await this.meshes[index].load()));
     } catch (error) {
       console.error(error);
       this.hud.showBanner(`COULD NOT LOAD ${this.meshes[index].name}`);
