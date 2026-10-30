@@ -37,7 +37,8 @@ export function roomCodeFrom(bytes: ArrayLike<number>): string {
 export type ClientMessage =
   | { readonly type: "hello"; readonly token: string; readonly name: string }
   | { readonly type: "chat"; readonly text: string }
-  | { readonly type: "invite"; readonly to: string; readonly game: GameId }
+  // `to` null is an open invitation: anyone in the room, now or arriving later, may accept it.
+  | { readonly type: "invite"; readonly to: string | null; readonly game: GameId }
   | { readonly type: "answer"; readonly from: string; readonly accept: boolean }
   | { readonly type: "move"; readonly move: unknown }
   | { readonly type: "resign" };
@@ -58,7 +59,8 @@ export interface ChatEntry {
 
 export interface Invite {
   readonly from: string;
-  readonly to: string;
+  // null: open to anyone in the room.
+  readonly to: string | null;
   readonly game: GameId;
 }
 
@@ -110,7 +112,7 @@ export function readClientMessage(raw: string): ClientMessage | null {
     case "chat":
       return typeof message.text === "string" ? { type: "chat", text: message.text } : null;
     case "invite":
-      if (typeof message.to !== "string" || !GAME_IDS.includes(message.game as GameId)) return null;
+      if ((typeof message.to !== "string" && message.to !== null) || !GAME_IDS.includes(message.game as GameId)) return null;
       return { type: "invite", to: message.to, game: message.game as GameId };
     case "answer":
       if (typeof message.from !== "string" || typeof message.accept !== "boolean") return null;

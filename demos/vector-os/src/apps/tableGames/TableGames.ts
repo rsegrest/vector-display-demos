@@ -1,23 +1,30 @@
 import type { BeamColor, DisplayList } from "@vector-display/core";
 import type { Demo, DemoFrame } from "@vector-demos/demo-kit";
-import { cleanText, isRoomCode, LIMITS, ROOM_CODE_LENGTH, roomCodeFrom, TABLE_GAMES, type GameId, type GameInfo, type Seat } from "@vector-demos/table-games";
+import { cleanText, GAME_IDS, isRoomCode, LIMITS, ROOM_CODE_LENGTH, roomCodeFrom, TABLE_GAMES, type GameId, type GameInfo, type Invite, type Seat } from "@vector-demos/table-games";
 import type { OsApp, PointerKind } from "../OsApp.js";
 import { drawBattleship, drawCheckers, drawConnectFour, freshChoices, SEAT_COLORS, type BoardChoices } from "./boards.js";
+import { Practice } from "./Practice.js";
 import { TableClient, type SocketFactory, type SocketLike } from "./TableClient.js";
 import { Ui, type Rect } from "./Ui.js";
 
 // Table Games: two-player board games with anyone who has the room's code or link, and a chat.
 // Rooms are invitation-only: there is no list of them, so a room is found only by its code.
 // The rules run on the room server (services/table-games); this window draws what it is sent
-// and sends back what was clicked. The games' rules follow game-clawtroller's.
+// and sends back what was clicked. Practice games run the same rules here, both sides on one
+// screen. The games' rules follow game-clawtroller's.
 
 const TEXT: BeamColor = { red: 0.6, green: 0.85, blue: 1 };
-const DIM: BeamColor = { red: 0.4, green: 0.55, blue: 0.75 };
+const DIM: BeamColor = { red: 0.45, green: 0.6, blue: 0.8 };
 const BRIGHT: BeamColor = { red: 0.9, green: 1, blue: 0.95 };
 const WARN: BeamColor = { red: 1, green: 0.55, blue: 0.4 };
 const ACCENT: BeamColor = { red: 1, green: 0.8, blue: 0.35 };
 
-const SHORT_NAMES: Readonly<Record<GameId, string>> = { connect4: "C4", checkers: "CHK", battleship: "SHIP" };
+const SHORT_NAMES: Readonly<Record<GameId, string>> = { connect4: "C4", checkers: "Checkers", battleship: "Ships" };
+const DESCRIPTIONS: Readonly<Record<GameId, string>> = {
+  connect4: "Drop discs in turn; four in a row wins.",
+  checkers: "Jump to capture, and you must when you can.",
+  battleship: "Hide five ships, then hunt down the other fleet.",
+};
 const PADDING = 12;
 const CHAT_SIZE = 11;
 const CHAT_PITCH = 18;
@@ -41,8 +48,22 @@ export interface TableGamesOptions {
 
 type Field = "name" | "code";
 
+// A game on the board, from the room or practice, as the board and its buttons need it.
+interface Table {
+  readonly info: GameInfo;
+  // The side this window plays: null to watch. In practice, whichever side is to move.
+  readonly mySeat: Seat | null;
+  readonly names: readonly [string, string];
+  readonly isPractice: boolean;
+  send(move: unknown): void;
+  resign(): void;
+  // Another game against the same player, if there is one to offer it to.
+  readonly rematch: (() => void) | null;
+}
+
 export class TableGames implements Demo {
   public client: TableClient | null = null;
+  public practice: Practice | null = null;
   public name: string;
   public codeDraft: string;
   public chatDraft = "";
@@ -54,6 +75,8 @@ export class TableGames implements Demo {
   private choicesFor: string | null = null;
   private choicesWereOver = false;
   private localNotice: string | null = null;
+  // Open invitations this window has said no to: they stay open for the others.
+  private readonly declined = new Set<string>();
 
   public constructor(private readonly options: TableGamesOptions) {
     this.token = readOrMakeToken(options);
@@ -68,7 +91,7 @@ export class TableGames implements Demo {
 
   public key(key: string): void {
     if (!this.client) {
-      this.lobbyKey(key);
+      if (!this.practice) this.lobbyKey(key);
       return;
     }
     if (key === "Enter") {
@@ -98,8 +121,17 @@ export class TableGames implements Demo {
   public draw(displayList: DisplayList, frame: DemoFrame): void {
     this.ui.begin(displayList);
     if (this.client) this.drawRoom(this.client, frame.width, frame.height);
+    else if (this.practice) this.drawPracticeAlone(this.practice, frame.width, frame.height);
     else this.drawLobby(frame.width, frame.height, frame.seconds);
     this.ui.end();
+  }
+
+  public drawText(displayList: DisplayList): void {
+    this.ui.drawText(displayList);
+  }
+
+  public startPractice(game: GameId): void {
+    this.practice = new Practice(game);
   }
 
   // ── The lobby: a name, and a room to make or join ─────────────────────────
@@ -138,198 +170,274 @@ export class TableGames implements Demo {
     const name = cleanText(this.name, LIMITS.nameLength);
     this.options.storage?.setItem(NAME_KEY, name);
     const socketUrl = `${this.options.server.replace(/^http/, "ws").replace(/\/$/, "")}/rooms/${code}`;
+    this.practice = null;
     this.client = new TableClient(code, socketUrl, this.token, name, this.options.openSocket);
   }
 
   private leaveRoom(): void {
     this.client?.close();
     this.client = null;
+    this.practice = null;
     this.codeDraft = "";
     this.field = "code";
   }
 
   private drawLobby(width: number, height: number, seconds: number): void {
     const ui = this.ui;
-    const columnWidth = Math.min(420, width - 2 * PADDING);
+    const columnWidth = Math.min(440, width - 2 * PADDING);
     const left = (width - columnWidth) / 2;
-    let y = Math.max(PADDING, height / 2 - 150);
-    ui.text(BRIGHT, "TABLE GAMES", width / 2, y, 22, "center", 1.2);
-    y += 36;
-    ui.text(DIM, "PLAY CONNECT 4, CHECKERS OR BATTLESHIP", width / 2, y, 10, "center");
-    ui.text(DIM, "WITH ANYONE WHO HAS YOUR ROOM'S CODE", width / 2, y + 16, 10, "center");
-    y += 48;
+    let y = Math.max(PADDING, height / 2 - 200);
+    ui.text(BRIGHT, "Table Games", width / 2, y, 24, "center", 1.1);
+    y += 38;
+    ui.text(DIM, "Connect 4, Checkers and Battleship, with anyone who has your room's code", width / 2, y, 11, "center");
+    y += 30;
 
     const cursor = Math.floor(seconds * 2) % 2 === 0 ? "_" : " ";
     const fieldBox = (field: Field, label: string, value: string, top: number): void => {
-      const rect = { x: left, y: top + 16, width: columnWidth, height: 30 };
+      const rect = { x: left, y: top + 18, width: columnWidth, height: 32 };
       const isActive = this.field === field;
-      ui.text(DIM, label, left, top, 10);
+      ui.text(DIM, label, left, top, 11);
       ui.rect(isActive ? ACCENT : TEXT, isActive ? 0.9 : 0.4, rect);
-      ui.text(BRIGHT, value + (isActive ? cursor : ""), left + 10, rect.y + 8, 14);
+      ui.text(BRIGHT, value + (isActive ? cursor : ""), left + 10, rect.y + 9, 14);
       ui.region(rect, () => (this.field = field));
     };
-    fieldBox("name", "YOUR NAME", this.name, y);
-    y += 62;
-    fieldBox("code", "ROOM CODE (LEAVE EMPTY FOR A NEW ROOM)", this.codeDraft, y);
-    y += 66;
+    fieldBox("name", "Your name", this.name, y);
+    y += 64;
+    fieldBox("code", "Room code (leave it empty to start a new room)", this.codeDraft, y);
+    y += 68;
 
     const buttonWidth = (columnWidth - 12) / 2;
-    ui.button(ACCENT, { x: left, y, width: buttonWidth, height: 30 }, "NEW ROOM", () => {
+    ui.button(ACCENT, { x: left, y, width: buttonWidth, height: 32 }, "New room", () => {
       this.codeDraft = "";
       this.joinOrCreate();
-    });
-    ui.button(TEXT, { x: left + buttonWidth + 12, y, width: buttonWidth, height: 30 }, "JOIN ROOM", () => {
+    }, 13);
+    ui.button(TEXT, { x: left + buttonWidth + 12, y, width: buttonWidth, height: 32 }, "Join room", () => {
       if (this.codeDraft === "") this.localNotice = "Type the room code first";
       else this.joinOrCreate();
-    });
-    y += 46;
+    }, 13);
+    y += 44;
     if (this.localNotice) ui.text(WARN, this.localNotice, width / 2, y, 11, "center");
-    ui.text(DIM, "TAB SWITCHES FIELDS. ENTER GOES ON.", width / 2, height - PADDING - 10, 9, "center", 0.7);
+    y += 30;
+
+    // Practice needs neither a room nor anyone else.
+    ui.text(DIM, "Or practice on this screen, playing both sides:", left, y, 11);
+    y += 20;
+    const practiceWidth = (columnWidth - 2 * 10) / 3;
+    GAME_IDS.forEach((game, index) => {
+      ui.button(TEXT, { x: left + index * (practiceWidth + 10), y, width: practiceWidth, height: 30 }, TABLE_GAMES[game].title, () => this.startPractice(game), 12);
+    });
+    ui.text(DIM, "Tab moves between the boxes; Enter goes on.", width / 2, height - PADDING - 12, 10, "center", 0.8);
+  }
+
+  // Practice from the lobby, filling the window; its Stop button comes back here.
+  private drawPracticeAlone(practice: Practice, width: number, height: number): void {
+    this.drawTable(this.practiceTable(practice), { x: PADDING, y: PADDING, width: width - 2 * PADDING, height: height - 2 * PADDING }, this.localNotice);
   }
 
   // ── The room: the board, the people and the chat ──────────────────────────
 
   private drawRoom(client: TableClient, width: number, height: number): void {
     const ui = this.ui;
-    const sidebarWidth = Math.max(230, Math.min(330, width * 0.34));
+    const sidebarWidth = Math.max(240, Math.min(340, width * 0.34));
     const sidebarLeft = width - sidebarWidth - PADDING;
 
     // Header: the code, how to invite, and the way out.
-    ui.text(BRIGHT, `ROOM ${client.code}`, PADDING, PADDING, 16, "left", 1.1);
-    const status = client.status === "connected" ? "" : client.status === "refused" ? "REFUSED" : client.status === "reconnecting" ? "RECONNECTING..." : "CONNECTING...";
-    if (status) ui.text(WARN, status, PADDING + ui.textWidth(`ROOM ${client.code}`, 16) + 16, PADDING + 3, 11);
-    const leaveRect = { x: width - PADDING - 70, y: PADDING - 4, width: 70, height: 24 };
-    ui.button(WARN, leaveRect, "LEAVE", () => this.leaveRoom(), 11);
-    const copyRect = { x: leaveRect.x - 120, y: leaveRect.y, width: 112, height: 24 };
-    ui.button(TEXT, copyRect, "COPY LINK", () => this.copyLink(client.code), 11);
+    const title = `Room ${client.code}`;
+    ui.text(BRIGHT, title, PADDING, PADDING, 17, "left", 1.05);
+    const status = client.status === "connected" ? "" : client.status === "refused" ? "Refused" : client.status === "reconnecting" ? "Reconnecting..." : "Connecting...";
+    if (status) ui.text(WARN, status, PADDING + ui.textWidth(title, 17) + 16, PADDING + 4, 12);
+    const leaveRect = { x: width - PADDING - 76, y: PADDING - 4, width: 76, height: 26 };
+    ui.button(WARN, leaveRect, "Leave", () => this.leaveRoom(), 12);
+    const copyRect = { x: leaveRect.x - 120, y: leaveRect.y, width: 112, height: 26 };
+    ui.button(TEXT, copyRect, "Copy link", () => this.copyLink(client.code), 12);
 
-    const top = PADDING + 34;
-    this.drawTable(client, { x: PADDING, y: top, width: sidebarLeft - 2 * PADDING, height: height - top - PADDING });
+    const top = PADDING + 36;
+    const tableArea = { x: PADDING, y: top, width: sidebarLeft - 2 * PADDING, height: height - top - PADDING };
+    const notice = client.notice ?? this.localNotice;
+    if (this.practice) {
+      this.drawTable(this.practiceTable(this.practice), tableArea, notice);
+    } else if (client.game) {
+      this.drawTable(this.roomTable(client, client.game), tableArea, notice);
+    } else {
+      this.drawGameCards(client, tableArea, notice);
+    }
     this.drawSidebar(client, { x: sidebarLeft, y: top, width: sidebarWidth, height: height - top - PADDING });
   }
 
   private copyLink(code: string): void {
     const link = `${this.options.pageUrl}?open=table-games&room=${code}`;
     this.options.copyText(link).then(
-      () => (this.localNotice = "Link copied"),
+      () => (this.localNotice = "Link copied: send it to a friend"),
       () => (this.localNotice = `Link: ${link}`),
     );
   }
 
-  private drawTable(client: TableClient, area: Rect): void {
+  // With no game on: what can be played, each with a way to start it.
+  private drawGameCards(client: TableClient, area: Rect, notice: string | null): void {
     const ui = this.ui;
-    const notice = client.notice ?? this.localNotice;
-    const info = client.game;
-    if (!info) {
-      const middle = area.y + area.height / 2 - 30;
-      const isAlone = client.members.filter((member) => member.isOnline).length < 2;
-      ui.text(TEXT, "NO GAME YET", area.x + area.width / 2, middle, 16, "center");
-      const hint = isAlone ? "SHARE THE ROOM CODE OR LINK WITH A FRIEND" : "INVITE SOMEONE FROM THE LIST AT RIGHT";
-      ui.text(DIM, hint, area.x + area.width / 2, middle + 28, 10, "center");
-      if (notice) ui.text(WARN, notice, area.x + area.width / 2, middle + 52, 11, "center");
-      return;
-    }
+    const others = client.members.filter((member) => member.isOnline && member.id !== client.you);
+    const hint = others.length === 0 ? ["Nobody else is here yet: copy the link and send it to a", "friend. An open invitation waits for them. Or practice."] : ["Anyone here can accept an open invitation, or", "invite one person with the buttons beside their name."];
+    ui.text(TEXT, "Choose a game", area.x, area.y, 15);
+    hint.forEach((line, index) => ui.text(DIM, ui.fitted(line, 11, area.width), area.x, area.y + 24 + index * 16, 11));
+    if (notice) ui.text(WARN, notice, area.x, area.y + 60, 11);
+
+    const cardsTop = area.y + 80;
+    const gap = 12;
+    const cardHeight = Math.min(110, (area.height - 80 - 2 * gap) / 3);
+    GAME_IDS.forEach((game, index) => {
+      const card = { x: area.x, y: cardsTop + index * (cardHeight + gap), width: area.width, height: cardHeight };
+      ui.rect(TEXT, 0.35, card);
+      ui.text(BRIGHT, TABLE_GAMES[game].title, card.x + 14, card.y + 12, 15);
+      ui.text(DIM, DESCRIPTIONS[game], card.x + 14, card.y + 36, 11);
+      const myOpen = client.invites.find((invite) => invite.from === client.you && invite.to === null && invite.game === game);
+      const buttonTop = card.y + card.height - 38;
+      if (myOpen) {
+        ui.text(ACCENT, "Invitation open: waiting for someone to accept...", card.x + 14, buttonTop + 8, 11);
+      } else {
+        ui.button(ACCENT, { x: card.x + 14, y: buttonTop, width: 150, height: 28 }, "Invite anyone", () => client.send({ type: "invite", to: null, game }), 12);
+      }
+      ui.button(TEXT, { x: card.x + card.width - 14 - 120, y: buttonTop, width: 120, height: 28 }, "Practice", () => this.startPractice(game), 12);
+    });
+  }
+
+  private roomTable(client: TableClient, info: GameInfo): Table {
+    const mySeat = seatOf(info, client.you);
+    const opponent = mySeat === null ? null : info.seats[mySeat === 0 ? 1 : 0];
+    const canRematch = opponent !== null && client.members.some((member) => member.id === opponent && member.isOnline);
+    return {
+      info,
+      mySeat,
+      names: [client.memberName(info.seats[0]), client.memberName(info.seats[1])],
+      isPractice: false,
+      send: (move) => client.send({ type: "move", move }),
+      resign: () => client.send({ type: "resign" }),
+      rematch: canRematch ? () => client.send({ type: "invite", to: opponent, game: info.game }) : null,
+    };
+  }
+
+  private practiceTable(practice: Practice): Table {
+    return {
+      info: practice.info,
+      mySeat: practice.actingSeat,
+      names: ["Player 1", "Player 2"],
+      isPractice: true,
+      send: (move) => (this.localNotice = practice.play(move)),
+      resign: () => (this.practice = null),
+      rematch: () => (this.practice = new Practice(practice.game)),
+    };
+  }
+
+  private drawTable(table: Table, area: Rect, notice: string | null): void {
+    const ui = this.ui;
+    const { info, mySeat } = table;
 
     // A new game (another pair, another game, or a rematch after one ended) starts with fresh choices.
-    const gameKey = `${info.game}:${info.seats.join(",")}`;
+    const gameKey = `${table.isPractice}:${info.game}:${info.seats.join(",")}`;
     if (gameKey !== this.choicesFor || (this.choicesWereOver && !info.outcome)) this.choices = freshChoices();
     this.choicesFor = gameKey;
     this.choicesWereOver = info.outcome !== null;
 
-    const mySeat = seatOf(info, client.you);
-    const seatName = (seat: Seat): string => client.memberName(info.seats[seat]);
     const colors = info.game === "battleship" ? [TEXT, TEXT] : SEAT_COLORS[info.game];
-    ui.text(colors[0], seatName(0), area.x, area.y, 13);
-    const versus = ui.textWidth(seatName(0), 13);
-    ui.text(DIM, "VS", area.x + versus + 10, area.y + 2, 10);
-    ui.text(colors[1], seatName(1), area.x + versus + 36, area.y, 13);
-    ui.text(DIM, TABLE_GAMES[info.game].title, area.x + area.width, area.y + 2, 10, "right");
+    const title = `${TABLE_GAMES[info.game].title}${table.isPractice ? " (practice)" : ""}`;
+    ui.text(DIM, title, area.x, area.y, 11);
+    const nameTop = area.y + 18;
+    ui.text(colors[0], table.names[0], area.x, nameTop, 14);
+    const versus = ui.textWidth(table.names[0], 14);
+    ui.text(DIM, "vs", area.x + versus + 10, nameTop + 3, 11);
+    ui.text(colors[1], table.names[1], area.x + versus + 34, nameTop, 14);
+    ui.text(info.outcome ? ACCENT : BRIGHT, this.statusLine(table), area.x, nameTop + 22, 13);
 
-    ui.text(info.outcome ? ACCENT : BRIGHT, this.statusLine(client, info, mySeat), area.x, area.y + 22, 12);
-    const buttonTop = area.y + 18;
-    if (mySeat !== null && !info.outcome) {
-      ui.button(WARN, { x: area.x + area.width - 80, y: buttonTop, width: 80, height: 22 }, "RESIGN", () => client.send({ type: "resign" }), 10);
-    } else if (mySeat !== null && info.outcome) {
-      const opponent = info.seats[mySeat === 0 ? 1 : 0];
-      if (client.members.find((member) => member.id === opponent)?.isOnline) {
-        ui.button(ACCENT, { x: area.x + area.width - 90, y: buttonTop, width: 90, height: 22 }, "REMATCH", () => client.send({ type: "invite", to: opponent, game: info.game }), 10);
-      }
+    const buttonTop = area.y + 4;
+    if (!info.outcome && (mySeat !== null || table.isPractice)) {
+      ui.button(WARN, { x: area.x + area.width - 90, y: buttonTop, width: 90, height: 26 }, table.isPractice ? "Stop" : "Resign", () => table.resign(), 12);
+    } else if (info.outcome && table.rematch) {
+      ui.button(ACCENT, { x: area.x + area.width - 110, y: buttonTop, width: 110, height: 26 }, table.isPractice ? "Play again" : "Rematch", table.rematch, 12);
+      if (table.isPractice) ui.button(WARN, { x: area.x + area.width - 200, y: buttonTop, width: 80, height: 26 }, "Done", () => table.resign(), 12);
     }
-    if (notice) ui.text(WARN, notice, area.x, area.y + 40, 10);
+    if (notice) ui.text(WARN, notice, area.x, nameTop + 42, 11);
 
-    const board = { x: area.x, y: area.y + 58, width: area.width, height: area.height - 58 };
-    const send = (move: unknown): void => client.send({ type: "move", move });
-    if (info.game === "connect4") drawConnectFour(ui, board, info, mySeat, send);
-    else if (info.game === "checkers") drawCheckers(ui, board, info, mySeat, this.choices, send);
-    else drawBattleship(ui, board, info, mySeat, this.choices, send);
+    const boardTop = nameTop + 62;
+    const board = { x: area.x, y: boardTop, width: area.width, height: area.y + area.height - boardTop };
+    if (info.game === "connect4") drawConnectFour(ui, board, info, mySeat, table.send);
+    else if (info.game === "checkers") drawCheckers(ui, board, info, mySeat, this.choices, table.send);
+    else drawBattleship(ui, board, info, mySeat, this.choices, table.send);
   }
 
-  private statusLine(client: TableClient, info: GameInfo, mySeat: Seat | null): string {
-    const nameOf = (seat: Seat): string => (seat === mySeat ? "YOU" : client.memberName(info.seats[seat]));
-    if (info.outcome?.kind === "draw") return "A DRAW";
+  private statusLine(table: Table): string {
+    const { info, mySeat, names, isPractice } = table;
+    const nameOf = (seat: Seat): string => (seat === mySeat && !isPractice ? "You" : names[seat]);
+    if (info.outcome?.kind === "draw") return "A draw";
     if (info.outcome) {
       const winner = info.outcome.winner;
-      const resigned = info.resignedBy !== null ? `${nameOf(info.resignedBy)} RESIGNED. ` : "";
-      return `${resigned}${winner === mySeat ? "YOU WIN" : `${nameOf(winner)} WINS`}`;
+      const resigned = info.resignedBy !== null ? `${nameOf(info.resignedBy)} resigned. ` : "";
+      return `${resigned}${winner === mySeat && !isPractice ? "You win!" : `${nameOf(winner)} wins`}`;
     }
-    if (info.turn === null) return mySeat === null ? "PLACING SHIPS" : "PLACE YOUR SHIPS, THEN READY";
-    if (info.turn === mySeat) return "YOUR MOVE";
-    return `${nameOf(info.turn)}'S MOVE`;
+    if (info.turn === null) {
+      if (isPractice) return `${names[mySeat!]}: place your ships, then press Ready (the other player looks away)`;
+      return mySeat === null ? "Placing ships" : "Place your ships, then press Ready";
+    }
+    if (isPractice) return `${names[info.turn]} to move`;
+    if (info.turn === mySeat) return "Your move";
+    return `${nameOf(info.turn)} to move`;
   }
 
   private drawSidebar(client: TableClient, area: Rect): void {
     const ui = this.ui;
     let y = area.y;
-    ui.text(DIM, "PEOPLE", area.x, y, 10);
-    y += 18;
+    ui.text(DIM, "People here", area.x, y, 11);
+    y += 20;
     const playing: readonly string[] = client.game && !client.game.outcome ? client.game.seats : [];
     for (const member of client.members) {
       if (!member.isOnline) continue;
       const isYou = member.id === client.you;
-      const label = `${member.name}${isYou ? " (YOU)" : ""}${playing.includes(member.id) ? " *" : ""}`;
-      ui.text(isYou ? BRIGHT : TEXT, ui.fitted(label, 11, area.width - 130), area.x, y + 4, 11);
+      const label = `${member.name}${isYou ? " (you)" : ""}${playing.includes(member.id) ? " - playing" : ""}`;
+      ui.text(isYou ? BRIGHT : TEXT, ui.fitted(label, 12, area.width - 150), area.x, y + 4, 12);
       const invitable = !isYou && playing.length === 0 && client.you !== null;
       if (invitable) {
         let x = area.x + area.width;
-        for (const game of ["battleship", "checkers", "connect4"] as const) {
-          const buttonWidth = ui.textWidth(SHORT_NAMES[game], 9) + 10;
+        for (const game of [...GAME_IDS].reverse()) {
+          const buttonWidth = ui.textWidth(SHORT_NAMES[game], 10) + 12;
           x -= buttonWidth;
-          ui.button(TEXT, { x, y, width: buttonWidth, height: 18 }, SHORT_NAMES[game], () => client.send({ type: "invite", to: member.id, game }), 9);
+          ui.button(TEXT, { x, y, width: buttonWidth, height: 20 }, SHORT_NAMES[game], () => client.send({ type: "invite", to: member.id, game }), 10);
           x -= 4;
         }
       }
-      y += 22;
+      y += 24;
     }
 
-    // Invitations: those to me can be answered; mine show who I am waiting for.
+    // Invitations: those to me (or open to anyone) can be answered; mine show who I am waiting for.
     for (const invite of client.invites) {
       const title = TABLE_GAMES[invite.game].title;
-      if (invite.to === client.you) {
-        ui.text(ACCENT, ui.fitted(`${client.memberName(invite.from)}: ${title}?`, 10, area.width - 92), area.x, y + 5, 10);
-        ui.button(ACCENT, { x: area.x + area.width - 88, y, width: 42, height: 18 }, "YES", () => client.send({ type: "answer", from: invite.from, accept: true }), 9);
-        ui.button(WARN, { x: area.x + area.width - 42, y, width: 42, height: 18 }, "NO", () => client.send({ type: "answer", from: invite.from, accept: false }), 9);
-        y += 22;
+      if (invite.from !== client.you && (invite.to === client.you || (invite.to === null && !this.declined.has(inviteKey(invite))))) {
+        ui.text(ACCENT, ui.fitted(`${client.memberName(invite.from)}: ${title}?`, 11, area.width - 96), area.x, y + 5, 11);
+        ui.button(ACCENT, { x: area.x + area.width - 92, y, width: 44, height: 20 }, "Yes", () => client.send({ type: "answer", from: invite.from, accept: true }), 10);
+        ui.button(WARN, { x: area.x + area.width - 44, y, width: 44, height: 20 }, "No", () => {
+          if (invite.to === null) this.declined.add(inviteKey(invite));
+          else client.send({ type: "answer", from: invite.from, accept: false });
+        }, 10);
+        y += 24;
       } else if (invite.from === client.you) {
-        ui.text(DIM, ui.fitted(`INVITED ${client.memberName(invite.to)}: ${title}`, 10, area.width), area.x, y + 5, 10);
-        y += 22;
+        const whom = invite.to === null ? "anyone" : client.memberName(invite.to);
+        ui.text(DIM, ui.fitted(`You invited ${whom}: ${title}`, 11, area.width), area.x, y + 5, 11);
+        y += 24;
       }
     }
 
     y += 8;
     ui.pen(DIM, 0.4).addSegment(area.x, y, area.x + area.width, y);
-    y += 8;
+    y += 10;
     this.drawChat(client, { x: area.x, y, width: area.width, height: area.y + area.height - y });
   }
 
   private drawChat(client: TableClient, area: Rect): void {
     const ui = this.ui;
-    const inputTop = area.y + area.height - 22;
-    ui.rect(TEXT, 0.4, { x: area.x, y: inputTop, width: area.width, height: 22 });
+    const inputTop = area.y + area.height - 24;
+    ui.rect(TEXT, 0.4, { x: area.x, y: inputTop, width: area.width, height: 24 });
     const draft = `> ${this.chatDraft}_`;
     // The end of a long draft stays in view.
     let shown = draft;
     while (shown.length > 3 && ui.textWidth(shown, CHAT_SIZE) > area.width - 12) shown = shown.slice(1);
-    ui.text(BRIGHT, shown, area.x + 6, inputTop + 6, CHAT_SIZE);
+    ui.text(BRIGHT, shown, area.x + 6, inputTop + 7, CHAT_SIZE);
 
     // The newest lines just above the input, older ones above them, as many as fit.
     const lines: { text: string; color: BeamColor }[] = [];
@@ -341,11 +449,15 @@ export class TableGames implements Demo {
     const visible = lines.slice(-fit);
     let y = inputTop - 6 - visible.length * CHAT_PITCH;
     for (const { text, color } of visible) {
-      ui.text(color, text, area.x, y + (CHAT_PITCH - CHAT_SIZE), CHAT_SIZE);
+      ui.text(color, text, area.x, y + (CHAT_PITCH - CHAT_SIZE) / 2, CHAT_SIZE);
       y += CHAT_PITCH;
     }
-    if (client.chat.length === 0) ui.text(DIM, "TYPE TO CHAT. ENTER SENDS.", area.x, inputTop - 22, 9);
+    if (client.chat.length === 0) ui.text(DIM, "Type to chat; Enter sends.", area.x, inputTop - 22, 10);
   }
+}
+
+function inviteKey(invite: Invite): string {
+  return `${invite.from}:${invite.game}`;
 }
 
 function seatOf(info: GameInfo, memberId: string | null): Seat | null {

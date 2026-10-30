@@ -112,6 +112,22 @@ describe("Room", () => {
     expect(room.receive(carol, { type: "invite", to: dave, game: "checkers" }, 1, random)[0].message.type).toBe("error");
   });
 
+  it("lets anyone accept an open invitation, including someone who arrives after it was made", () => {
+    const room = Room.empty("ABCDEF");
+    const alice = joined(room, TOKEN_A, "Alice");
+    room.receive(alice, { type: "invite", to: null, game: "battleship" }, 1, random);
+    expect(room.receive(alice, { type: "answer", from: alice, accept: true }, 1, random)[0].message.type).toBe("error");
+    const arriving = room.join(TOKEN_B, "Bob", 2);
+    if (!arriving.ok) throw new Error(arriving.error);
+    const bob = arriving.memberId;
+    expect(messagesTo(arriving.deliveries, bob, "invites")).toEqual([{ type: "invites", invites: [{ from: alice, to: null, game: "battleship" }] }]);
+    const carol = joined(room, TOKEN_C, "Carol");
+    // Carol says no; it stays open, and Bob takes it.
+    expect(room.receive(carol, { type: "answer", from: alice, accept: false }, 3, random)).toEqual([]);
+    const started = room.receive(bob, { type: "answer", from: alice, accept: true }, 4, random);
+    expect(gameTo(started, carol).seats).toEqual([alice, bob]);
+  });
+
   it("ends a game when a player resigns, the other winning", () => {
     const room = Room.empty("ABCDEF");
     const alice = joined(room, TOKEN_A, "Alice");

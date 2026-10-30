@@ -55,6 +55,9 @@ export interface VectorOsOptions {
   readonly beam?: BeamSettingsStore;
   readonly now?: () => Date;
   readonly startup?: readonly string[];
+  // Start with every launcher category folded away, showing its heading alone. The pages do;
+  // the tests mostly start with them open.
+  readonly foldedAtStart?: boolean;
 }
 
 // A desktop on a vector display. One beam draws all of it: the menu bar, the
@@ -150,6 +153,8 @@ export class VectorOsDemo implements Demo {
   private hoveredRow = -1;
   // The launcher's categories that are folded away, showing their heading alone.
   private readonly collapsed = new Set<AppCategory>();
+  // How far the launcher is scrolled, when its rows are taller than the screen.
+  private launcherScroll = 0;
   // The window that has the pointer while its button is held in that window's contents.
   private captured: OsWindow<Running> | null = null;
   // The window whose contents the pointer is over, to tell it when the pointer leaves.
@@ -167,6 +172,7 @@ export class VectorOsDemo implements Demo {
     this.beam = options.beam ?? new BeamSettingsStore();
     this.now = options.now ?? (() => new Date());
     this.startup = options.startup ?? STARTUP_PROGRAMS;
+    if (options.foldedAtStart) for (const category of APP_CATEGORIES) this.collapsed.add(category.id);
     this.boot = options.skipBoot ? null : new BootSequence(this.entries.length);
     this.services = {
       beam: this.beam,
@@ -215,6 +221,7 @@ export class VectorOsDemo implements Demo {
     this.width = width;
     this.height = height;
     this.windows.setBounds({ x: LAUNCHER_WIDTH, y: MENU_BAR_HEIGHT, width: Math.max(300, width - LAUNCHER_WIDTH), height: height - MENU_BAR_HEIGHT });
+    this.clampLauncherScroll();
   }
 
   public update(deltaSeconds: number): void {
@@ -359,6 +366,31 @@ export class VectorOsDemo implements Demo {
   // Folds a category of the launcher away, or opens it out again.
   public toggleCategory(category: AppCategory): void {
     if (!this.collapsed.delete(category)) this.collapsed.add(category);
+    this.clampLauncherScroll();
+  }
+
+  // The mouse wheel: over the launcher, scrolls it when it is taller than the screen.
+  // Returns whether it was used, to keep the page from scrolling instead.
+  public wheel(x: number, y: number, deltaY: number): boolean {
+    if (this.boot || this.windows.hitTest(x, y) || x > LAUNCHER_WIDTH || y < MENU_BAR_HEIGHT) return false;
+    this.launcherScroll += deltaY;
+    this.clampLauncherScroll();
+    return true;
+  }
+
+  public get launcherScrollOffset(): number {
+    return this.launcherScroll;
+  }
+
+  // The launcher's rows from top to bottom, unscrolled, and how much of that fits on the screen.
+  private launcherOverflow(): number {
+    const rows = this.launcherRows(0);
+    const bottom = rows.length > 0 ? rows[rows.length - 1].rect.y + LAUNCHER_ROW : 0;
+    return Math.max(0, bottom + LAUNCHER_ROW * 0.5 - this.height);
+  }
+
+  private clampLauncherScroll(): void {
+    this.launcherScroll = Math.max(0, Math.min(this.launcherOverflow(), this.launcherScroll));
   }
 
   // Opens a program by id, or brings its window to the front if it is already open.
@@ -540,16 +572,17 @@ export class VectorOsDemo implements Demo {
   }
 
   // The launcher's rows: a heading for each category that has programs, then, unless
-  // the category is folded away, its programs.
-  private launcherRows(): LauncherRow[] {
+  // the category is folded away, its programs. Scrolled, a row partly under the menu bar
+  // or off the bottom of the screen is left out, so nothing hidden can be clicked.
+  private launcherRows(scroll = this.launcherScroll): LauncherRow[] {
     const rows: LauncherRow[] = [];
-    let y = LAUNCHER_TOP;
+    let y = LAUNCHER_TOP - scroll;
     for (const category of APP_CATEGORIES) {
       const entries = this.entries.filter((entry) => entry.category === category.id);
       if (entries.length === 0) continue;
       const isCollapsed = this.collapsed.has(category.id);
       // A folded category says how many programs it is holding.
-      const heading = isCollapsed ? `+ ${category.title} (${entries.length})` : `- ${category.title}`;
+      const heading = isCollapsed ? `> ${category.title} (${entries.length})` : `v ${category.title}`;
       rows.push({ rect: { x: 0, y, width: LAUNCHER_WIDTH, height: LAUNCHER_ROW }, category: category.id, entry: null, text: heading.toUpperCase() });
       y += LAUNCHER_ROW;
       for (const entry of isCollapsed ? [] : entries) {
@@ -558,7 +591,8 @@ export class VectorOsDemo implements Demo {
       }
       y += LAUNCHER_ROW * 0.4;
     }
-    return rows;
+    if (scroll === 0) return rows;
+    return rows.filter((row) => row.rect.y >= MENU_BAR_HEIGHT + 4 && row.rect.y + row.rect.height <= this.height);
   }
 
   // The row under a point: a program to open, or a heading to fold.
@@ -571,6 +605,15 @@ export class VectorOsDemo implements Demo {
     this.desktopLines.clear();
     this.desktopLines.addSegment(0, MENU_BAR_HEIGHT, frame.width, MENU_BAR_HEIGHT);
     this.desktopLines.addSegment(LAUNCHER_WIDTH, MENU_BAR_HEIGHT, LAUNCHER_WIDTH, frame.height);
+    // A launcher taller than the screen scrolls with the wheel; a bar beside it shows where it is.
+    const overflow = this.launcherOverflow();
+    if (overflow > 0) {
+      const trackTop = MENU_BAR_HEIGHT + 8;
+      const trackLength = frame.height - 8 - trackTop;
+      const thumbLength = Math.max(40, (trackLength * frame.height) / (frame.height + overflow));
+      const thumbTop = trackTop + ((trackLength - thumbLength) * this.launcherScroll) / overflow;
+      this.desktopLines.addSegment(LAUNCHER_WIDTH - 8, thumbTop, LAUNCHER_WIDTH - 8, thumbTop + thumbLength);
+    }
     list.setColor(DESKTOP_COLOR);
     list.addShape(this.desktopLines, { ...SCREEN_SPACE_PLACEMENT, intensity: 0.45 });
     font.addText(list, { text: "VECTOR OS", x: 18, y: 12, size: 20, intensity: 1.1 });
@@ -585,12 +628,12 @@ export class VectorOsDemo implements Demo {
         // A folded category holding a running program is marked, as the program's own row would be.
         const isRunning = this.collapsed.has(row.category) && [...open].some((entry) => entry.category === row.category);
         list.setColor(HEADING_COLOR);
-        font.addText(list, { text: `${row.text}${isRunning ? " >" : ""}`, x: 18, y: row.rect.y + 8, size: LAUNCHER_TEXT - 1, intensity: isHovered ? 1.3 : 0.8 });
+        font.addText(list, { text: `${row.text}${isRunning ? " *" : ""}`, x: 18, y: row.rect.y + 8, size: LAUNCHER_TEXT - 1, intensity: isHovered ? 1.3 : 0.8 });
         return;
       }
       list.setColor(DESKTOP_COLOR);
       // A program that is running is marked, and the row under the pointer is brighter.
-      const marker = open.has(row.entry) ? "> " : "  ";
+      const marker = open.has(row.entry) ? "* " : "  ";
       font.addText(list, { text: `${marker}${row.text}`, x: 18 + LAUNCHER_INDENT, y: row.rect.y + 8, size: LAUNCHER_TEXT, intensity: isHovered ? 1.3 : 0.65 });
     });
   }

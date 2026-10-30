@@ -161,9 +161,9 @@ export class Room {
     return this.toEveryone({ type: "chat", entries: [entry] });
   }
 
-  private invite(memberId: string, to: string, game: GameId): Delivery[] {
+  private invite(memberId: string, to: string | null, game: GameId): Delivery[] {
     if (to === memberId) return this.refuse(memberId, "Invite someone else");
-    if (!this.connections.has(to)) return this.refuse(memberId, "They are not here");
+    if (to !== null && !this.connections.has(to)) return this.refuse(memberId, "They are not here");
     if (this.isGameOn()) return this.refuse(memberId, "Wait for the game being played to end");
     // One invitation from each member at a time: a new one replaces the last.
     const invites = [...this.snapshotData.invites.filter((invite) => invite.from !== memberId), { from: memberId, to, game }];
@@ -172,8 +172,10 @@ export class Room {
   }
 
   private answer(memberId: string, from: string, accept: boolean, random: () => number): Delivery[] {
-    const invite = this.snapshotData.invites.find((candidate) => candidate.from === from && candidate.to === memberId);
+    const invite = this.snapshotData.invites.find((candidate) => candidate.from === from && (candidate.to === memberId || (candidate.to === null && from !== memberId)));
     if (!invite) return this.refuse(memberId, "That invitation has gone");
+    // An open invitation stays open for the others when one person says no.
+    if (invite.to === null && !accept) return [];
     const invites = this.snapshotData.invites.filter((candidate) => candidate !== invite);
     this.snapshotData = { ...this.snapshotData, invites };
     if (!accept) return this.toEveryone(this.invitesMessage());

@@ -1,5 +1,5 @@
 import { SCREEN_SPACE_PLACEMENT, type BeamColor, type DisplayList } from "@vector-display/core";
-import { DynamicGeometry, fontSafeText, getDemoFont } from "@vector-demos/demo-kit";
+import { DynamicGeometry, getHersheyFont } from "@vector-demos/demo-kit";
 
 export interface Rect {
   readonly x: number;
@@ -12,6 +12,19 @@ export function contains(rect: Rect, x: number, y: number): boolean {
   return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
 }
 
+interface TextRun {
+  readonly color: BeamColor;
+  readonly text: string;
+  readonly x: number;
+  readonly y: number;
+  readonly size: number;
+  readonly alignment: "left" | "center" | "right";
+  readonly intensity: number;
+}
+
+// Text is set in Hershey Sans on the plain text layer: thin lines with no glow, easy to read at length.
+const font = () => getHersheyFont("sans");
+
 interface Batch {
   readonly color: BeamColor;
   readonly intensity: number;
@@ -20,17 +33,19 @@ interface Batch {
 
 // Drawing and clicking for a window laid out afresh every frame: whatever is drawn as a button
 // or a clickable area this frame is what the next click is tested against. Lines are gathered
-// by color and brightness and drawn in one batch each.
+// by color and brightness and drawn in one batch each; text is kept for drawText.
 export class Ui {
   private readonly batches = new Map<string, Batch>();
   private targets: { rect: Rect; onPress: () => void }[] = [];
   private displayList: DisplayList | null = null;
+  private texts: TextRun[] = [];
   public pointerX = -1;
   public pointerY = -1;
 
   public begin(displayList: DisplayList): void {
     this.displayList = displayList;
     this.targets = [];
+    this.texts = [];
     for (const batch of this.batches.values()) batch.geometry.clear();
   }
 
@@ -42,6 +57,14 @@ export class Ui {
       displayList.addShape(geometry, { ...SCREEN_SPACE_PLACEMENT, intensity });
     }
     this.displayList = null;
+  }
+
+  // The text gathered by the last frame, onto the program's text layer.
+  public drawText(displayList: DisplayList): void {
+    for (const { color, text, x, y, size, alignment, intensity } of this.texts) {
+      displayList.setColor(color);
+      font().addText(displayList, { text, x, y, size, alignment, intensity });
+    }
   }
 
   // A click: the last target drawn under the pointer is pressed. Returns whether one was.
@@ -99,15 +122,13 @@ export class Ui {
     pen.addSegment(centerX - half, centerY + half, centerX + half, centerY - half);
   }
 
-  // Text in the arcade font, which has capitals only; `y` is its top.
+  // Text; `y` is the top of its capitals, `size` their height.
   public text(color: BeamColor, text: string, x: number, y: number, size: number, alignment: "left" | "center" | "right" = "left", intensity = 0.95): void {
-    const displayList = this.displayList!;
-    displayList.setColor(color);
-    getDemoFont().addText(displayList, { text: fontSafeText(text), x, y, size, alignment, intensity });
+    this.texts.push({ color, text, x, y, size, alignment, intensity });
   }
 
   public textWidth(text: string, size: number): number {
-    return getDemoFont().measureText(fontSafeText(text), size).width;
+    return font().measureWidth(text, size);
   }
 
   // Text cut short with "..." to fit `width`.

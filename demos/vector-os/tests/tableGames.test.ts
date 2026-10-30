@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DisplayList } from "@vector-display/core";
-import { CONNECT_FOUR_COLUMNS, readClientMessage, Room, type ConnectFourState, type Delivery } from "@vector-demos/table-games";
+import { CONNECT_FOUR_COLUMNS, readClientMessage, Room, type BattleshipState, type ConnectFourState, type Delivery } from "@vector-demos/table-games";
+import { Practice } from "../src/apps/tableGames/Practice.js";
 import { TableClient, type SocketLike } from "../src/apps/tableGames/TableClient.js";
 import { NAME_KEY, TableGames, TOKEN_KEY, type TableGamesOptions } from "../src/apps/tableGames/TableGames.js";
 
@@ -125,6 +126,22 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("Practice", () => {
+  it("lets each Battleship side place in turn, hiding the other's ships, then fire in turn", () => {
+    const practice = new Practice("battleship", () => 0.37);
+    expect(practice.actingSeat).toBe(0);
+    expect(practice.play({ kind: "autoPlace" })).toBeNull();
+    expect(practice.play({ kind: "ready" })).toBeNull();
+    expect(practice.actingSeat).toBe(1);
+    // Side 2 placing cannot see side 1's ships.
+    expect((practice.info.view as BattleshipState).fleets[0].ships.every((ship) => ship.at === null)).toBe(true);
+    practice.play({ kind: "autoPlace" });
+    practice.play({ kind: "ready" });
+    expect(practice.info.turn).toBe(0);
+    expect(practice.actingSeat).toBe(0);
+  });
+});
+
 describe("TableClient", () => {
   it("says hello, keeps what the room sends, and reconnects as the same member after a drop", () => {
     vi.useFakeTimers();
@@ -229,6 +246,50 @@ describe("Table Games window", () => {
     expect(view.board[5].filter((cell) => cell === 0)).toHaveLength(1);
     expect(view.lastDrop?.[1]).toBeLessThan(CONNECT_FOUR_COLUMNS);
     expect(bob.client!.game!.turn).toBe(1);
+  });
+
+  it("offers every game when none is on, and starts one from an open invitation anyone can take", () => {
+    const server = new FakeServer();
+    const alice = window(server);
+    type(alice, "Alice");
+    alice.key("Enter");
+    alice.key("Enter");
+    server.sockets[0].accept();
+    // Alone in the room, Alice presses "Invite anyone" on the first card (Connect 4).
+    clickWhere(alice, () => alice.client!.invites.length > 0, { left: 0, top: 100, right: WIDTH - 360, bottom: 250 });
+    expect(alice.client!.invites).toEqual([{ from: "m1", to: null, game: "connect4" }]);
+
+    // Bob arrives later by the link, sees it, and takes it.
+    const bob = window(server, { roomFromLink: alice.client!.code });
+    type(bob, "Bob");
+    bob.key("Enter");
+    bob.key("Enter");
+    server.sockets[1].accept();
+    clickWhere(bob, () => bob.client!.game !== null, { left: WIDTH - 340, top: 60, right: WIDTH, bottom: 160 });
+    expect(alice.client!.game?.seats).toEqual(["m1", "m2"]);
+  });
+
+  it("practices any game from the lobby, with no server, both sides taking turns", () => {
+    const server = new FakeServer();
+    const tableGames = window(server);
+    // The practice buttons are below the room buttons; the first is Connect 4.
+    clickWhere(tableGames, () => tableGames.practice !== null, { left: 0, top: 380, right: WIDTH, bottom: HEIGHT });
+    expect(tableGames.practice?.game).toBe("connect4");
+    expect(server.sockets).toHaveLength(0);
+    const practice = tableGames.practice!;
+    clickWhere(tableGames, () => practice.actingSeat === 1, { left: 0, top: 140, right: WIDTH, bottom: HEIGHT });
+    expect((practice.info.view as ConnectFourState).board[5].filter((cell) => cell === 0)).toHaveLength(1);
+  });
+
+  it("sets its text on the plain text layer, not among the glowing lines", () => {
+    const tableGames = window(new FakeServer());
+    const lines = new DisplayList();
+    tableGames.draw(lines, { width: WIDTH, height: HEIGHT, seconds: 0 });
+    const text = new DisplayList();
+    tableGames.drawText(text);
+    expect(text.segmentCount).toBeGreaterThan(200);
+    // The lines left are the boxes and buttons alone.
+    expect(lines.segmentCount).toBeLessThan(60);
   });
 
   it("sends chat typed in the room on Enter", () => {

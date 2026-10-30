@@ -158,8 +158,8 @@ export function drawBattleship(ui: Ui, area: Rect, info: GameInfo, mySeat: Seat 
   const leftTop = { x: leftGrid.x, y: area.y + labelHeight };
   const rightTop = { x: rightGrid.x, y: area.y + labelHeight };
 
-  const leftTitle = mySeat === null ? "FLEET 1" : "YOUR FLEET";
-  const rightTitle = mySeat === null ? "FLEET 2" : "ENEMY WATERS";
+  const leftTitle = mySeat === null ? "Fleet 1" : "Your fleet";
+  const rightTitle = mySeat === null ? "Fleet 2" : "Enemy waters";
   ui.text(LABEL_COLOR, leftTitle, leftTop.x, area.y, 12);
   ui.text(LABEL_COLOR, rightTitle, rightTop.x, area.y, 12);
 
@@ -243,11 +243,12 @@ function drawPlacementControls(ui: Ui, area: Rect, fleet: Fleet, choices: BoardC
   let x = area.x;
   for (const ship of FLEET) {
     const isPlaced = fleet.ships.find((each) => each.id === ship.id)?.at !== null;
-    const label = `${ship.name}${isPlaced ? "" : " *"}`;
+    // The ship being placed is lit; those already on the board are dimmer.
+    const label = ship.name;
     const width = ui.textWidth(label, 10) + 14;
     const rect = { x, y: area.y, width, height };
     const isChosen = ship.id === choices.shipToPlace;
-    ui.button(isChosen ? HIT_COLOR : SHIP_COLOR, rect, label, () => (choices.shipToPlace = ship.id), 10);
+    ui.button(isChosen ? HIT_COLOR : isPlaced ? GRID_COLOR : SHIP_COLOR, rect, label, () => (choices.shipToPlace = ship.id), 10);
     if (isChosen) ui.rect(HIT_COLOR, 0.8, rect, 3);
     x += width + 6;
   }
@@ -255,12 +256,12 @@ function drawPlacementControls(ui: Ui, area: Rect, fleet: Fleet, choices: BoardC
   let x2 = area.x;
   const allPlaced = fleet.ships.every((ship) => ship.at);
   for (const [label, action] of [
-    [choices.isAcross ? "TURN: ACROSS" : "TURN: DOWN", () => (choices.isAcross = !choices.isAcross)],
-    ["AUTO PLACE", () => send({ kind: "autoPlace" })],
-    ...(allPlaced ? ([["READY", () => send({ kind: "ready" })]] as const) : []),
+    [choices.isAcross ? "Turn ship: across" : "Turn ship: down", () => (choices.isAcross = !choices.isAcross)],
+    ["Place for me", () => send({ kind: "autoPlace" })],
+    ...(allPlaced ? ([["Ready", () => send({ kind: "ready" })]] as const) : []),
   ] as const) {
     const width = ui.textWidth(label, 11) + 18;
-    ui.button(label === "READY" ? HIT_COLOR : SHIP_COLOR, { x: x2, y: row2, width, height: 22 }, label, action, 11);
+    ui.button(label === "Ready" ? HIT_COLOR : SHIP_COLOR, { x: x2, y: row2, width, height: 22 }, label, action, 11);
     x2 += width + 8;
   }
 }

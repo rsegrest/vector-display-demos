@@ -8,7 +8,7 @@ export function startVectorOs(canvas: HTMLCanvasElement): void {
   // The same saved beam settings the Live Guide uses.
   const beam = new BeamSettingsStore(browserSettingsStorage());
   const open = parameters.get("open");
-  const os = new VectorOsDemo({ skipBoot: parameters.get("boot") === "0", beam, ...(open ? { startup: open.split(",").filter(Boolean) } : {}) });
+  const os = new VectorOsDemo({ skipBoot: parameters.get("boot") === "0", beam, foldedAtStart: true, ...(open ? { startup: open.split(",").filter(Boolean) } : {}) });
 
   let host: DemoHost;
   try {
@@ -66,6 +66,17 @@ export function startVectorOs(canvas: HTMLCanvasElement): void {
     const point = at(event);
     os.pointer("up", point.x, point.y, event.shiftKey);
   };
+  // The wheel scrolls the launcher when it is taller than the screen. Lines (Firefox) are made pixels.
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      const point = host.clientToWorld(event.clientX, event.clientY);
+      const pixels = event.deltaMode === 1 ? event.deltaY * 32 : event.deltaMode === 2 ? event.deltaY * canvas.clientHeight : event.deltaY;
+      const worldPerPixel = VECTOR_OS_WORLD_HEIGHT / Math.max(1, canvas.clientHeight);
+      if (os.wheel(point.x, point.y, pixels * worldPerPixel)) event.preventDefault();
+    },
+    { passive: false },
+  );
   canvas.addEventListener("pointerup", release);
   canvas.addEventListener("pointercancel", release);
   // Off the page: a window following the pointer (a game steered by it) is told it has gone.

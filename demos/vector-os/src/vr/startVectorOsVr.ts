@@ -60,7 +60,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
   const desktop = document.createElement("canvas");
   desktop.style.cssText = `position:fixed;left:-${DESKTOP.width + 100}px;top:0;width:${DESKTOP.width}px;height:${DESKTOP.height}px`;
   document.body.appendChild(desktop);
-  const os = new VectorOsDemo({ skipBoot: new URLSearchParams(location.search).get("boot") === "0" });
+  const os = new VectorOsDemo({ skipBoot: new URLSearchParams(location.search).get("boot") === "0", foldedAtStart: true });
   let host: DemoHost;
   try {
     host = DemoHost.start(desktop, os, { worldHeight: VECTOR_OS_WORLD_HEIGHT, maxStepsPerFrame: 2 });

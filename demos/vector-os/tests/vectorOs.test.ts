@@ -619,6 +619,34 @@ describe("VectorOsDemo", () => {
     expect(os.cursorAt(60, spareY)).toBe("pointer");
   });
 
+  it("can start with every category folded, and scrolls with the wheel when the list is taller than the screen", async () => {
+    const os = new VectorOsDemo({ skipBoot: true, startup: [], foldedAtStart: true });
+    os.resize(FRAME.width, 600);
+    expect(os.collapsedCategories).toEqual(["utilities", "creative", "simulation", "alife", "arcade", "together"]);
+    // Folded, it fits: the wheel does nothing.
+    expect(os.wheel(60, 300, 200)).toBe(true);
+    expect(os.launcherScrollOffset).toBe(0);
+    for (const category of os.collapsedCategories) os.toggleCategory(category);
+    // Open, it is far taller than 600: it scrolls, but no further than its end.
+    os.wheel(60, 300, 200);
+    expect(os.launcherScrollOffset).toBe(200);
+    os.wheel(60, 300, 100_000);
+    const end = os.launcherScrollOffset;
+    expect(end).toBeGreaterThan(200);
+    expect(end).toBeLessThan(2000);
+    os.wheel(60, 300, -100_000);
+    expect(os.launcherScrollOffset).toBe(0);
+    // Off the launcher, the wheel is not the launcher's.
+    expect(os.wheel(LAUNCHER_WIDTH + 50, 300, 100)).toBe(false);
+    // Scrolled to the end, the last program (Table Games) is on the screen and opens with a click.
+    os.wheel(60, 300, 100_000);
+    const lastRowY = 600 - 31 * 0.5 - 31 / 2 - 31 * 0.4 + 2;
+    expect(os.cursorAt(60, lastRowY)).toBe("pointer");
+    os.pointer("down", 60, lastRowY);
+    await settleOs(os);
+    expect(os.openTitles).toEqual(["Table Games"]);
+  });
+
   it("lists each category that has programs, in order, and leaves out the empty ones", async () => {
     const record = { resized: [], pointers: [], keys: [], disposed: 0 };
     const entries: AppEntry[] = [
