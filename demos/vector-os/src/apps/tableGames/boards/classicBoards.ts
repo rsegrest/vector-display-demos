@@ -15,12 +15,12 @@ import {
   type CheckersState,
   type ConnectFourState,
   type Fleet,
-  type GameInfo,
   type Seat,
   type ShipId,
   type Square,
 } from "@vector-demos/table-games";
-import type { Rect, Ui } from "./Ui.js";
+import type { Rect, Ui } from "../Ui.js";
+import { isMyMove, type BoardContext } from "./BoardContext.js";
 
 export const SEAT_COLORS: Readonly<Record<"connect4" | "checkers", readonly [BeamColor, BeamColor]>> = {
   connect4: [
@@ -39,7 +39,7 @@ const MISS_COLOR: BeamColor = { red: 0.45, green: 0.6, blue: 0.9 };
 const LABEL_COLOR: BeamColor = { red: 0.6, green: 0.85, blue: 1 };
 
 // What the window remembers about a board between clicks, which the room never hears about.
-export interface BoardChoices {
+interface BoardChoices {
   // Checkers: the piece picked up, waiting for where it goes.
   checkersFrom: Square | null;
   // Battleship: the ship being placed and which way it lies.
@@ -47,11 +47,11 @@ export interface BoardChoices {
   isAcross: boolean;
 }
 
-export function freshChoices(): BoardChoices {
-  return { checkersFrom: null, shipToPlace: FLEET[0].id, isAcross: true };
+// The board's choices, kept in the context's `local`, made the first time they are needed.
+function choicesOf(local: Record<string, unknown>): BoardChoices {
+  local.choices ??= { checkersFrom: null, shipToPlace: FLEET[0].id, isAcross: true } satisfies BoardChoices;
+  return local.choices as BoardChoices;
 }
-
-type Send = (move: unknown) => void;
 
 // The largest square grid of `columns` by `rows` cells that fits in `area`, centered.
 function gridIn(area: Rect, columns: number, rows: number): { readonly x: number; readonly y: number; readonly cell: number } {
@@ -59,11 +59,12 @@ function gridIn(area: Rect, columns: number, rows: number): { readonly x: number
   return { x: area.x + (area.width - cell * columns) / 2, y: area.y + (area.height - cell * rows) / 2, cell };
 }
 
-export function drawConnectFour(ui: Ui, area: Rect, info: GameInfo, mySeat: Seat | null, send: Send): void {
-  const state = info.view as ConnectFourState;
+export function drawConnectFour(context: BoardContext): void {
+  const { ui, area, mySeat, send } = context;
+  const state = context.view as ConnectFourState;
   const grid = gridIn(area, CONNECT_FOUR_COLUMNS, CONNECT_FOUR_ROWS);
   const colors = SEAT_COLORS.connect4;
-  const myTurn = mySeat !== null && info.turn === mySeat;
+  const myTurn = isMyMove(context);
   const isWinning = (row: number, column: number): boolean => state.winningCells.some(([r, c]) => r === row && c === column);
 
   ui.rect(GRID_COLOR, 0.6, { x: grid.x, y: grid.y, width: grid.cell * CONNECT_FOUR_COLUMNS, height: grid.cell * CONNECT_FOUR_ROWS });
@@ -90,15 +91,17 @@ export function drawConnectFour(ui: Ui, area: Rect, info: GameInfo, mySeat: Seat
   }
 }
 
-export function drawCheckers(ui: Ui, area: Rect, info: GameInfo, mySeat: Seat | null, choices: BoardChoices, send: Send): void {
-  const state = info.view as CheckersState;
+export function drawCheckers(context: BoardContext): void {
+  const { ui, area, mySeat, send } = context;
+  const choices = choicesOf(context.local);
+  const state = context.view as CheckersState;
   const grid = gridIn(area, CHECKERS_SIZE, CHECKERS_SIZE);
   const colors = SEAT_COLORS.checkers;
   // Each player sees their own pieces at the bottom; watchers see it as seat 0 does.
   const fromBottom = mySeat !== 1;
   const screenRow = (row: number): number => (fromBottom ? CHECKERS_SIZE - 1 - row : row);
   const squareRect = (row: number, column: number): Rect => ({ x: grid.x + column * grid.cell, y: grid.y + screenRow(row) * grid.cell, width: grid.cell, height: grid.cell });
-  const legal: CheckersMove[] = mySeat !== null && info.turn === mySeat ? legalCheckersMoves(state, mySeat) : [];
+  const legal: CheckersMove[] = isMyMove(context) ? legalCheckersMoves(state, mySeat!) : [];
   // A piece in the middle of a run of jumps stays picked up.
   if (state.jumpingFrom && legal.length > 0) choices.checkersFrom = state.jumpingFrom;
   const from = choices.checkersFrom;
@@ -143,8 +146,11 @@ export function drawCheckers(ui: Ui, area: Rect, info: GameInfo, mySeat: Seat | 
 
 // Battleship: the player's own fleet on the left, the waters they fire into on the right.
 // Watchers see both fleets' shots, and neither's ships.
-export function drawBattleship(ui: Ui, area: Rect, info: GameInfo, mySeat: Seat | null, choices: BoardChoices, send: (move: BattleshipMove) => void): void {
-  const state = info.view as BattleshipView;
+export function drawBattleship(context: BoardContext): void {
+  const { ui, area, mySeat } = context;
+  const send = (move: BattleshipMove): void => context.send(move);
+  const choices = choicesOf(context.local);
+  const state = context.view as BattleshipView;
   const leftSeat: Seat = mySeat ?? 0;
   const rightSeat: Seat = leftSeat === 0 ? 1 : 0;
   const isPlacing = state.phase === "placing" && mySeat !== null && !state.fleets[mySeat].isReady;
@@ -170,7 +176,7 @@ export function drawBattleship(ui: Ui, area: Rect, info: GameInfo, mySeat: Seat 
     drawPlacement(ui, leftTop, cell, state.fleets[mySeat], choices, send);
     const controlsTop = leftTop.y + cell * BATTLESHIP_SIZE + 12;
     drawPlacementControls(ui, { x: area.x, y: controlsTop, width: area.width, height: controlsHeight - 12 }, state.fleets[mySeat], choices, send);
-  } else if (mySeat !== null && info.turn === mySeat) {
+  } else if (isMyMove(context) && mySeat !== null) {
     const enemyShots = state.fleets[rightSeat].shots;
     for (let row = 0; row < BATTLESHIP_SIZE; row++) {
       for (let column = 0; column < BATTLESHIP_SIZE; column++) {

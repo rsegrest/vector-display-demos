@@ -1,15 +1,6 @@
-import { battleship } from "./games/battleship.js";
-import { checkers } from "./games/checkers.js";
-import { connectFour } from "./games/connectFour.js";
-import { cleanText, LIMITS, type ChatEntry, type ClientMessage, type GameInfo, type Invite, type MemberInfo, type ServerMessage } from "./protocol.js";
-import type { GameId, Seat, TableGame } from "./TableGame.js";
-
-// Each game's state is its own type; the room only stores it and hands it back.
-export const TABLE_GAMES: Readonly<Record<GameId, TableGame<any, unknown>>> = {
-  connect4: connectFour,
-  checkers,
-  battleship,
-};
+import { cleanText, LIMITS, type ChatEntry, type ClientMessage, type MemberInfo, type ServerMessage, type TableInfo } from "./protocol.js";
+import { hasRules, rulesFor } from "./registry.js";
+import type { GameId, Outcome, Seat } from "./TableGame.js";
 
 interface StoredMember {
   readonly id: string;
@@ -18,10 +9,17 @@ interface StoredMember {
   readonly lastSeen: number;
 }
 
-interface StoredGame {
+interface StoredTable {
   readonly game: GameId;
-  readonly seats: readonly [string, string];
+  readonly host: string;
+  // A member's id, or a computer player's: "c1", "c2"...
+  readonly seats: readonly string[];
+  readonly invited: string | null;
+  // null until the game starts.
   readonly state: unknown;
+  // Set when the host ended a game in progress.
+  readonly endedEarly: Outcome | null;
+  // Set when a player gave up a two-player game.
   readonly resignedBy: Seat | null;
 }
 
@@ -32,11 +30,10 @@ export interface RoomSnapshot {
   readonly nextMemberNumber: number;
   readonly members: readonly StoredMember[];
   readonly chat: readonly ChatEntry[];
-  readonly invites: readonly Invite[];
-  readonly game: StoredGame | null;
+  readonly table: StoredTable | null;
 }
 
-// A message for one member: each member's copy can differ (a game shows each player their own ships).
+// A message for one member: each member's copy can differ (a game shows each player their own cards).
 export interface Delivery {
   readonly to: string;
   readonly message: ServerMessage;
@@ -44,9 +41,29 @@ export interface Delivery {
 
 export type JoinResult = { readonly ok: true; readonly memberId: string; readonly deliveries: Delivery[] } | { readonly ok: false; readonly error: string };
 
-// One room: who is in it, what they have said, the invitations between them and the game being
-// played, with the rules for all of it. It knows nothing of sockets or storage; the server passes
-// in each message and sends out what comes back, so all of this is tested without either.
+// A computer player whose move it is, with what it needs to choose.
+export interface ComputerTurn {
+  readonly seat: Seat;
+  // How long the computer player waits before moving, in seconds.
+  readonly pauseSeconds: number;
+  readonly game: GameId;
+  // What that seat may see: a computer player sees no more than a person in its seat would.
+  readonly view: unknown;
+  readonly state: unknown;
+}
+
+export interface RoomOptions {
+  // What computer players are called: "Jev" when the server can reach it, "Computer" when not.
+  readonly computerName?: string;
+}
+
+function isComputerId(seatHolder: string): boolean {
+  return /^c\d+$/.test(seatHolder);
+}
+
+// One room: who is in it, what they have said and its table, with the rules for all of it. It
+// knows nothing of sockets, storage or decision models; the server passes in each message and
+// sends out what comes back, and asks it whose move a computer player has to make.
 export class Room {
   private snapshotData: RoomSnapshot;
   // Connections open for each member (one person may have two tabs). Not stored: the
@@ -54,13 +71,15 @@ export class Room {
   private readonly connections = new Map<string, number>();
   // When each member's recent chat lines were sent, to slow a flood.
   private readonly recentChat = new Map<string, number[]>();
+  private readonly computerName: string;
 
-  public constructor(snapshot: RoomSnapshot) {
+  public constructor(snapshot: RoomSnapshot, options: RoomOptions = {}) {
     this.snapshotData = snapshot;
+    this.computerName = options.computerName ?? "Computer";
   }
 
-  public static empty(code: string): Room {
-    return new Room({ code, nextMemberNumber: 1, members: [], chat: [], invites: [], game: null });
+  public static empty(code: string, options: RoomOptions = {}): Room {
+    return new Room({ code, nextMemberNumber: 1, members: [], chat: [], table: null }, options);
   }
 
   public get snapshot(): RoomSnapshot {
@@ -102,10 +121,9 @@ export class Room {
     this.forgetOldMembers();
 
     const deliveries: Delivery[] = [
-      { to: memberId, message: { type: "welcome", you: memberId, room: this.snapshotData.code } },
+      { to: memberId, message: { type: "welcome", you: memberId, room: this.snapshotData.code, computerName: this.computerName } },
       { to: memberId, message: { type: "chat", entries: this.snapshotData.chat } },
-      { to: memberId, message: this.invitesMessage() },
-      { to: memberId, message: this.gameMessageFor(memberId) },
+      { to: memberId, message: this.tableMessageFor(memberId) },
       ...this.toEveryone(this.membersMessage()),
     ];
     return { ok: true, memberId, deliveries };
@@ -120,16 +138,14 @@ export class Room {
   }
 
   // After a connection has closed and the count is up to date: if that was the member's last,
-  // they are shown as gone.
+  // they are shown as gone. A seat they hold is kept for their return, and an invitation to them lapses.
   public departed(memberId: string, now: number): Delivery[] {
     if (this.connections.has(memberId)) return [];
     const member = this.memberById(memberId);
     if (member) this.replaceMember({ ...member, lastSeen: now });
-    // Invitations to or from someone who has gone are no longer worth answering.
-    const invites = this.snapshotData.invites.filter((invite) => invite.from !== memberId && invite.to !== memberId);
-    const invitesChanged = invites.length !== this.snapshotData.invites.length;
-    this.snapshotData = { ...this.snapshotData, invites };
-    return [...this.toEveryone(this.membersMessage()), ...(invitesChanged ? this.toEveryone(this.invitesMessage()) : [])];
+    const table = this.snapshotData.table;
+    if (table?.invited === memberId) this.setTable({ ...table, invited: null });
+    return [...this.toEveryone(this.membersMessage()), ...(table?.invited === memberId ? this.tableToEveryone() : [])];
   }
 
   public receive(memberId: string, message: ClientMessage, now: number, random: () => number): Delivery[] {
@@ -138,15 +154,51 @@ export class Room {
         return this.refuse(memberId, "Already joined");
       case "chat":
         return this.chat(memberId, message.text, now);
-      case "invite":
-        return this.invite(memberId, message.to, message.game);
-      case "answer":
-        return this.answer(memberId, message.from, message.accept, random);
+      case "open":
+        return this.open(memberId, message.game, message.invite, random);
+      case "sit":
+        return this.sit(memberId, random);
+      case "stand":
+        return this.stand(memberId);
+      case "addComputer":
+        return this.addComputer(memberId, random);
+      case "start":
+        return this.start(memberId, random);
       case "move":
         return this.move(memberId, message.move, random);
       case "resign":
         return this.resign(memberId);
+      case "close":
+        return this.close(memberId);
     }
+  }
+
+  // The computer player whose move it is now, if any.
+  public computerTurn(): ComputerTurn | null {
+    const table = this.snapshotData.table;
+    if (!table || table.state === null || this.outcomeOf(table)) return null;
+    const rules = rulesFor(table.game);
+    const seat = rules.toMove(table.state).find((each) => isComputerId(table.seats[each]));
+    if (seat === undefined) return null;
+    return { seat, game: table.game, view: rules.viewFor(table.state, seat), state: table.state, pauseSeconds: rules.computerPauseSeconds ?? 0.7 };
+  }
+
+  // A computer player's chosen move. If the rules refuse it (the table changed meanwhile, or the
+  // chooser erred), its first legal move is played instead, so a computer never holds up a game.
+  public computerMove(seat: Seat, move: unknown, random: () => number): Delivery[] {
+    const turn = this.computerTurn();
+    const table = this.snapshotData.table;
+    if (!turn || !table || turn.seat !== seat) return [];
+    const rules = rulesFor(table.game);
+    let result = rules.play(table.state, seat, move, random);
+    if (!result.ok) {
+      const fallback = rules.choices(table.state, seat)[0];
+      if (!fallback) return [];
+      result = rules.play(table.state, seat, fallback.move, random);
+      if (!result.ok) return [];
+    }
+    this.setTable({ ...table, state: result.state });
+    return this.tableToEveryone();
   }
 
   private chat(memberId: string, rawText: string, now: number): Delivery[] {
@@ -161,92 +213,169 @@ export class Room {
     return this.toEveryone({ type: "chat", entries: [entry] });
   }
 
-  private invite(memberId: string, to: string | null, game: GameId): Delivery[] {
-    if (to === memberId) return this.refuse(memberId, "Invite someone else");
-    if (to !== null && !this.connections.has(to)) return this.refuse(memberId, "They are not here");
-    if (this.isGameOn()) return this.refuse(memberId, "Wait for the game being played to end");
-    // One invitation from each member at a time: a new one replaces the last.
-    const invites = [...this.snapshotData.invites.filter((invite) => invite.from !== memberId), { from: memberId, to, game }];
-    this.snapshotData = { ...this.snapshotData, invites };
-    return this.toEveryone(this.invitesMessage());
+  private open(memberId: string, game: GameId, invite: string | null, random: () => number): Delivery[] {
+    const current = this.snapshotData.table;
+    if (current && !this.outcomeOf(current)) return this.refuse(memberId, "The table is in use; wait for that game to end");
+    if (invite === memberId) return this.refuse(memberId, "Invite someone else");
+    if (invite !== null && !this.connections.has(invite)) return this.refuse(memberId, "They are not here");
+    if (!hasRules(game)) return this.refuse(memberId, "That game is not here yet");
+    this.setTable({ game, host: memberId, seats: [memberId], invited: invite, state: null, endedEarly: null, resignedBy: null });
+    return this.startIfFull(random);
   }
 
-  private answer(memberId: string, from: string, accept: boolean, random: () => number): Delivery[] {
-    const invite = this.snapshotData.invites.find((candidate) => candidate.from === from && (candidate.to === memberId || (candidate.to === null && from !== memberId)));
-    if (!invite) return this.refuse(memberId, "That invitation has gone");
-    // An open invitation stays open for the others when one person says no.
-    if (invite.to === null && !accept) return [];
-    const invites = this.snapshotData.invites.filter((candidate) => candidate !== invite);
-    this.snapshotData = { ...this.snapshotData, invites };
-    if (!accept) return this.toEveryone(this.invitesMessage());
-    if (this.isGameOn()) return [...this.toEveryone(this.invitesMessage()), ...this.refuse(memberId, "Wait for the game being played to end")];
+  private sit(memberId: string, random: () => number): Delivery[] {
+    const table = this.snapshotData.table;
+    if (!table || table.state !== null) return this.refuse(memberId, "There is no table to sit at");
+    if (table.seats.includes(memberId)) return this.refuse(memberId, "You already have a seat");
+    if (table.seats.length >= rulesFor(table.game).maxPlayers) return this.refuse(memberId, "Every seat is taken");
+    this.setTable({ ...table, seats: [...table.seats, memberId], invited: table.invited === memberId ? null : table.invited });
+    return this.startIfFull(random);
+  }
 
-    // The one who invited moves first. Every other invitation lapses: the table is taken.
-    const seats: [string, string] = [from, memberId];
-    const state = TABLE_GAMES[invite.game].start(random);
-    this.snapshotData = { ...this.snapshotData, invites: [], game: { game: invite.game, seats, state, resignedBy: null } };
-    return [...this.toEveryone(this.invitesMessage()), ...this.gameToEveryone()];
+  private stand(memberId: string): Delivery[] {
+    const table = this.snapshotData.table;
+    if (!table) return [];
+    if (table.invited === memberId && !table.seats.includes(memberId)) {
+      this.setTable({ ...table, invited: null });
+      return this.tableToEveryone();
+    }
+    if (table.state !== null) return this.refuse(memberId, "The game has started; resign instead");
+    if (!table.seats.includes(memberId)) return [];
+    if (table.host === memberId) this.setTable(null);
+    else this.setTable({ ...table, seats: table.seats.filter((seat) => seat !== memberId) });
+    return this.tableToEveryone();
+  }
+
+  private addComputer(memberId: string, random: () => number): Delivery[] {
+    const table = this.snapshotData.table;
+    if (!table || table.state !== null || table.host !== memberId) return this.refuse(memberId, "Only the table's host can add a computer player");
+    if (table.seats.length >= rulesFor(table.game).maxPlayers) return this.refuse(memberId, "Every seat is taken");
+    const computers = table.seats.filter(isComputerId).length;
+    this.setTable({ ...table, seats: [...table.seats, `c${computers + 1}`] });
+    return this.startIfFull(random);
+  }
+
+  private start(memberId: string, random: () => number): Delivery[] {
+    const table = this.snapshotData.table;
+    if (!table || table.state !== null || table.host !== memberId) return this.refuse(memberId, "Only the table's host can start");
+    const rules = rulesFor(table.game);
+    if (table.seats.length < rules.minPlayers) return this.refuse(memberId, `${rules.title} needs at least ${rules.minPlayers} players`);
+    return this.begin(table, random);
+  }
+
+  // A table whose every seat is taken starts by itself.
+  private startIfFull(random: () => number): Delivery[] {
+    const table = this.snapshotData.table!;
+    if (table.seats.length >= rulesFor(table.game).maxPlayers) return this.begin(table, random);
+    return this.tableToEveryone();
+  }
+
+  private begin(table: StoredTable, random: () => number): Delivery[] {
+    const state = rulesFor(table.game).start(table.seats.length, random);
+    this.setTable({ ...table, state, invited: null });
+    return this.tableToEveryone();
   }
 
   private move(memberId: string, move: unknown, random: () => number): Delivery[] {
-    const game = this.snapshotData.game;
+    const table = this.snapshotData.table;
     const seat = this.seatOf(memberId);
-    if (!game || seat === null || this.isOver(game)) return this.refuse(memberId, "You are not playing");
-    const result = TABLE_GAMES[game.game].play(game.state, seat, move, random);
+    if (!table || table.state === null || seat === null || this.outcomeOf(table)) return this.refuse(memberId, "You are not playing");
+    const result = rulesFor(table.game).play(table.state, seat, move, random);
     if (!result.ok) return this.refuse(memberId, result.error);
-    this.snapshotData = { ...this.snapshotData, game: { ...game, state: result.state } };
-    return this.gameToEveryone();
+    this.setTable({ ...table, state: result.state });
+    return this.tableToEveryone();
   }
 
   private resign(memberId: string): Delivery[] {
-    const game = this.snapshotData.game;
+    const table = this.snapshotData.table;
     const seat = this.seatOf(memberId);
-    if (!game || seat === null || this.isOver(game)) return this.refuse(memberId, "You are not playing");
-    this.snapshotData = { ...this.snapshotData, game: { ...game, resignedBy: seat } };
-    return this.gameToEveryone();
+    if (!table || table.state === null || seat === null || this.outcomeOf(table)) return this.refuse(memberId, "You are not playing");
+    const people = table.seats.filter((holder) => !isComputerId(holder));
+    if (table.seats.length === 2) {
+      this.setTable({ ...table, resignedBy: seat });
+    } else if (people.length === 1) {
+      // The last person at a table of computers: the game ends.
+      this.setTable({ ...table, endedEarly: { winners: [], summary: `${this.nameOf(memberId)} left the table` } });
+    } else {
+      // A computer player takes over the seat, so the others play on.
+      const computers = table.seats.filter(isComputerId).length;
+      this.setTable({ ...table, seats: table.seats.map((holder, index) => (index === seat ? `c${computers + 1}` : holder)) });
+    }
+    return this.tableToEveryone();
   }
 
-  private isOver(game: StoredGame): boolean {
-    return game.resignedBy !== null || TABLE_GAMES[game.game].outcome(game.state) !== null;
+  private close(memberId: string): Delivery[] {
+    const table = this.snapshotData.table;
+    if (!table) return [];
+    if (this.outcomeOf(table)) {
+      this.setTable(null);
+      return this.tableToEveryone();
+    }
+    if (table.host !== memberId) return this.refuse(memberId, "Only the table's host can end the game");
+    if (table.state === null) {
+      this.setTable(null);
+      return this.tableToEveryone();
+    }
+    const rules = rulesFor(table.game);
+    const endedEarly = rules.finish ? rules.finish(table.state) : { winners: [], summary: "Ended before the finish" };
+    this.setTable({ ...table, endedEarly });
+    return this.tableToEveryone();
   }
 
-  // The room has one table: while a game is on, nobody else can start one.
-  private isGameOn(): boolean {
-    const game = this.snapshotData.game;
-    return game !== null && !this.isOver(game);
+  private outcomeOf(table: StoredTable): Outcome | null {
+    if (table.endedEarly) return table.endedEarly;
+    if (table.resignedBy !== null) {
+      const winner = table.resignedBy === 0 ? 1 : 0;
+      return { winners: [winner], summary: `${this.holderName(table, table.resignedBy)} resigned` };
+    }
+    return table.state === null ? null : rulesFor(table.game).outcome(table.state);
   }
 
   private seatOf(memberId: string): Seat | null {
-    const index = this.snapshotData.game?.seats.indexOf(memberId) ?? -1;
-    return index === 0 || index === 1 ? index : null;
+    const table = this.snapshotData.table;
+    const index = table && table.state !== null ? table.seats.indexOf(memberId) : -1;
+    return index >= 0 ? index : null;
   }
 
-  private gameMessageFor(memberId: string): ServerMessage {
-    const game = this.snapshotData.game;
-    if (!game) return { type: "game", game: null };
-    const rules = TABLE_GAMES[game.game];
-    const info: GameInfo = {
-      game: game.game,
-      seats: game.seats,
-      view: rules.viewFor(game.state, this.seatOf(memberId)),
-      turn: game.resignedBy === null ? rules.turn(game.state) : null,
-      outcome: game.resignedBy === null ? rules.outcome(game.state) : { kind: "win", winner: game.resignedBy === 0 ? 1 : 0 },
-      resignedBy: game.resignedBy,
+  private holderName(table: StoredTable, seat: Seat): string {
+    const holder = table.seats[seat];
+    if (!isComputerId(holder)) return this.nameOf(holder);
+    const computers = table.seats.filter(isComputerId);
+    return computers.length === 1 ? this.computerName : `${this.computerName} ${computers.indexOf(holder) + 1}`;
+  }
+
+  private tableMessageFor(memberId: string): ServerMessage {
+    const table = this.snapshotData.table;
+    if (!table) return { type: "table", table: null };
+    const rules = rulesFor(table.game);
+    const outcome = this.outcomeOf(table);
+    const seat = this.seatOf(memberId);
+    const info: TableInfo = {
+      game: table.game,
+      host: table.host,
+      seats: table.seats,
+      names: table.seats.map((_, index) => this.holderName(table, index)),
+      isComputer: table.seats.map(isComputerId),
+      invited: table.invited,
+      isStarted: table.state !== null,
+      view: table.state === null ? null : rules.viewFor(table.state, seat),
+      toMove: table.state === null || outcome ? [] : rules.toMove(table.state),
+      outcome,
     };
-    return { type: "game", game: info };
+    return { type: "table", table: info };
   }
 
-  private gameToEveryone(): Delivery[] {
-    return [...this.connections.keys()].map((to) => ({ to, message: this.gameMessageFor(to) }));
+  private tableToEveryone(): Delivery[] {
+    return [...this.connections.keys()].map((to) => ({ to, message: this.tableMessageFor(to) }));
+  }
+
+  private setTable(table: StoredTable | null): void {
+    this.snapshotData = { ...this.snapshotData, table };
   }
 
   private membersMessage(): ServerMessage {
     const members: MemberInfo[] = this.snapshotData.members.map(({ id, name }) => ({ id, name, isOnline: this.connections.has(id) }));
     return { type: "members", members };
-  }
-
-  private invitesMessage(): ServerMessage {
-    return { type: "invites", invites: this.snapshotData.invites };
   }
 
   private toEveryone(message: ServerMessage): Delivery[] {
@@ -261,6 +390,10 @@ export class Room {
     return this.snapshotData.members.find((member) => member.id === memberId);
   }
 
+  private nameOf(memberId: string): string {
+    return this.memberById(memberId)?.name ?? "?";
+  }
+
   private replaceMember(member: StoredMember): void {
     this.snapshotData = { ...this.snapshotData, members: this.snapshotData.members.map((each) => (each.id === member.id ? member : each)) };
   }
@@ -269,7 +402,7 @@ export class Room {
   private forgetOldMembers(): void {
     const members = this.snapshotData.members;
     if (members.length <= LIMITS.rememberedMembers) return;
-    const keep = (member: StoredMember): boolean => this.connections.has(member.id) || (this.snapshotData.game?.seats.includes(member.id) ?? false);
+    const keep = (member: StoredMember): boolean => this.connections.has(member.id) || (this.snapshotData.table?.seats.includes(member.id) ?? false);
     const forgettable = members.filter((member) => !keep(member)).sort((a, b) => a.lastSeen - b.lastSeen);
     const forget = new Set(forgettable.slice(0, members.length - LIMITS.rememberedMembers).map((member) => member.id));
     this.snapshotData = { ...this.snapshotData, members: members.filter((member) => !forget.has(member.id)) };

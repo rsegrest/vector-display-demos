@@ -6,3 +6,4 @@ demos/travel-globe/src/data/backups
 .claude
 site/public/arcade
 .wrangler
+.dev.vars

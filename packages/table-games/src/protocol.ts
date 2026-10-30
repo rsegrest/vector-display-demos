@@ -5,8 +5,28 @@ import { isRecord, type GameId, type Outcome, type Seat } from "./TableGame.js";
 // A member is known to everyone by a short public id ("m3"). The token that proves who
 // they are is the browser's own secret: it is sent once, in hello, so a member who
 // reloads or loses the connection comes back as themselves, seat and all.
+//
+// The room has one table. Someone opens it for a game and takes the first seat (the host);
+// others sit down, or the host adds computer players; the host starts the game, or it starts
+// by itself once every seat is taken. When it is over, anyone may clear the table.
 
-export const GAME_IDS: readonly GameId[] = ["connect4", "checkers", "battleship"];
+export const GAME_IDS: readonly GameId[] = [
+  "connect4",
+  "checkers",
+  "battleship",
+  "tictactoe",
+  "chess",
+  "yahtzee",
+  "boggle",
+  "poker",
+  "blackjack",
+  "baccarat",
+  "craps",
+  "roulette",
+  "keno",
+  "slots",
+  "pachinko",
+];
 
 export const LIMITS = {
   nameLength: 16,
@@ -37,11 +57,20 @@ export function roomCodeFrom(bytes: ArrayLike<number>): string {
 export type ClientMessage =
   | { readonly type: "hello"; readonly token: string; readonly name: string }
   | { readonly type: "chat"; readonly text: string }
-  // `to` null is an open invitation: anyone in the room, now or arriving later, may accept it.
-  | { readonly type: "invite"; readonly to: string | null; readonly game: GameId }
-  | { readonly type: "answer"; readonly from: string; readonly accept: boolean }
+  // Opens the table for a game, with the sender in the first seat. `invite` names one
+  // member to ask in particular; everyone in the room may sit down either way.
+  | { readonly type: "open"; readonly game: GameId; readonly invite: string | null }
+  | { readonly type: "sit" }
+  // Gets up from a table not yet started (the host getting up closes it), or turns down an invitation.
+  | { readonly type: "stand" }
+  | { readonly type: "addComputer" }
+  | { readonly type: "start" }
   | { readonly type: "move"; readonly move: unknown }
-  | { readonly type: "resign" };
+  // Gives up: in a two-player game the other player wins; with more, a computer takes the seat.
+  | { readonly type: "resign" }
+  // Clears a finished table; or, from the host, ends a game in progress (a casino game is
+  // played until then, and scored by its chips).
+  | { readonly type: "close" };
 
 export interface MemberInfo {
   readonly id: string;
@@ -57,31 +86,29 @@ export interface ChatEntry {
   readonly at: number;
 }
 
-export interface Invite {
-  readonly from: string;
-  // null: open to anyone in the room.
-  readonly to: string | null;
+export interface TableInfo {
   readonly game: GameId;
-}
-
-export interface GameInfo {
-  readonly game: GameId;
-  // The member in each seat.
-  readonly seats: readonly [string, string];
-  // The game's state as the receiver may see it.
+  // The member who opened it.
+  readonly host: string;
+  // Who sits in each seat: a member's id, or a computer player's ("c1").
+  readonly seats: readonly string[];
+  readonly names: readonly string[];
+  readonly isComputer: readonly boolean[];
+  // The member asked in particular, until they sit down or say no.
+  readonly invited: string | null;
+  readonly isStarted: boolean;
+  // The game's state as the receiver may see it; null before it starts.
   readonly view: unknown;
-  readonly turn: Seat | null;
+  readonly toMove: readonly Seat[];
   readonly outcome: Outcome | null;
-  readonly resignedBy: Seat | null;
 }
 
 export type ServerMessage =
-  | { readonly type: "welcome"; readonly you: string; readonly room: string }
+  | { readonly type: "welcome"; readonly you: string; readonly room: string; readonly computerName: string }
   | { readonly type: "members"; readonly members: readonly MemberInfo[] }
   // Lines to add to the chat: on joining, the room's history; after that, each new line.
   | { readonly type: "chat"; readonly entries: readonly ChatEntry[] }
-  | { readonly type: "invites"; readonly invites: readonly Invite[] }
-  | { readonly type: "game"; readonly game: GameInfo | null }
+  | { readonly type: "table"; readonly table: TableInfo | null }
   | { readonly type: "error"; readonly message: string };
 
 const TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
@@ -111,16 +138,18 @@ export function readClientMessage(raw: string): ClientMessage | null {
       return { type: "hello", token: message.token, name: message.name };
     case "chat":
       return typeof message.text === "string" ? { type: "chat", text: message.text } : null;
-    case "invite":
-      if ((typeof message.to !== "string" && message.to !== null) || !GAME_IDS.includes(message.game as GameId)) return null;
-      return { type: "invite", to: message.to, game: message.game as GameId };
-    case "answer":
-      if (typeof message.from !== "string" || typeof message.accept !== "boolean") return null;
-      return { type: "answer", from: message.from, accept: message.accept };
+    case "open":
+      if (!GAME_IDS.includes(message.game as GameId) || (typeof message.invite !== "string" && message.invite !== null && message.invite !== undefined)) return null;
+      return { type: "open", game: message.game as GameId, invite: (message.invite as string | undefined) ?? null };
     case "move":
       return { type: "move", move: message.move };
+    case "sit":
+    case "stand":
+    case "addComputer":
+    case "start":
     case "resign":
-      return { type: "resign" };
+    case "close":
+      return { type: message.type };
     default:
       return null;
   }

@@ -1,51 +1,78 @@
-import { TABLE_GAMES, type BattleshipState, type GameId, type GameInfo, type Seat } from "@vector-demos/table-games";
+import { rulesFor, simpleChoice, type GameId, type Outcome, type Seat } from "@vector-demos/table-games";
 
-// A game played on one screen, both sides by whoever is at it, taking turns: for trying a game
-// with nobody else in the room, and with no server at all. The same rules the room server runs.
+// A computer player in practice waits this long before moving, so its move can be followed.
+const COMPUTER_PAUSE_SECONDS = 0.7;
+
+// A game played in this window alone, with no room and no server: every seat either a person at
+// this screen (taking turns) or the simple computer player. The same rules the room server runs.
 export class Practice {
   private state: unknown;
-  private resignedBy: Seat | null = null;
+  private endedEarly: Outcome | null = null;
+  private computerWait = 0;
+  public readonly names: readonly string[];
 
   public constructor(
     public readonly game: GameId,
+    // For each seat, whether the computer plays it.
+    public readonly isComputer: readonly boolean[],
     private readonly random: () => number = Math.random,
   ) {
-    this.state = TABLE_GAMES[game].start(random);
+    this.state = rulesFor(game).start(isComputer.length, random);
+    let person = 0;
+    let computer = 0;
+    const computers = isComputer.filter(Boolean).length;
+    this.names = isComputer.map((byComputer) => (byComputer ? (computers === 1 ? "Computer" : `Computer ${++computer}`) : `Player ${++person}`));
   }
 
-  // The side now at the board: the one to move, or while ships are placed, the first not yet ready.
+  public get toMove(): readonly Seat[] {
+    return this.outcome ? [] : rulesFor(this.game).toMove(this.state);
+  }
+
+  public get outcome(): Outcome | null {
+    return this.endedEarly ?? rulesFor(this.game).outcome(this.state);
+  }
+
+  // The seat the screen shows: the first person to move (when several move at once, one after
+  // another), or the first person at all. Its view hides what the other seats keep to themselves.
   public get actingSeat(): Seat {
-    const rules = TABLE_GAMES[this.game];
-    const turn = rules.turn(this.state);
-    if (turn !== null) return turn;
-    if (this.game === "battleship" && !rules.outcome(this.state)) return (this.state as BattleshipState).fleets[0].isReady ? 1 : 0;
-    return 0;
+    const people = this.isComputer.flatMap((byComputer, seat) => (byComputer ? [] : [seat]));
+    return this.toMove.find((seat) => !this.isComputer[seat]) ?? people[0] ?? 0;
   }
 
-  // What the board shows: the acting side's view, so Battleship hides the other side's ships
-  // (pass the screen over, and the next player looks away while the first places theirs).
-  public get info(): GameInfo {
-    const rules = TABLE_GAMES[this.game];
-    return {
-      game: this.game,
-      seats: ["practice-0", "practice-1"],
-      view: rules.viewFor(this.state, this.actingSeat),
-      turn: this.resignedBy === null ? rules.turn(this.state) : null,
-      outcome: this.resignedBy === null ? rules.outcome(this.state) : { kind: "win", winner: this.resignedBy === 0 ? 1 : 0 },
-      resignedBy: this.resignedBy,
-    };
+  public get view(): unknown {
+    return rulesFor(this.game).viewFor(this.state, this.actingSeat);
   }
 
-  // A move by the acting side; the reason it was refused, or null.
+  // A move by the acting seat; the reason it was refused, or null.
   public play(move: unknown): string | null {
-    if (this.info.outcome) return "The game is over";
-    const result = TABLE_GAMES[this.game].play(this.state, this.actingSeat, move, this.random);
+    if (this.outcome) return "The game is over";
+    const result = rulesFor(this.game).play(this.state, this.actingSeat, move, this.random);
     if (!result.ok) return result.error;
     this.state = result.state;
     return null;
   }
 
-  public resign(): void {
-    if (!this.info.outcome) this.resignedBy = this.actingSeat;
+  // Lets a computer player move, after a short pause.
+  public update(deltaSeconds: number): void {
+    const seat = this.toMove.find((each) => this.isComputer[each]);
+    if (seat === undefined) {
+      this.computerWait = 0;
+      return;
+    }
+    this.computerWait += deltaSeconds;
+    if (this.computerWait < (rulesFor(this.game).computerPauseSeconds ?? COMPUTER_PAUSE_SECONDS)) return;
+    this.computerWait = 0;
+    const rules = rulesFor(this.game);
+    const decision = simpleChoice({ game: rules, state: this.state, view: rules.viewFor(this.state, seat), seat, random: this.random });
+    if (!decision) return;
+    const result = rules.play(this.state, seat, decision.choice.move, this.random);
+    if (result.ok) this.state = result.state;
+  }
+
+  // Ends the game now: scored by the game's own count if it has one (chips), otherwise undecided.
+  public stop(): void {
+    if (this.outcome) return;
+    const rules = rulesFor(this.game);
+    this.endedEarly = rules.finish ? rules.finish(this.state) : { winners: [], summary: "Stopped" };
   }
 }

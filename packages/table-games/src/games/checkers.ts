@@ -1,4 +1,4 @@
-import { isIndex, isRecord, otherSeat, refuse, type MoveResult, type Outcome, type Seat, type TableGame } from "../TableGame.js";
+import { isIndex, isRecord, otherSeat, refuse, type Choice, type MoveResult, type Outcome, type Seat, type TableGame } from "../TableGame.js";
 
 export const CHECKERS_SIZE = 8;
 
@@ -109,6 +109,13 @@ function readSquare(value: unknown): Square | null {
 export const checkers: TableGame<CheckersState, CheckersState> = {
   id: "checkers",
   title: "Checkers",
+  description: "Jump to capture, and you must when you can.",
+  family: "board",
+  minPlayers: 2,
+  maxPlayers: 2,
+  canLookAhead: true,
+  strategy:
+    "Win by taking every piece of the other side or leaving it no move. Captures are compulsory. Keep pieces together and the back row guarded; avoid moves that leave a piece where it can be jumped; reach the far row to make a king.",
 
   start: () => ({ board: startingBoard(), turn: 0, jumpingFrom: null, outcome: null, lastMove: null }),
 
@@ -142,13 +149,21 @@ export const checkers: TableGame<CheckersState, CheckersState> = {
     };
     // The player who cannot move, having no pieces or all of them blocked, has lost.
     if (!jumpsOn && legalCheckersMoves(next, next.turn).length === 0) {
-      return { ok: true, state: { ...next, turn: seat, outcome: { kind: "win", winner: seat } } };
+      return { ok: true, state: { ...next, turn: seat, outcome: { winners: [seat], summary: "The other side cannot move" } } };
     }
     return { ok: true, state: next };
   },
 
   // Nothing is hidden in checkers.
   viewFor: (state) => state,
-  turn: (state) => (state.outcome ? null : state.turn),
+  toMove: (state) => (state.outcome ? [] : [state.turn]),
   outcome: (state) => state.outcome,
+
+  choices(state, seat): Choice[] {
+    const name = ([row, column]: Square): string => `${"abcdefgh"[column]}${row + 1}`;
+    return legalCheckersMoves(state, seat).map((move) => ({
+      move,
+      label: `${name(move.from)} to ${name(move.to)}${Math.abs(move.to[0] - move.from[0]) === 2 ? " (a capture)" : ""}`,
+    }));
+  },
 };

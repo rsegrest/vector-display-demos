@@ -582,7 +582,7 @@ export class VectorOsDemo implements Demo {
       if (entries.length === 0) continue;
       const isCollapsed = this.collapsed.has(category.id);
       // A folded category says how many programs it is holding.
-      const heading = isCollapsed ? `> ${category.title} (${entries.length})` : `v ${category.title}`;
+      const heading = isCollapsed ? `> ${category.title} (${entries.length})` : `⌄ ${category.title}`;
       rows.push({ rect: { x: 0, y, width: LAUNCHER_WIDTH, height: LAUNCHER_ROW }, category: category.id, entry: null, text: heading.toUpperCase() });
       y += LAUNCHER_ROW;
       for (const entry of isCollapsed ? [] : entries) {

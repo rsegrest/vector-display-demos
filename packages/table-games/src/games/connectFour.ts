@@ -1,4 +1,4 @@
-import { isIndex, isRecord, otherSeat, refuse, type MoveResult, type Outcome, type Seat, type TableGame } from "../TableGame.js";
+import { isIndex, isRecord, otherSeat, refuse, type Choice, type MoveResult, type Outcome, type Seat, type TableGame } from "../TableGame.js";
 
 export const CONNECT_FOUR_ROWS = 6;
 export const CONNECT_FOUR_COLUMNS = 7;
@@ -56,6 +56,13 @@ function lineThrough(board: ConnectFourState["board"], row: number, column: numb
 export const connectFour: TableGame<ConnectFourState, ConnectFourState> = {
   id: "connect4",
   title: "Connect 4",
+  description: "Drop discs in turn; four in a row wins.",
+  family: "board",
+  minPlayers: 2,
+  maxPlayers: 2,
+  canLookAhead: true,
+  strategy:
+    "Get four of your discs in a line across, down or diagonally before the other player does. Take a winning column at once; otherwise block a column where the other player would win next. Center columns take part in more lines than the edges.",
 
   start: () => ({
     board: Array.from({ length: CONNECT_FOUR_ROWS }, () => Array<Seat | null>(CONNECT_FOUR_COLUMNS).fill(null)),
@@ -77,12 +84,26 @@ export const connectFour: TableGame<ConnectFourState, ConnectFourState> = {
     board[row][column] = seat;
     const winningCells = lineThrough(board, row, column);
     const isFull = board[0].every((cell) => cell !== null);
-    const outcome: Outcome | null = winningCells.length > 0 ? { kind: "win", winner: seat } : isFull ? { kind: "draw" } : null;
+    const outcome: Outcome | null = winningCells.length > 0 ? { winners: [seat], summary: "Four in a row" } : isFull ? { winners: [], summary: "The board is full" } : null;
     return { ok: true, state: { board, turn: outcome ? state.turn : otherSeat(seat), outcome, winningCells, lastDrop: [row, column] } };
   },
 
   // Nothing is hidden in Connect 4.
   viewFor: (state) => state,
-  turn: (state) => (state.outcome ? null : state.turn),
+  toMove: (state) => (state.outcome ? [] : [state.turn]),
   outcome: (state) => state.outcome,
+
+  // Columns nearer the middle take part in more lines.
+  simpleStrategy(_view, _seat, choices, random) {
+    const middle = (CONNECT_FOUR_COLUMNS - 1) / 2;
+    const weight = (choice: Choice): number => 4 - Math.abs((choice.move as ConnectFourMove).column - middle) + random() * 2.5;
+    return [...choices].sort((a, b) => weight(b) - weight(a))[0];
+  },
+
+  choices(state, seat): Choice[] {
+    if (state.outcome || seat !== state.turn) return [];
+    return Array.from({ length: CONNECT_FOUR_COLUMNS }, (_, column) => column)
+      .filter((column) => landingRow(state.board, column) >= 0)
+      .map((column) => ({ move: { column }, label: `column ${column + 1} of ${CONNECT_FOUR_COLUMNS} (from the left)` }));
+  },
 };

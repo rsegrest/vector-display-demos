@@ -31,14 +31,14 @@ describe("Connect 4", () => {
   const drop = (state: ConnectFourState, seat: Seat, column: number): ConnectFourState => accepted(connectFour.play(state, seat, { column }, random));
 
   it("drops a disc to the lowest empty row and passes the turn", () => {
-    const state = drop(connectFour.start(random), 0, 3);
+    const state = drop(connectFour.start(2, random), 0, 3);
     expect(state.board[5][3]).toBe(0);
     expect(state.turn).toBe(1);
     expect(drop(state, 1, 3).board[4][3]).toBe(1);
   });
 
   it("refuses moves out of turn, off the board and into a full column", () => {
-    let state = connectFour.start(random);
+    let state = connectFour.start(2, random);
     expect(connectFour.play(state, 1, { column: 0 }, random)).toEqual({ ok: false, error: "Not your turn" });
     expect(connectFour.play(state, 0, { column: 7 }, random).ok).toBe(false);
     expect(connectFour.play(state, 0, { column: 2.5 }, random).ok).toBe(false);
@@ -48,20 +48,20 @@ describe("Connect 4", () => {
   });
 
   it("wins with four in a row, across and on a diagonal", () => {
-    let state = connectFour.start(random);
+    let state = connectFour.start(2, random);
     for (const column of [0, 0, 1, 1, 2, 2]) state = drop(state, state.turn, column);
     state = drop(state, 0, 3);
-    expect(state.outcome).toEqual({ kind: "win", winner: 0 });
+    expect(state.outcome).toEqual(expect.objectContaining({ winners: [0] }));
     expect(state.winningCells).toHaveLength(4);
-    expect(connectFour.turn(state)).toBeNull();
+    expect(connectFour.toMove(state)).toEqual([]);
 
     // Seat 1 builds the diagonal (5,0) (4,1) (3,2) (2,3).
-    let diagonal = connectFour.start(random);
+    let diagonal = connectFour.start(2, random);
     for (const column of [1, 0, 2, 1, 2, 2, 3, 3, 3, 4]) diagonal = drop(diagonal, diagonal.turn, column);
     expect(diagonal.outcome).toBeNull();
     diagonal = drop(diagonal, 0, 6);
     diagonal = drop(diagonal, 1, 3);
-    expect(diagonal.outcome).toEqual({ kind: "win", winner: 1 });
+    expect(diagonal.outcome).toEqual(expect.objectContaining({ winners: [1] }));
   });
 
   it("is a draw when the board fills with no line", () => {
@@ -71,7 +71,7 @@ describe("Connect 4", () => {
     const nearlyFull: (Seat | null)[][] = board;
     nearlyFull[0][0] = null;
     const state = drop({ board: nearlyFull, turn: 0, outcome: null, winningCells: [], lastDrop: null }, 0, 0);
-    expect(state.outcome).toEqual({ kind: "draw" });
+    expect(state.outcome).toEqual(expect.objectContaining({ winners: [] }));
   });
 });
 
@@ -81,7 +81,7 @@ describe("Checkers", () => {
     accepted(checkers.play(state, seat, { from, to }, random));
 
   it("starts with twelve pieces each and seven opening moves", () => {
-    const state = checkers.start(random);
+    const state = checkers.start(2, random);
     const count = (seat: Seat): number => state.board.flat().filter((piece) => piece?.seat === seat).length;
     expect([count(0), count(1)]).toEqual([12, 12]);
     expect(legalCheckersMoves(state, 0)).toHaveLength(7);
@@ -89,7 +89,7 @@ describe("Checkers", () => {
   });
 
   it("forces a capture, takes the jumped piece and refuses a step instead", () => {
-    let state = checkers.start(random);
+    let state = checkers.start(2, random);
     state = move(state, 0, [2, 1], [3, 2]);
     state = move(state, 1, [5, 4], [4, 3]);
     expect(checkers.play(state, 0, { from: [2, 3], to: [3, 4] }, random)).toEqual({ ok: false, error: "You must jump" });
@@ -126,8 +126,8 @@ describe("Checkers", () => {
     board[2][1] = { seat: 0, isKing: false };
     board[3][2] = { seat: 1, isKing: false };
     const state = move({ board, turn: 0, jumpingFrom: null, outcome: null, lastMove: null }, 0, [2, 1], [4, 3]);
-    expect(state.outcome).toEqual({ kind: "win", winner: 0 });
-    expect(checkers.turn(state)).toBeNull();
+    expect(state.outcome).toEqual(expect.objectContaining({ winners: [0] }));
+    expect(checkers.toMove(state)).toEqual([]);
   });
 });
 
@@ -136,7 +136,7 @@ describe("Battleship", () => {
   const play = (state: BattleshipState, seat: Seat, move: unknown): BattleshipState => accepted(battleship.play(state, seat, move, random));
 
   function placedAndReady(): BattleshipState {
-    let state = battleship.start(random);
+    let state = battleship.start(2, random);
     state = play(state, 0, { kind: "autoPlace" });
     // Seat 1's ships go one to a row, from column 0.
     FLEET.forEach((ship, row) => {
@@ -147,7 +147,7 @@ describe("Battleship", () => {
   }
 
   it("auto-places a whole fleet without overlaps", () => {
-    const state = play(battleship.start(random), 0, { kind: "autoPlace" });
+    const state = play(battleship.start(2, random), 0, { kind: "autoPlace" });
     const cells = state.fleets[0].ships.flatMap((ship) => shipCells(ship.size, ship.at!).map(([row, column]) => row * 10 + column));
     expect(cells).toHaveLength(17);
     expect(new Set(cells).size).toBe(17);
@@ -155,12 +155,12 @@ describe("Battleship", () => {
   });
 
   it("finishes placing even when the random numbers never change", () => {
-    const state = accepted(battleship.play(battleship.start(random), 0, { kind: "autoPlace" }, () => 0.5));
+    const state = accepted(battleship.play(battleship.start(2, random), 0, { kind: "autoPlace" }, () => 0.5));
     expect(state.fleets[0].ships.every((ship) => ship.at !== null)).toBe(true);
   });
 
   it("refuses overlapping and off-board ships, and readiness before every ship is placed", () => {
-    let state = battleship.start(random);
+    let state = battleship.start(2, random);
     expect(battleship.play(state, 0, { kind: "place", ship: "carrier", row: 0, column: 6, isAcross: true }, random).ok).toBe(false);
     state = play(state, 0, { kind: "place", ship: "carrier", row: 0, column: 0, isAcross: true });
     expect(battleship.play(state, 0, { kind: "place", ship: "destroyer", row: 0, column: 4, isAcross: false }, random).ok).toBe(false);
@@ -173,29 +173,35 @@ describe("Battleship", () => {
   it("starts firing when both are ready, hides the enemy's ships and reveals a sunk one", () => {
     let state = placedAndReady();
     expect(state.phase).toBe("firing");
-    expect(battleship.turn(state)).toBe(0);
+    expect(battleship.toMove(state)).toEqual([0]);
     const seenBySeatZero = battleship.viewFor(state, 0);
     expect(seenBySeatZero.fleets[1].ships.every((ship) => ship.at === null)).toBe(true);
     expect(seenBySeatZero.fleets[0].ships.every((ship) => ship.at !== null)).toBe(true);
     expect(battleship.viewFor(state, null).fleets.every((fleet) => fleet.ships.every((ship) => ship.at === null))).toBe(true);
 
-    // The destroyer is in row 4, columns 0-1: a hit fires again, and two hits sink it.
+    // The destroyer is in row 4, columns 0-1. One shot a turn, hit or miss; two hits sink it.
     state = play(state, 0, { kind: "fire", row: 4, column: 0 });
-    expect(state.turn).toBe(0);
+    expect(state.turn).toBe(1);
+    expect(battleship.play(state, 0, { kind: "fire", row: 4, column: 1 }, random)).toEqual({ ok: false, error: "Not your turn" });
+    state = play(state, 1, { kind: "fire", row: 9, column: 9 });
     state = play(state, 0, { kind: "fire", row: 4, column: 1 });
     expect(state.lastShot?.sank).toBe("Destroyer");
     expect(battleship.viewFor(state, 0).fleets[1].ships[4].at).toEqual({ row: 4, column: 0, isAcross: true });
+    state = play(state, 1, { kind: "fire", row: 9, column: 8 });
     expect(battleship.play(state, 0, { kind: "fire", row: 4, column: 1 }, random)).toEqual({ ok: false, error: "You have already fired there" });
-    state = play(state, 0, { kind: "fire", row: 9, column: 9 });
-    expect(state.turn).toBe(1);
   });
 
   it("is won by sinking the whole fleet", () => {
     let state = placedAndReady();
+    // Seat 1 fires down its own column 9 meanwhile, never sinking anything.
+    let reply = 0;
     FLEET.forEach((ship, row) => {
-      for (let column = 0; column < ship.size; column++) state = play(state, 0, { kind: "fire", row, column });
+      for (let column = 0; column < ship.size; column++) {
+        state = play(state, 0, { kind: "fire", row, column });
+        if (!state.outcome) state = play(state, 1, { kind: "fire", row: reply % 10, column: 9 - Math.floor(reply++ / 10) });
+      }
     });
-    expect(state.outcome).toEqual({ kind: "win", winner: 0 });
+    expect(state.outcome).toEqual(expect.objectContaining({ winners: [0] }));
     expect(battleship.viewFor(state, null).fleets[0].ships.every((ship) => ship.at !== null)).toBe(true);
   });
 });

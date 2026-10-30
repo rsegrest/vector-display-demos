@@ -1,4 +1,4 @@
-import { isIndex, isRecord, otherSeat, refuse, type MoveResult, type Outcome, type Seat, type TableGame } from "../TableGame.js";
+import { isIndex, isRecord, otherSeat, refuse, type Choice, type MoveResult, type Outcome, type Seat, type TableGame } from "../TableGame.js";
 
 export const BATTLESHIP_SIZE = 10;
 
@@ -114,13 +114,13 @@ function fire(state: BattleshipState, seat: Seat, row: number, column: number): 
   const ships = target.ships.map((ship) => (ship === hitShip ? { ...ship, isSunk: isSunk(ship) } : ship));
   const sank = hitShip && !hitShip.isSunk && isSunk(hitShip) ? hitShip.name : null;
   const isFleetSunk = ships.every((ship) => ship.isSunk);
-  // A hit fires again, as in game-clawtroller; a miss passes the turn.
+  // One shot a turn, hit or miss, as in Milton Bradley's rules.
   return {
     ok: true,
     state: {
       ...withFleet(state, otherSeat(seat), { ...target, ships, shots }),
-      turn: hitShip ? seat : otherSeat(seat),
-      outcome: isFleetSunk ? { kind: "win", winner: seat } : null,
+      turn: otherSeat(seat),
+      outcome: isFleetSunk ? { winners: [seat], summary: "The whole fleet is sunk" } : null,
       lastShot: { seat, row, column, shot: hitShip ? "hit" : "miss", sank },
     },
   };
@@ -150,6 +150,12 @@ function hiddenFleet(fleet: Fleet): Fleet {
 export const battleship: TableGame<BattleshipState, BattleshipView> = {
   id: "battleship",
   title: "Battleship",
+  description: "Hide five ships, then hunt down the other fleet.",
+  family: "board",
+  minPlayers: 2,
+  maxPlayers: 2,
+  strategy:
+    "Sink all five enemy ships first. Players take one shot each in turn. After a hit, fire at the squares next to it to find which way the ship lies, and follow the line until it sinks. Otherwise spread shots in a checkerboard pattern, since every ship is at least two squares long.",
 
   start: () => ({ phase: "placing", fleets: [emptyFleet(), emptyFleet()], turn: 0, outcome: null, lastShot: null }),
 
@@ -190,6 +196,51 @@ export const battleship: TableGame<BattleshipState, BattleshipView> = {
     return { ...state, fleets };
   },
 
-  turn: (state) => (state.outcome || state.phase === "placing" ? null : state.turn),
+  toMove(state) {
+    if (state.outcome) return [];
+    if (state.phase === "placing") return ([0, 1] as const).filter((seat) => !state.fleets[seat].isReady);
+    return [state.turn];
+  },
   outcome: (state) => state.outcome,
+
+  // Hunt and target: next to a hit on a ship not yet sunk, along its line if two hits show it;
+  // otherwise on a checkerboard, where every ship (two squares or more) must touch.
+  simpleStrategy(view, seat, choices, random) {
+    if (view.phase !== "firing") return choices[0];
+    const target = view.fleets[otherSeat(seat)];
+    const sunkCells = new Set(target.ships.filter((ship) => ship.isSunk && ship.at).flatMap((ship) => shipCells(ship.size, ship.at!).map(([r, c]) => r * BATTLESHIP_SIZE + c)));
+    const isOpenHit = (row: number, column: number): boolean =>
+      isIndex(row, BATTLESHIP_SIZE) && isIndex(column, BATTLESHIP_SIZE) && target.shots[row][column] === "hit" && !sunkCells.has(row * BATTLESHIP_SIZE + column);
+    const score = (choice: Choice): number => {
+      const { row, column } = choice.move as { row: number; column: number };
+      let value = (row + column) % 2 === 0 ? 1 : 0;
+      for (const [rowStep, columnStep] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+        if (!isOpenHit(row + rowStep, column + columnStep)) continue;
+        value += 10;
+        // Two hits in a line: the ship lies along it.
+        if (isOpenHit(row + 2 * rowStep, column + 2 * columnStep)) value += 10;
+      }
+      return value + random();
+    };
+    return [...choices].sort((a, b) => score(b) - score(a))[0];
+  },
+
+  choices(state, seat): Choice[] {
+    if (state.outcome) return [];
+    if (state.phase === "placing") {
+      if (state.fleets[seat].isReady) return [];
+      return state.fleets[seat].ships.every((ship) => ship.at)
+        ? [{ move: { kind: "ready" }, label: "ready: the ships are placed" }]
+        : [{ move: { kind: "autoPlace" }, label: "place the ships at random" }];
+    }
+    if (seat !== state.turn) return [];
+    const shots = state.fleets[otherSeat(seat)].shots;
+    const choices: Choice[] = [];
+    for (let row = 0; row < BATTLESHIP_SIZE; row++) {
+      for (let column = 0; column < BATTLESHIP_SIZE; column++) {
+        if (!shots[row][column]) choices.push({ move: { kind: "fire", row, column }, label: `fire at ${"ABCDEFGHIJ"[row]}${column + 1}` });
+      }
+    }
+    return choices;
+  },
 };

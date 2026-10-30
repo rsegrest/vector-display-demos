@@ -1,6 +1,7 @@
 // A smoke test of the room server as it runs: start `npm run dev` here first, then `npm run smoke`.
-// Two members join a room, chat, start Connect 4 by invitation and play it to a win, and one
-// reconnects in the middle and keeps their seat. Also checks that other pages are refused.
+// Two members join a room, chat, start Connect 4 (one opens the table, the other sits down) and
+// play it to a win, and one reconnects in the middle and keeps their seat; then one plays a
+// computer player, which answers each move. Also checks that other pages are refused.
 // Pass a server address to test another one: npm run smoke -- https://vector-table-games.example.workers.dev
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -61,34 +62,48 @@ await alice.next("members", (message) => message.members.length === 2);
 alice.send({ type: "chat", text: "Hello, Bob" });
 await bob.next("chat", (message) => message.entries.at(-1)?.text === "Hello, Bob");
 
-alice.send({ type: "invite", to: bobId, game: "connect4" });
-await bob.next("invites", (message) => message.invites[0]?.from === aliceId);
-bob.send({ type: "answer", from: aliceId, accept: true });
-let game = (await alice.next("game", (message) => message.game !== null)).game;
+alice.send({ type: "open", game: "connect4", invite: bobId });
+await bob.next("table", (message) => message.table?.invited === bobId);
+bob.send({ type: "sit" });
+let game = (await alice.next("table", (message) => message.table?.isStarted)).table;
 assert.deepEqual(game.seats, [aliceId, bobId]);
 
-// Seat 0's turn, after this many discs.
-const discsAre = (count) => (message) => message.game?.view.board.flat().filter((cell) => cell !== null).length === count;
+// A table whose board has this many discs.
+const discsAre = (count) => (message) => message.table?.view?.board.flat().filter((cell) => cell !== null).length === count;
 
 // Alice fills column 0 from the bottom while Bob plays column 1; Alice reconnects after her second disc.
 let aliceNow = alice;
 for (let turn = 0; turn < 3; turn++) {
   aliceNow.send({ type: "move", move: { column: 0 } });
-  await bob.next("game", discsAre(2 * turn + 1));
+  await bob.next("table", discsAre(2 * turn + 1));
   bob.send({ type: "move", move: { column: 1 } });
-  await aliceNow.next("game", discsAre(2 * turn + 2));
+  await aliceNow.next("table", discsAre(2 * turn + 2));
   if (turn === 1) {
     aliceNow.socket.close();
     await bob.next("members", (message) => message.members.find((member) => member.id === aliceId)?.isOnline === false);
     aliceNow = await connect(aliceToken, "Alice");
     assert.equal((await aliceNow.next("welcome")).you, aliceId, "the same token comes back as the same member");
-    game = (await aliceNow.next("game")).game;
-    assert.equal(game.turn, 0, "and keeps their seat");
+    game = (await aliceNow.next("table")).table;
+    assert.deepEqual(game.toMove, [0], "and keeps their seat");
   }
 }
 aliceNow.send({ type: "move", move: { column: 0 } });
-game = (await bob.next("game", discsAre(7))).game;
-assert.deepEqual(game.outcome, { kind: "win", winner: 0 });
+game = (await bob.next("table", discsAre(7))).table;
+assert.deepEqual(game.outcome.winners, [0]);
+
+// Against the computer: Alice clears the table, opens another and adds a computer player.
+aliceNow.send({ type: "close" });
+await aliceNow.next("table", (message) => message.table === null);
+aliceNow.send({ type: "open", game: "connect4", invite: null });
+await aliceNow.next("table", (message) => message.table?.host === aliceId && !message.table.isStarted);
+aliceNow.send({ type: "addComputer" });
+game = (await aliceNow.next("table", (message) => message.table?.isStarted)).table;
+console.log(`computer player: ${game.names[1]}`);
+for (let disc = 1; disc <= 3; disc += 2) {
+  aliceNow.send({ type: "move", move: { column: 3 } });
+  // The computer's reply arrives by itself, Jev taking a few seconds at most.
+  await aliceNow.next("table", discsAre(disc + 1), 20);
+}
 
 aliceNow.socket.close();
 bob.socket.close();

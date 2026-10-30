@@ -36,7 +36,7 @@ interface Batch {
 // by color and brightness and drawn in one batch each; text is kept for drawText.
 export class Ui {
   private readonly batches = new Map<string, Batch>();
-  private targets: { rect: Rect; onPress: () => void }[] = [];
+  private targets: { rect: Rect; onPress: () => void; label?: string }[] = [];
   private displayList: DisplayList | null = null;
   private texts: TextRun[] = [];
   public pointerX = -1;
@@ -82,8 +82,14 @@ export class Ui {
     return contains(rect, this.pointerX, this.pointerY);
   }
 
-  public region(rect: Rect, onPress: () => void): void {
-    this.targets.push({ rect, onPress });
+  public region(rect: Rect, onPress: () => void, label?: string): void {
+    this.targets.push({ rect, onPress, label });
+  }
+
+  // Where the button with this label was drawn last frame, if it was: for tests, and for
+  // anything that drives the window by its buttons' names.
+  public buttonRect(label: string): Rect | null {
+    return this.targets.find((target) => target.label === label)?.rect ?? null;
   }
 
   public pen(color: BeamColor, intensity: number): DynamicGeometry {
@@ -143,6 +149,6 @@ export class Ui {
     const isHovered = this.isHovered(rect);
     this.rect(color, isHovered ? 1.1 : 0.5, rect);
     this.text(color, label, rect.x + rect.width / 2, rect.y + (rect.height - size) / 2, size, "center", isHovered ? 1.3 : 0.95);
-    this.region(rect, onPress);
+    this.region(rect, onPress, label);
   }
 }

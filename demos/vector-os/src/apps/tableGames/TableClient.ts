@@ -1,4 +1,4 @@
-import type { ChatEntry, ClientMessage, GameInfo, Invite, MemberInfo, ServerMessage } from "@vector-demos/table-games";
+import type { ChatEntry, ClientMessage, MemberInfo, ServerMessage, TableInfo } from "@vector-demos/table-games";
 import { LIMITS } from "@vector-demos/table-games";
 
 // The part of a WebSocket the client uses, so tests can stand in for one.
@@ -26,8 +26,9 @@ export class TableClient {
   public you: string | null = null;
   public members: readonly MemberInfo[] = [];
   public chat: ChatEntry[] = [];
-  public invites: readonly Invite[] = [];
-  public game: GameInfo | null = null;
+  public table: TableInfo | null = null;
+  // What the room calls its computer players: "Jev", or "Computer" when the server has no key.
+  public computerName = "Computer";
   // The last thing the room refused, shown until the next one or until cleared.
   public notice: string | null = null;
   // Counts every change, so the window knows to redraw what depends on the room.
@@ -95,6 +96,7 @@ export class TableClient {
       case "welcome":
         this.status = "connected";
         this.you = message.you;
+        this.computerName = message.computerName;
         // The room sends its history next, in full.
         this.chat = [];
         this.notice = null;
@@ -105,11 +107,8 @@ export class TableClient {
       case "chat":
         this.chat = [...this.chat, ...message.entries].slice(-LIMITS.chatHistory);
         return;
-      case "invites":
-        this.invites = message.invites;
-        return;
-      case "game":
-        this.game = message.game;
+      case "table":
+        this.table = message.table;
         return;
       case "error":
         this.notice = message.message;

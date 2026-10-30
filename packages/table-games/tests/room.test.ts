@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { readClientMessage, Room, roomCodeFrom, isRoomCode, type BattleshipView, type Delivery, type ServerMessage } from "../src/index.js";
+import {
+  findAnswers,
+  isRoomCode,
+  jevChoice,
+  readClientMessage,
+  Room,
+  roomCodeFrom,
+  rulesFor,
+  simpleChoice,
+  type BattleshipView,
+  type ConnectFourState,
+  type Delivery,
+  type ServerMessage,
+  type TableInfo,
+} from "../src/index.js";
 
 const TOKEN_A = "token-for-alice-000001";
 const TOKEN_B = "token-for-bob-00000002";
@@ -16,10 +30,26 @@ function messagesTo(deliveries: Delivery[], memberId: string, type: ServerMessag
   return deliveries.filter((delivery) => delivery.to === memberId && delivery.message.type === type).map((delivery) => delivery.message);
 }
 
-function gameTo(deliveries: Delivery[], memberId: string) {
-  const [message] = messagesTo(deliveries, memberId, "game");
-  if (message?.type !== "game" || !message.game) throw new Error("no game sent");
-  return message.game;
+function tableTo(deliveries: Delivery[], memberId: string): TableInfo | null {
+  const [message] = messagesTo(deliveries, memberId, "table");
+  if (message?.type !== "table") throw new Error("no table sent");
+  return message.table;
+}
+
+function errorTo(deliveries: Delivery[], memberId: string): string | undefined {
+  const [message] = messagesTo(deliveries, memberId, "error");
+  return message?.type === "error" ? message.message : undefined;
+}
+
+// A room with Alice and Bob in it, Alice having opened a Connect 4 table and Bob sat down (which starts it).
+function connectFourGame(): { room: Room; alice: string; bob: string; carol: string } {
+  const room = Room.empty("ABCDEF");
+  const alice = joined(room, TOKEN_A, "Alice");
+  const bob = joined(room, TOKEN_B, "Bob");
+  const carol = joined(room, TOKEN_C, "Carol");
+  room.receive(alice, { type: "open", game: "connect4", invite: null }, 1, random);
+  room.receive(bob, { type: "sit" }, 1, random);
+  return { room, alice, bob, carol };
 }
 
 describe("room codes and messages", () => {
@@ -33,8 +63,10 @@ describe("room codes and messages", () => {
 
   it("reads only well-formed client messages", () => {
     expect(readClientMessage('{"type":"chat","text":"hi"}')).toEqual({ type: "chat", text: "hi" });
+    expect(readClientMessage('{"type":"open","game":"connect4","invite":null}')).toEqual({ type: "open", game: "connect4", invite: null });
+    expect(readClientMessage('{"type":"sit"}')).toEqual({ type: "sit" });
     expect(readClientMessage('{"type":"hello","token":"short","name":"x"}')).toBeNull();
-    expect(readClientMessage('{"type":"invite","to":"m2","game":"chess"}')).toBeNull();
+    expect(readClientMessage('{"type":"open","game":"go"}')).toBeNull();
     expect(readClientMessage("not json")).toBeNull();
     expect(readClientMessage(`{"type":"chat","text":"${"x".repeat(5000)}"}`)).toBeNull();
   });
@@ -42,24 +74,27 @@ describe("room codes and messages", () => {
 
 describe("Room", () => {
   it("welcomes a member with the history and tells everyone who is here", () => {
-    const room = Room.empty("ABCDEF");
+    const room = Room.empty("ABCDEF", { computerName: "Jev" });
     const alice = joined(room, TOKEN_A, "Alice");
     room.receive(alice, { type: "chat", text: "  hello\u0007   there " }, 2000, random);
     const result = room.join(TOKEN_B, "Bob", 3000);
     if (!result.ok) throw new Error(result.error);
     const bob = result.memberId;
-    expect(bob).toBe("m2");
-    expect(messagesTo(result.deliveries, bob, "welcome")).toEqual([{ type: "welcome", you: "m2", room: "ABCDEF" }]);
+    expect(messagesTo(result.deliveries, bob, "welcome")).toEqual([{ type: "welcome", you: "m2", room: "ABCDEF", computerName: "Jev" }]);
     expect(messagesTo(result.deliveries, bob, "chat")).toEqual([{ type: "chat", entries: [{ from: alice, name: "Alice", text: "hello there", at: 2000 }] }]);
-    const members = messagesTo(result.deliveries, alice, "members")[0];
-    expect(members).toEqual({ type: "members", members: [{ id: "m1", name: "Alice", isOnline: true }, { id: "m2", name: "Bob", isOnline: true }] });
+    expect(messagesTo(result.deliveries, alice, "members")[0]).toEqual({
+      type: "members",
+      members: [
+        { id: "m1", name: "Alice", isOnline: true },
+        { id: "m2", name: "Bob", isOnline: true },
+      ],
+    });
   });
 
   it("keeps a member who comes back with the same token, and never sends tokens", () => {
     const room = Room.empty("ABCDEF");
     const alice = joined(room, TOKEN_A, "Alice");
-    const leaving = room.leave(alice, 5000);
-    expect(leaving).toEqual([]);
+    expect(room.leave(alice, 5000)).toEqual([]);
     const again = room.join(TOKEN_A, "Alice 2", 6000);
     expect(again.ok && again.memberId).toBe(alice);
     expect(JSON.stringify(again)).not.toContain(TOKEN_A);
@@ -75,70 +110,56 @@ describe("Room", () => {
     expect(room.snapshot.chat.at(-1)?.text).toBe("later 59");
   });
 
-  it("starts a game when an invitation is accepted, the inviter moving first, with others watching", () => {
+  it("opens a table, starts a two-player game when the second seat is taken, and lets others watch", () => {
     const room = Room.empty("ABCDEF");
     const alice = joined(room, TOKEN_A, "Alice");
     const bob = joined(room, TOKEN_B, "Bob");
     const carol = joined(room, TOKEN_C, "Carol");
-    expect(room.receive(alice, { type: "invite", to: alice, game: "connect4" }, 1, random)[0].message.type).toBe("error");
-    const invited = room.receive(alice, { type: "invite", to: bob, game: "connect4" }, 1, random);
-    expect(messagesTo(invited, carol, "invites")).toEqual([{ type: "invites", invites: [{ from: alice, to: bob, game: "connect4" }] }]);
-    expect(room.receive(carol, { type: "answer", from: alice, accept: true }, 1, random)[0].message).toEqual({ type: "error", message: "That invitation has gone" });
-
-    const started = room.receive(bob, { type: "answer", from: alice, accept: true }, 1, random);
-    const game = gameTo(started, carol);
-    expect(game.seats).toEqual([alice, bob]);
-    expect(game.turn).toBe(0);
-    expect(room.snapshot.invites).toEqual([]);
-
-    expect(room.receive(carol, { type: "move", move: { column: 3 } }, 1, random)[0].message).toEqual({ type: "error", message: "You are not playing" });
-    expect(room.receive(bob, { type: "move", move: { column: 3 } }, 1, random)[0].message).toEqual({ type: "error", message: "Not your turn" });
-    const moved = room.receive(alice, { type: "move", move: { column: 3 } }, 1, random);
-    expect(gameTo(moved, bob).turn).toBe(1);
-    expect(room.receive(alice, { type: "invite", to: carol, game: "checkers" }, 1, random)[0].message.type).toBe("error");
+    const opened = tableTo(room.receive(alice, { type: "open", game: "connect4", invite: bob }, 1, random), carol);
+    expect(opened).toMatchObject({ game: "connect4", host: alice, seats: [alice], invited: bob, isStarted: false });
+    const started = tableTo(room.receive(bob, { type: "sit" }, 1, random), carol)!;
+    expect(started).toMatchObject({ seats: [alice, bob], names: ["Alice", "Bob"], isStarted: true, toMove: [0], invited: null });
+    expect(errorTo(room.receive(carol, { type: "sit" }, 1, random), carol)).toBe("There is no table to sit at");
+    expect(errorTo(room.receive(carol, { type: "move", move: { column: 3 } }, 1, random), carol)).toBe("You are not playing");
+    expect(errorTo(room.receive(bob, { type: "move", move: { column: 3 } }, 1, random), bob)).toBe("Not your turn");
+    expect(tableTo(room.receive(alice, { type: "move", move: { column: 3 } }, 1, random), bob)?.toMove).toEqual([1]);
+    expect(errorTo(room.receive(carol, { type: "open", game: "checkers", invite: null }, 1, random), carol)).toBe("The table is in use; wait for that game to end");
   });
 
-  it("has one table: nobody can start another game while one is on", () => {
-    const room = Room.empty("ABCDEF");
-    const [alice, bob, carol, dave] = [TOKEN_A, TOKEN_B, TOKEN_C, "token-for-dave-0000004"].map((token, index) => joined(room, token, `P${index}`));
-    room.receive(carol, { type: "invite", to: dave, game: "checkers" }, 1, random);
-    room.receive(alice, { type: "invite", to: bob, game: "connect4" }, 1, random);
-    room.receive(bob, { type: "answer", from: alice, accept: true }, 1, random);
-    // Carol's invitation lapsed when the game began.
-    expect(room.snapshot.invites).toEqual([]);
-    const answered = room.receive(dave, { type: "answer", from: carol, accept: true }, 1, random);
-    expect(messagesTo(answered, dave, "error")).toEqual([{ type: "error", message: "That invitation has gone" }]);
-    expect(room.snapshot.game?.seats).toEqual([alice, bob]);
-    expect(room.receive(carol, { type: "invite", to: dave, game: "checkers" }, 1, random)[0].message.type).toBe("error");
-  });
-
-  it("lets anyone accept an open invitation, including someone who arrives after it was made", () => {
-    const room = Room.empty("ABCDEF");
-    const alice = joined(room, TOKEN_A, "Alice");
-    room.receive(alice, { type: "invite", to: null, game: "battleship" }, 1, random);
-    expect(room.receive(alice, { type: "answer", from: alice, accept: true }, 1, random)[0].message.type).toBe("error");
-    const arriving = room.join(TOKEN_B, "Bob", 2);
-    if (!arriving.ok) throw new Error(arriving.error);
-    const bob = arriving.memberId;
-    expect(messagesTo(arriving.deliveries, bob, "invites")).toEqual([{ type: "invites", invites: [{ from: alice, to: null, game: "battleship" }] }]);
-    const carol = joined(room, TOKEN_C, "Carol");
-    // Carol says no; it stays open, and Bob takes it.
-    expect(room.receive(carol, { type: "answer", from: alice, accept: false }, 3, random)).toEqual([]);
-    const started = room.receive(bob, { type: "answer", from: alice, accept: true }, 4, random);
-    expect(gameTo(started, carol).seats).toEqual([alice, bob]);
-  });
-
-  it("ends a game when a player resigns, the other winning", () => {
+  it("lets an invited member say no, and the host get up, which clears the table", () => {
     const room = Room.empty("ABCDEF");
     const alice = joined(room, TOKEN_A, "Alice");
     const bob = joined(room, TOKEN_B, "Bob");
-    room.receive(alice, { type: "invite", to: bob, game: "checkers" }, 1, random);
-    room.receive(bob, { type: "answer", from: alice, accept: true }, 1, random);
-    const resigned = gameTo(room.receive(bob, { type: "resign" }, 1, random), alice);
-    expect(resigned.outcome).toEqual({ kind: "win", winner: 0 });
-    expect(resigned.turn).toBeNull();
-    // Once it is over, a new game can be arranged.
-    expect(room.receive(bob, { type: "invite", to: alice, game: "connect4" }, 1, random)[0].message.type).toBe("invites");
+    room.receive(alice, { type: "open", game: "checkers", invite: bob }, 1, random);
+    expect(tableTo(room.receive(bob, { type: "stand" }, 1, random), alice)?.invited).toBeNull();
+    expect(tableTo(room.receive(alice, { type: "stand" }, 1, random), bob)).toBeNull();
+  });
+
+  it("ends a game when a player resigns, the other winning, and anyone may then clear the table", () => {
+    const { room, alice, bob, carol } = connectFourGame();
+    const resigned = tableTo(room.receive(bob, { type: "resign" }, 1, random), alice)!;
+    expect(resigned.outcome).toEqual({ winners: [0], summary: "Bob resigned" });
+    expect(resigned.toMove).toEqual([]);
+    expect(tableTo(room.receive(carol, { type: "close" }, 1, random), alice)).toBeNull();
+  });
+
+  it("seats computer players, which the host adds, and hands their turns to the server", () => {
+    const room = Room.empty("ABCDEF", { computerName: "Jev" });
+    const alice = joined(room, TOKEN_A, "Alice");
+    room.receive(alice, { type: "open", game: "connect4", invite: null }, 1, random);
+    const started = tableTo(room.receive(alice, { type: "addComputer" }, 1, random), alice)!;
+    expect(started).toMatchObject({ seats: [alice, "c1"], names: ["Alice", "Jev"], isComputer: [false, true], isStarted: true });
+    expect(room.computerTurn()).toBeNull();
+    room.receive(alice, { type: "move", move: { column: 0 } }, 1, random);
+    const turn = room.computerTurn()!;
+    expect(turn.seat).toBe(1);
+    const decision = simpleChoice({ game: rulesFor(turn.game), state: turn.state, view: turn.view, seat: turn.seat, random })!;
+    const after = tableTo(room.computerMove(turn.seat, decision.choice.move, random), alice)!;
+    expect((after.view as ConnectFourState).board.flat().filter((cell) => cell === 1)).toHaveLength(1);
+    expect(after.toMove).toEqual([0]);
+    // A bad choice is replaced by a legal one rather than holding up the game.
+    room.receive(alice, { type: "move", move: { column: 0 } }, 1, random);
+    expect(tableTo(room.computerMove(1, { column: 99 }, random), alice)?.toMove).toEqual([0]);
   });
 
   it("sends each Battleship player their own ships and nobody else's", () => {
@@ -146,27 +167,21 @@ describe("Room", () => {
     const alice = joined(room, TOKEN_A, "Alice");
     const bob = joined(room, TOKEN_B, "Bob");
     const carol = joined(room, TOKEN_C, "Carol");
-    room.receive(alice, { type: "invite", to: bob, game: "battleship" }, 1, random);
-    room.receive(bob, { type: "answer", from: alice, accept: true }, 1, random);
+    room.receive(alice, { type: "open", game: "battleship", invite: null }, 1, random);
+    room.receive(bob, { type: "sit" }, 1, random);
     const placed = room.receive(alice, { type: "move", move: { kind: "autoPlace" } }, 1, random);
-    const seenBy = (memberId: string): BattleshipView => gameTo(placed, memberId).view as BattleshipView;
+    const seenBy = (memberId: string): BattleshipView => tableTo(placed, memberId)!.view as BattleshipView;
     expect(seenBy(alice).fleets[0].ships.every((ship) => ship.at !== null)).toBe(true);
     expect(seenBy(bob).fleets[0].ships.every((ship) => ship.at === null)).toBe(true);
     expect(seenBy(carol).fleets[0].ships.every((ship) => ship.at === null)).toBe(true);
   });
 
   it("carries on from its snapshot, as after the server has slept", () => {
-    const room = Room.empty("ABCDEF");
-    const alice = joined(room, TOKEN_A, "Alice");
-    const bob = joined(room, TOKEN_B, "Bob");
-    room.receive(alice, { type: "invite", to: bob, game: "connect4" }, 1, random);
-    room.receive(bob, { type: "answer", from: alice, accept: true }, 1, random);
-
+    const { room, alice, bob } = connectFourGame();
     const woken = new Room(JSON.parse(JSON.stringify(room.snapshot)));
     woken.restoreConnection(alice);
     woken.restoreConnection(bob);
-    const moved = woken.receive(alice, { type: "move", move: { column: 0 } }, 1, random);
-    expect(gameTo(moved, bob).turn).toBe(1);
+    expect(tableTo(woken.receive(alice, { type: "move", move: { column: 0 } }, 1, random), bob)?.toMove).toEqual([1]);
   });
 
   it("is full at eight people, but always lets a returning member back in", () => {
@@ -176,13 +191,50 @@ describe("Room", () => {
     room.leave(ids[3], 2);
     expect(room.join("token-number-0000000003", "P3", 3).ok).toBe(true);
   });
+});
 
-  it("drops invitations to or from someone who leaves", () => {
-    const room = Room.empty("ABCDEF");
-    const alice = joined(room, TOKEN_A, "Alice");
-    const bob = joined(room, TOKEN_B, "Bob");
-    room.receive(alice, { type: "invite", to: bob, game: "connect4" }, 1, random);
-    const left = room.leave(alice, 2);
-    expect(messagesTo(left, bob, "invites")).toEqual([{ type: "invites", invites: [] }]);
+describe("computer players", () => {
+  const connectFour = rulesFor("connect4");
+
+  // A position where seat 0 (to move) wins in column 3, and seat 1 would win in column 6 if not blocked.
+  function position(): ConnectFourState {
+    const board = Array.from({ length: 6 }, () => Array<0 | 1 | null>(7).fill(null));
+    board[5][0] = board[5][1] = board[5][2] = 0;
+    board[5][6] = board[4][6] = board[3][6] = 1;
+    return { board, turn: 0, outcome: null, winningCells: [], lastDrop: null };
+  }
+
+  it("take a winning move, and otherwise block the other player's", () => {
+    const state = position();
+    expect(simpleChoice({ game: connectFour, state, view: state, seat: 0, random })?.choice.move).toEqual({ column: 3 });
+    const blocking = { ...position(), board: position().board.map((row) => row.map((cell) => (cell === 0 ? null : cell))) };
+    blocking.board[5][0] = 0;
+    expect(simpleChoice({ game: connectFour, state: blocking, view: blocking, seat: 0, random })?.choice.move).toEqual({ column: 6 });
+  });
+
+  it("ask Jev to choose among the safe moves, and fall back to the simple choice when it fails", async () => {
+    const state = connectFour.start(2, random);
+    const sent: unknown[] = [];
+    const decided = await jevChoice({ game: connectFour, state, view: state, seat: 0, random }, async (body) => {
+      sent.push(body);
+      return { answers: { next_move: { choice: "column 5 of 7 (from the left)", confidence: 0.8 } } };
+    });
+    expect(decided).toMatchObject({ by: "jev", choice: { move: { column: 4 } }, confidence: 0.8 });
+    const request = sent[0] as { model: string; questions: { next_move: { type: string; criteria: Record<string, string> } } };
+    expect(request.model).toBe("~typesafe/jev-latest");
+    expect(Object.keys(request.questions.next_move.criteria)).toHaveLength(7);
+
+    const failed = await jevChoice({ game: connectFour, state, view: state, seat: 0, random }, async () => {
+      throw new Error("402 Payment Required");
+    });
+    expect(failed).toMatchObject({ by: "simple", note: "Jev failed: 402 Payment Required" });
+    const nonsense = await jevChoice({ game: connectFour, state, view: state, seat: 0, random }, async () => ({ answers: { next_move: { choice: "column 9" } } }));
+    expect(nonsense?.by).toBe("simple");
+  });
+
+  it("find the answers wherever the proxy puts them", () => {
+    expect(findAnswers({ answers: { a: 1 } })).toEqual({ a: 1 });
+    expect(findAnswers({ choices: [{ message: { content: JSON.stringify({ answers: { b: 2 } }) } }] })).toEqual({ b: 2 });
+    expect(findAnswers({ nothing: true })).toBeNull();
   });
 });

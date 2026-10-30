@@ -1,5 +1,18 @@
 import { DurableObject } from "cloudflare:workers";
-import { isRoomCode, readClientMessage, Room, type Delivery, type RoomSnapshot, type ServerMessage } from "@vector-demos/table-games";
+import {
+  isRoomCode,
+  JEV_ENDPOINT,
+  jevChoice,
+  readClientMessage,
+  Room,
+  rulesFor,
+  simpleChoice,
+  type ChooserInput,
+  type Decision,
+  type Delivery,
+  type RoomSnapshot,
+  type ServerMessage,
+} from "@vector-demos/table-games";
 
 // The Table Games room server. Each room is one Durable Object, found by its code, which
 // holds the room's WebSockets and its state. All the rules are in @vector-demos/table-games'
@@ -8,10 +21,15 @@ import { isRoomCode, readClientMessage, Room, type Delivery, type RoomSnapshot, 
 // The sockets use the hibernation API: between messages the object may be evicted from
 // memory with its sockets kept open, so an idle room costs nothing. Everything needed to
 // carry on is therefore in storage (the room) or on the sockets themselves (who each is).
+//
+// Computer players move from the object's alarm, set just after a change leaves one to move:
+// with OPENROUTER_API_KEY set (a secret: `npx wrangler secret put OPENROUTER_API_KEY`), they are
+// Jev; without it, or past the day's allowance of calls, they play the simple strategy.
 
 interface Env {
   readonly ROOMS: DurableObjectNamespace<RoomObject>;
   readonly ALLOWED_ORIGINS: string;
+  readonly OPENROUTER_API_KEY?: string;
 }
 
 // What each socket remembers about itself across hibernation.
@@ -24,6 +42,11 @@ interface SocketTag {
 // A room nobody has used for this long is deleted, history and all.
 const ROOM_LIFETIME_MS = 3 * 24 * 60 * 60 * 1000;
 const SNAPSHOT_KEY = "room";
+const JEV_USAGE_KEY = "jev-usage";
+// Jev calls one room may make in a day (about a cent's worth at TypeSafe's price per token);
+// past this its computer players play the simple strategy until the next day.
+const JEV_CALLS_PER_ROOM_PER_DAY = 400;
+const JEV_TIMEOUT_MS = 8000;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -91,14 +114,42 @@ export class RoomObject extends DurableObject<Env> {
     await this.closed(socket);
   }
 
-  // Nobody has used the room for ROOM_LIFETIME_MS: forget it, unless someone is still connected.
+  // A computer player's move, if one is due; otherwise nobody has used the room for
+  // ROOM_LIFETIME_MS: forget it, unless someone is still connected.
   public override async alarm(): Promise<void> {
+    const snapshot = this.room?.snapshot ?? (await this.ctx.storage.get<RoomSnapshot>(SNAPSHOT_KEY));
+    if (snapshot) {
+      const room = await this.loadRoom(snapshot.code, null);
+      const turn = room.computerTurn();
+      if (turn) {
+        const input: ChooserInput = { game: rulesFor(turn.game), state: turn.state, view: turn.view, seat: turn.seat, random: Math.random };
+        const decision = await this.decide(input);
+        if (decision) this.deliver(room.computerMove(turn.seat, decision.choice.move, Math.random));
+        await this.save(room);
+        return;
+      }
+    }
     if (this.ctx.getWebSockets().length > 0) {
       await this.ctx.storage.setAlarm(Date.now() + ROOM_LIFETIME_MS);
       return;
     }
     this.room = null;
     await this.ctx.storage.deleteAll();
+  }
+
+  // Jev when there is a key and allowance left today, the simple strategy otherwise.
+  private async decide(input: ChooserInput): Promise<Decision | null> {
+    const key = this.env.OPENROUTER_API_KEY;
+    if (!key || input.game.isPureChance) return simpleChoice(input);
+    const today = new Date().toISOString().slice(0, 10);
+    const usage = (await this.ctx.storage.get<{ day: string; calls: number }>(JEV_USAGE_KEY)) ?? { day: today, calls: 0 };
+    const calls = usage.day === today ? usage.calls : 0;
+    if (calls >= JEV_CALLS_PER_ROOM_PER_DAY) return simpleChoice(input);
+    await this.ctx.storage.put(JEV_USAGE_KEY, { day: today, calls: calls + 1 });
+    const decision = await jevChoice(input, (body) => askJev(key, body));
+    if (decision?.note) console.warn(decision.note);
+    if (decision) console.log(`${input.game.id}: ${decision.by} chose "${decision.choice.label}"${decision.confidence === undefined ? "" : ` (confidence ${decision.confidence.toFixed(2)})`}`);
+    return decision;
   }
 
   private async closed(socket: WebSocket): Promise<void> {
@@ -115,7 +166,8 @@ export class RoomObject extends DurableObject<Env> {
   private async loadRoom(code: string, closing: WebSocket | null): Promise<Room> {
     if (!this.room) {
       const snapshot = await this.ctx.storage.get<RoomSnapshot>(SNAPSHOT_KEY);
-      this.room = snapshot ? new Room(snapshot) : Room.empty(code);
+      const options = { computerName: this.env.OPENROUTER_API_KEY ? "Jev" : "Computer" };
+      this.room = snapshot ? new Room(snapshot, options) : Room.empty(code, options);
     }
     this.room.syncConnections(this.memberSockets(closing).map(({ memberId }) => memberId));
     return this.room;
@@ -129,9 +181,11 @@ export class RoomObject extends DurableObject<Env> {
       .filter((each): each is { socket: WebSocket; memberId: string } => each.memberId !== null);
   }
 
+  // Stores the room, and sets the alarm: soon, if a computer player is to move.
   private async save(room: Room): Promise<void> {
     await this.ctx.storage.put(SNAPSHOT_KEY, room.snapshot);
-    await this.ctx.storage.setAlarm(Date.now() + ROOM_LIFETIME_MS);
+    const turn = room.computerTurn();
+    await this.ctx.storage.setAlarm(Date.now() + (turn ? turn.pauseSeconds * 1000 : ROOM_LIFETIME_MS));
   }
 
   private deliver(deliveries: readonly Delivery[]): void {
@@ -142,6 +196,19 @@ export class RoomObject extends DurableObject<Env> {
       }
     }
   }
+}
+
+// One decisions request to Jev through OpenRouter, in the shape jev-arcade's probe found works
+// (TypeSafe's own {model, state, questions} body, at OpenRouter's decisions endpoint).
+async function askJev(key: string, body: unknown): Promise<unknown> {
+  const response = await fetch(JEV_ENDPOINT, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Vector OS Table Games" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(JEV_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`${response.status} ${(await response.text()).slice(0, 200)}`);
+  return response.json();
 }
 
 function send(socket: WebSocket, message: ServerMessage): void {
