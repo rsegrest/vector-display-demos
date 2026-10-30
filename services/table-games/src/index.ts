@@ -2,16 +2,17 @@ import { DurableObject } from "cloudflare:workers";
 import {
   isRoomCode,
   JEV_ENDPOINT,
-  jevChoice,
+  chooseMove,
   readClientMessage,
   Room,
   rulesFor,
-  simpleChoice,
   type ChooserInput,
   type Decision,
   type Delivery,
+  type JevTransport,
   type RoomSnapshot,
   type ServerMessage,
+  type Skill,
 } from "@vector-demos/table-games";
 
 // The Table Games room server. Each room is one Durable Object, found by its code, which
@@ -123,7 +124,7 @@ export class RoomObject extends DurableObject<Env> {
       const turn = room.computerTurn();
       if (turn) {
         const input: ChooserInput = { game: rulesFor(turn.game), state: turn.state, view: turn.view, seat: turn.seat, random: Math.random };
-        const decision = await this.decide(input);
+        const decision = await this.decide(input, turn.skill);
         if (decision) this.deliver(room.computerMove(turn.seat, decision.choice.move, Math.random));
         await this.save(room);
         return;
@@ -137,18 +138,23 @@ export class RoomObject extends DurableObject<Env> {
     await this.ctx.storage.deleteAll();
   }
 
-  // Jev when there is a key and allowance left today, the simple strategy otherwise.
-  private async decide(input: ChooserInput): Promise<Decision | null> {
+  // A move at the computer player's skill: with Jev when there is a key and allowance left
+  // today (a call is counted only when one is made), the simple strategy otherwise.
+  private async decide(input: ChooserInput, skill: Skill): Promise<Decision | null> {
     const key = this.env.OPENROUTER_API_KEY;
-    if (!key || input.game.isPureChance) return simpleChoice(input);
     const today = new Date().toISOString().slice(0, 10);
     const usage = (await this.ctx.storage.get<{ day: string; calls: number }>(JEV_USAGE_KEY)) ?? { day: today, calls: 0 };
     const calls = usage.day === today ? usage.calls : 0;
-    if (calls >= JEV_CALLS_PER_ROOM_PER_DAY) return simpleChoice(input);
-    await this.ctx.storage.put(JEV_USAGE_KEY, { day: today, calls: calls + 1 });
-    const decision = await jevChoice(input, (body) => askJev(key, body));
+    const transport: JevTransport | null =
+      key && calls < JEV_CALLS_PER_ROOM_PER_DAY
+        ? async (body) => {
+            await this.ctx.storage.put(JEV_USAGE_KEY, { day: today, calls: calls + 1 });
+            return askJev(key, body);
+          }
+        : null;
+    const decision = await chooseMove(input, skill, transport);
     if (decision?.note) console.warn(decision.note);
-    if (decision) console.log(`${input.game.id}: ${decision.by} chose "${decision.choice.label}"${decision.confidence === undefined ? "" : ` (confidence ${decision.confidence.toFixed(2)})`}`);
+    if (decision) console.log(`${input.game.id} (${skill}): ${decision.by} chose "${decision.choice.label}"${decision.confidence === undefined ? "" : ` (confidence ${decision.confidence.toFixed(2)})`}`);
     return decision;
   }
 

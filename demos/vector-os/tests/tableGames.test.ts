@@ -134,7 +134,7 @@ afterEach(() => {
 
 describe("Practice", () => {
   it("lets each Battleship side place in turn, hiding the other's ships, then fire in turn", () => {
-    const practice = new Practice("battleship", [false, false], () => 0.37);
+    const practice = new Practice("battleship", [false, false], "normal", () => 0.37);
     expect(practice.actingSeat).toBe(0);
     expect(practice.play({ kind: "autoPlace" })).toBeNull();
     expect(practice.play({ kind: "ready" })).toBeNull();
@@ -146,14 +146,16 @@ describe("Practice", () => {
     expect(practice.toMove).toEqual([0]);
   });
 
-  it("plays the computer's seat by itself, after a pause", () => {
-    const practice = new Practice("connect4", [false, true], () => 0.37);
-    expect(practice.names).toEqual(["Player 1", "Computer"]);
+  it("plays the computer's seat by itself, after a pause", async () => {
+    const practice = new Practice("connect4", [false, true], "normal", () => 0.37);
+    expect(practice.names).toEqual(["Player 1", "Computer (Normal)"]);
     practice.play({ column: 3 });
     expect(practice.toMove).toEqual([1]);
     practice.update(0.3);
     expect(practice.toMove).toEqual([1]);
     practice.update(0.5);
+    // The computer's choice arrives a moment later.
+    await Promise.resolve();
     expect(practice.toMove).toEqual([0]);
     expect((practice.view as ConnectFourState).board.flat().filter((cell) => cell === 1)).toHaveLength(1);
   });
@@ -272,23 +274,24 @@ describe("Table Games window", () => {
     alice.key("Enter");
     server.sockets[0].accept();
     press(alice, "Connect 4");
-    press(alice, "Play Computer");
+    press(alice, "Play Computer (Normal)");
     drawn(alice);
-    expect(alice.client!.table).toMatchObject({ seats: ["m1", "c1"], isComputer: [false, true], names: ["Alice", "Computer"] });
+    expect(alice.client!.table).toMatchObject({ seats: ["m1", "c1"], isComputer: [false, true], names: ["Alice", "Computer (Normal)"] });
   });
 
-  it("plays the computer here with no room and no server", () => {
+  it("plays the computer here with no room and no server", async () => {
     const server = new FakeServer();
     const tableGames = window(server);
     press(tableGames, "Choose a game to play here");
     press(tableGames, "Connect 4");
-    press(tableGames, "Play the computer");
+    press(tableGames, "Play the computer (Normal)");
     expect(tableGames.practice?.game).toBe("connect4");
     expect(tableGames.practice?.isComputer).toEqual([false, true]);
     expect(server.sockets).toHaveLength(0);
     const practice = tableGames.practice!;
     clickWhere(tableGames, () => practice.toMove[0] === 1, { left: 0, top: 100, right: WIDTH, bottom: HEIGHT });
     tableGames.update(1);
+    await Promise.resolve();
     expect((practice.view as ConnectFourState).board.flat().filter((cell) => cell !== null)).toHaveLength(2);
   });
 

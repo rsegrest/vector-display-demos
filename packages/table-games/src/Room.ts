@@ -1,3 +1,4 @@
+import { SKILL_TITLES, type Skill } from "./choosers.js";
 import { cleanText, LIMITS, type ChatEntry, type ClientMessage, type MemberInfo, type ServerMessage, type TableInfo } from "./protocol.js";
 import { hasRules, rulesFor } from "./registry.js";
 import type { GameId, Outcome, Seat } from "./TableGame.js";
@@ -21,6 +22,8 @@ interface StoredTable {
   readonly endedEarly: Outcome | null;
   // Set when a player gave up a two-player game.
   readonly resignedBy: Seat | null;
+  // Each computer player's skill, by its id ("c1"). Missing in rooms stored before skills: normal.
+  readonly skills?: Readonly<Record<string, Skill>>;
 }
 
 // Everything a room keeps between messages: the server stores this after each change, so
@@ -44,6 +47,7 @@ export type JoinResult = { readonly ok: true; readonly memberId: string; readonl
 // A computer player whose move it is, with what it needs to choose.
 export interface ComputerTurn {
   readonly seat: Seat;
+  readonly skill: Skill;
   // How long the computer player waits before moving, in seconds.
   readonly pauseSeconds: number;
   readonly game: GameId;
@@ -161,7 +165,7 @@ export class Room {
       case "stand":
         return this.stand(memberId);
       case "addComputer":
-        return this.addComputer(memberId, random);
+        return this.addComputer(memberId, message.skill, random);
       case "start":
         return this.start(memberId, random);
       case "move":
@@ -180,7 +184,7 @@ export class Room {
     const rules = rulesFor(table.game);
     const seat = rules.toMove(table.state).find((each) => isComputerId(table.seats[each]));
     if (seat === undefined) return null;
-    return { seat, game: table.game, view: rules.viewFor(table.state, seat), state: table.state, pauseSeconds: rules.computerPauseSeconds ?? 0.7 };
+    return { seat, skill: table.skills?.[table.seats[seat]] ?? "normal", game: table.game, view: rules.viewFor(table.state, seat), state: table.state, pauseSeconds: rules.computerPauseSeconds ?? 0.7 };
   }
 
   // A computer player's chosen move. If the rules refuse it (the table changed meanwhile, or the
@@ -246,12 +250,12 @@ export class Room {
     return this.tableToEveryone();
   }
 
-  private addComputer(memberId: string, random: () => number): Delivery[] {
+  private addComputer(memberId: string, skill: Skill, random: () => number): Delivery[] {
     const table = this.snapshotData.table;
     if (!table || table.state !== null || table.host !== memberId) return this.refuse(memberId, "Only the table's host can add a computer player");
     if (table.seats.length >= rulesFor(table.game).maxPlayers) return this.refuse(memberId, "Every seat is taken");
-    const computers = table.seats.filter(isComputerId).length;
-    this.setTable({ ...table, seats: [...table.seats, `c${computers + 1}`] });
+    const id = `c${table.seats.filter(isComputerId).length + 1}`;
+    this.setTable({ ...table, seats: [...table.seats, id], skills: { ...table.skills, [id]: skill } });
     return this.startIfFull(random);
   }
 
@@ -297,9 +301,9 @@ export class Room {
       // The last person at a table of computers: the game ends.
       this.setTable({ ...table, endedEarly: { winners: [], summary: `${this.nameOf(memberId)} left the table` } });
     } else {
-      // A computer player takes over the seat, so the others play on.
-      const computers = table.seats.filter(isComputerId).length;
-      this.setTable({ ...table, seats: table.seats.map((holder, index) => (index === seat ? `c${computers + 1}` : holder)) });
+      // A computer player (of normal skill) takes over the seat, so the others play on.
+      const id = `c${table.seats.filter(isComputerId).length + 1}`;
+      this.setTable({ ...table, seats: table.seats.map((holder, index) => (index === seat ? id : holder)), skills: { ...table.skills, [id]: "normal" } });
     }
     return this.tableToEveryone();
   }
@@ -341,7 +345,8 @@ export class Room {
     const holder = table.seats[seat];
     if (!isComputerId(holder)) return this.nameOf(holder);
     const computers = table.seats.filter(isComputerId);
-    return computers.length === 1 ? this.computerName : `${this.computerName} ${computers.indexOf(holder) + 1}`;
+    const name = computers.length === 1 ? this.computerName : `${this.computerName} ${computers.indexOf(holder) + 1}`;
+    return `${name} (${SKILL_TITLES[table.skills?.[holder] ?? "normal"]})`;
   }
 
   private tableMessageFor(memberId: string): ServerMessage {

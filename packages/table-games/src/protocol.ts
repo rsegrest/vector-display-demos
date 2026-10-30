@@ -1,3 +1,4 @@
+import { isSkill, type Skill } from "./choosers.js";
 import { isRecord, type GameId, type Outcome, type Seat } from "./TableGame.js";
 
 // The messages between a Table Games window and its room, sent as JSON over one WebSocket.
@@ -63,7 +64,8 @@ export type ClientMessage =
   | { readonly type: "sit" }
   // Gets up from a table not yet started (the host getting up closes it), or turns down an invitation.
   | { readonly type: "stand" }
-  | { readonly type: "addComputer" }
+  // A computer player at this skill (normal if left out).
+  | { readonly type: "addComputer"; readonly skill: Skill }
   | { readonly type: "start" }
   | { readonly type: "move"; readonly move: unknown }
   // Gives up: in a two-player game the other player wins; with more, a computer takes the seat.
@@ -143,9 +145,11 @@ export function readClientMessage(raw: string): ClientMessage | null {
       return { type: "open", game: message.game as GameId, invite: (message.invite as string | undefined) ?? null };
     case "move":
       return { type: "move", move: message.move };
+    case "addComputer":
+      if (message.skill !== undefined && !isSkill(message.skill)) return null;
+      return { type: "addComputer", skill: (message.skill as Skill | undefined) ?? "normal" };
     case "sit":
     case "stand":
-    case "addComputer":
     case "start":
     case "resign":
     case "close":

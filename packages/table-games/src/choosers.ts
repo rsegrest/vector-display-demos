@@ -136,27 +136,181 @@ export function findAnswers(reply: unknown): Record<string, unknown> | null {
 }
 
 export async function jevChoice(input: ChooserInput, transport: JevTransport): Promise<Decision | null> {
-  const fallback = simpleChoice(input);
-  if (!fallback) return null;
-  const choices = input.game.choices(input.state, input.seat);
+  return chooseMove(input, "normal", transport);
+}
+
+// ── Skill levels ───────────────────────────────────────────────────────────
+
+// How well a computer player plays. Every level takes a move that wins at once.
+//   beginner  mostly random moves, never a model call
+//   easy      Jev's choice drawn by its own probabilities, so often its second or third pick
+//   normal    Jev's top choice among the moves that do not lose at once
+//   hard      as normal, after also removing moves that walk into a two-move trap, and
+//             taking a win two moves deep (in games where looking ahead is fair)
+// Without Jev (no key, a pure-chance game, practice in the window) the simple strategy stands
+// in for it at every level.
+export type Skill = "beginner" | "easy" | "normal" | "hard";
+
+export const SKILLS: readonly Skill[] = ["beginner", "easy", "normal", "hard"];
+
+export const SKILL_TITLES: Readonly<Record<Skill, string>> = { beginner: "Beginner", easy: "Easy", normal: "Normal", hard: "Hard" };
+
+export function isSkill(value: unknown): value is Skill {
+  return SKILLS.includes(value as Skill);
+}
+
+// The share of a beginner's moves made at random, and an easy player's without Jev.
+const BEGINNER_RANDOM_SHARE = 0.7;
+const EASY_RANDOM_SHARE = 0.35;
+// The most moves the hard player's deeper look may play out before it gives up and plays as
+// normal (chess, with thirty-odd moves a side, runs out; Connect 4 and checkers do not).
+const DEEP_LOOK_BUDGET = 20_000;
+
+export async function chooseMove(input: ChooserInput, skill: Skill, transport: JevTransport | null): Promise<Decision | null> {
+  const { game, state, seat, random } = input;
+  const choices = game.choices(state, seat);
+  if (choices.length === 0) return null;
   const { winning, safe } = screenChoices(input, choices);
-  // A move that wins at once needs no model.
+  // A move that wins at once needs no model, at any level.
   if (winning.length > 0) return { choice: winning[0], by: "simple" };
-  if (safe.length === 1) return { choice: safe[0], by: "simple" };
-  let shown = safe;
+  const simpleAmong = (candidates: readonly Choice[]): Decision => ({
+    choice: game.simpleStrategy?.(input.view, seat, candidates, random) ?? pick(candidates, random),
+    by: "simple",
+  });
+
+  if (skill === "beginner") return random() < BEGINNER_RANDOM_SHARE ? { choice: pick(choices, random), by: "simple" } : simpleAmong(safe);
+
+  let candidates = safe;
+  if (skill === "hard") {
+    const deep = lookTwoMovesDeep(input, safe);
+    if (deep.forcedWin) return { choice: deep.forcedWin, by: "simple" };
+    candidates = deep.survivors;
+  }
+  if (candidates.length === 1) return { choice: candidates[0], by: "simple" };
+
+  if (!transport || game.isPureChance) {
+    if (skill === "easy" && random() < EASY_RANDOM_SHARE) return { choice: pick(candidates, random), by: "simple" };
+    return simpleAmong(candidates);
+  }
+  return askJevAmong(input, candidates, simpleAmong(candidates), skill === "easy", transport);
+}
+
+// Jev chooses among `candidates`: its top choice, or (`sample`) one drawn by its probabilities.
+async function askJevAmong(input: ChooserInput, candidates: readonly Choice[], fallback: Decision, sample: boolean, transport: JevTransport): Promise<Decision> {
+  let shown = [...candidates];
   if (shown.length > MOST_CHOICES_SHOWN) {
-    const rest = safe.filter((choice) => choice.label !== fallback.choice.label);
-    const sample: Choice[] = [fallback.choice];
-    while (sample.length < MOST_CHOICES_SHOWN && rest.length > 0) sample.push(rest.splice(Math.floor(input.random() * rest.length), 1)[0]);
-    shown = sample;
+    const rest = shown.filter((choice) => choice.label !== fallback.choice.label);
+    const sampled: Choice[] = [fallback.choice];
+    while (sampled.length < MOST_CHOICES_SHOWN && rest.length > 0) sampled.push(rest.splice(Math.floor(input.random() * rest.length), 1)[0]);
+    shown = sampled;
   }
   try {
     const answers = findAnswers(await transport(jevRequest(input, shown)));
-    const answer = answers?.next_move as { choice?: unknown; confidence?: unknown } | undefined;
+    const answer = answers?.next_move as { choice?: unknown; confidence?: unknown; probabilities?: unknown } | undefined;
+    const confidence = typeof answer?.confidence === "number" ? answer.confidence : undefined;
+    if (sample) {
+      const drawn = drawByProbability(shown, answer?.probabilities, input.random);
+      if (drawn) return { choice: drawn, by: "jev", confidence };
+    }
     const chosen = shown.find((choice) => choice.label === String(answer?.choice ?? ""));
     if (!chosen) return { ...fallback, note: `Jev gave no listed move (${JSON.stringify(answer?.choice ?? null)})` };
-    return { choice: chosen, by: "jev", confidence: typeof answer?.confidence === "number" ? answer.confidence : undefined };
+    return { choice: chosen, by: "jev", confidence };
   } catch (error) {
     return { ...fallback, note: `Jev failed: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+// A move drawn in proportion to the model's probability for it; null if it gave none usable.
+export function drawByProbability(choices: readonly Choice[], probabilities: unknown, random: () => number): Choice | null {
+  if (typeof probabilities !== "object" || probabilities === null) return null;
+  const weights = choices.map((choice) => {
+    const weight = (probabilities as Record<string, unknown>)[choice.label];
+    return typeof weight === "number" && weight > 0 ? weight : 0;
+  });
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  if (total <= 0) return null;
+  let point = random() * total;
+  for (let index = 0; index < choices.length; index++) {
+    point -= weights[index];
+    if (point < 0) return choices[index];
+  }
+  return choices[choices.length - 1];
+}
+
+// The hard player's deeper look, in games where looking ahead is fair and one player moves at a
+// time. A move is a forced win if every reply leaves a winning move; it is a trap if some reply
+// leaves every answer of ours handing over a win at once. Gives up (keeping every move) past the budget.
+export function lookTwoMovesDeep(input: ChooserInput, moves: readonly Choice[]): { readonly forcedWin: Choice | null; readonly survivors: Choice[] } {
+  const { game, state, seat, random } = input;
+  if (!game.canLookAhead) return { forcedWin: null, survivors: [...moves] };
+  // Four moves deep costs about the number of moves to the fourth power: chess's thirty-odd
+  // would spend the whole budget for nothing, so it is not tried there.
+  if (moves.length ** 4 > DEEP_LOOK_BUDGET * 4) return { forcedWin: null, survivors: [...moves] };
+  let budget = DEEP_LOOK_BUDGET;
+  const play = (from: unknown, mover: number, move: unknown): unknown | null => {
+    if (--budget < 0) throw new Error("budget");
+    const result = game.play(from, mover, move, random);
+    return result.ok ? result.state : null;
+  };
+  const wins = (after: unknown, mover: number): boolean => {
+    const outcome = game.outcome(after);
+    return outcome !== null && outcome.winners.length === 1 && outcome.winners[0] === mover;
+  };
+  const soleMover = (after: unknown): number | null => {
+    const next = game.toMove(after);
+    return next.length === 1 ? next[0] : null;
+  };
+  // Whether `mover`, to move in `position`, has a move that wins at once.
+  const canWinAtOnce = (position: unknown, mover: number): boolean =>
+    game.choices(position, mover).some((choice) => {
+      const after = play(position, mover, choice.move);
+      return after !== null && wins(after, mover);
+    });
+
+  try {
+    let forcedWin: Choice | null = null;
+    const survivors: Choice[] = [];
+    for (const move of moves) {
+      const afterMine = play(state, seat, move.move);
+      if (afterMine === null) continue;
+      const opponent = soleMover(afterMine);
+      if (opponent === null || opponent === seat || game.outcome(afterMine)) {
+        survivors.push(move);
+        continue;
+      }
+      let everyReplyLeavesAWin = true;
+      let isTrap = false;
+      for (const reply of game.choices(afterMine, opponent)) {
+        const afterReply = play(afterMine, opponent, reply.move);
+        if (afterReply === null || game.outcome(afterReply)) {
+          everyReplyLeavesAWin = false;
+          continue;
+        }
+        if (soleMover(afterReply) !== seat) {
+          everyReplyLeavesAWin = false;
+          continue;
+        }
+        if (!canWinAtOnce(afterReply, seat)) everyReplyLeavesAWin = false;
+        // A trap: after this reply, each of our answers lets the opponent win at once.
+        const answers = game.choices(afterReply, seat);
+        const allAnswersLose =
+          answers.length > 0 &&
+          answers.every((answer) => {
+            const afterAnswer = play(afterReply, seat, answer.move);
+            if (afterAnswer === null || game.outcome(afterAnswer)) return false;
+            const next = soleMover(afterAnswer);
+            return next === opponent && canWinAtOnce(afterAnswer, opponent);
+          });
+        if (allAnswersLose) {
+          isTrap = true;
+          break;
+        }
+      }
+      if (everyReplyLeavesAWin && !forcedWin) forcedWin = move;
+      if (!isTrap) survivors.push(move);
+    }
+    return { forcedWin, survivors: survivors.length > 0 ? survivors : [...moves] };
+  } catch {
+    return { forcedWin: null, survivors: [...moves] };
   }
 }

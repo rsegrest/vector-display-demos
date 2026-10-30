@@ -4,8 +4,22 @@ export { checkers, CHECKERS_SIZE, legalCheckersMoves } from "./games/checkers.js
 export type { CheckersMove, CheckersPiece, CheckersState, Square } from "./games/checkers.js";
 export { CONNECT_FOUR_COLUMNS, CONNECT_FOUR_ROWS, connectFour, landingRow } from "./games/connectFour.js";
 export type { ConnectFourMove, ConnectFourState } from "./games/connectFour.js";
-export { findAnswers, JEV_ENDPOINT, JEV_MODEL, jevChoice, jevRequest, screenChoices, simpleChoice } from "./choosers.js";
-export type { ChooserInput, Decision, JevTransport } from "./choosers.js";
+export {
+  chooseMove,
+  drawByProbability,
+  findAnswers,
+  isSkill,
+  JEV_ENDPOINT,
+  JEV_MODEL,
+  jevChoice,
+  jevRequest,
+  lookTwoMovesDeep,
+  screenChoices,
+  simpleChoice,
+  SKILL_TITLES,
+  SKILLS,
+} from "./choosers.js";
+export type { ChooserInput, Decision, JevTransport, Skill } from "./choosers.js";
 export { cleanText, GAME_IDS, isRoomCode, LIMITS, readClientMessage, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, roomCodeFrom } from "./protocol.js";
 export type { ChatEntry, ClientMessage, MemberInfo, ServerMessage, TableInfo } from "./protocol.js";
 export { AVAILABLE_GAMES, hasRules, rulesFor, TABLE_GAMES } from "./registry.js";

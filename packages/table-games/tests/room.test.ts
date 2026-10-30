@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  chooseMove,
+  drawByProbability,
   findAnswers,
   isRoomCode,
   jevChoice,
@@ -147,12 +149,12 @@ describe("Room", () => {
     const room = Room.empty("ABCDEF", { computerName: "Jev" });
     const alice = joined(room, TOKEN_A, "Alice");
     room.receive(alice, { type: "open", game: "connect4", invite: null }, 1, random);
-    const started = tableTo(room.receive(alice, { type: "addComputer" }, 1, random), alice)!;
-    expect(started).toMatchObject({ seats: [alice, "c1"], names: ["Alice", "Jev"], isComputer: [false, true], isStarted: true });
+    const started = tableTo(room.receive(alice, { type: "addComputer", skill: "hard" }, 1, random), alice)!;
+    expect(started).toMatchObject({ seats: [alice, "c1"], names: ["Alice", "Jev (Hard)"], isComputer: [false, true], isStarted: true });
     expect(room.computerTurn()).toBeNull();
     room.receive(alice, { type: "move", move: { column: 0 } }, 1, random);
     const turn = room.computerTurn()!;
-    expect(turn.seat).toBe(1);
+    expect(turn).toMatchObject({ seat: 1, skill: "hard" });
     const decision = simpleChoice({ game: rulesFor(turn.game), state: turn.state, view: turn.view, seat: turn.seat, random })!;
     const after = tableTo(room.computerMove(turn.seat, decision.choice.move, random), alice)!;
     expect((after.view as ConnectFourState).board.flat().filter((cell) => cell === 1)).toHaveLength(1);
@@ -230,6 +232,62 @@ describe("computer players", () => {
     expect(failed).toMatchObject({ by: "simple", note: "Jev failed: 402 Payment Required" });
     const nonsense = await jevChoice({ game: connectFour, state, view: state, seat: 0, random }, async () => ({ answers: { next_move: { choice: "column 9" } } }));
     expect(nonsense?.by).toBe("simple");
+  });
+
+  // An empty board but for these discs (row 5 is the bottom), with seat 0 to move.
+  function board(discs: Record<string, 0 | 1>): ConnectFourState {
+    const cells = Array.from({ length: 6 }, () => Array<0 | 1 | null>(7).fill(null));
+    for (const [at, seat] of Object.entries(discs)) {
+      const [row, column] = at.split(",").map(Number);
+      cells[row][column] = seat;
+    }
+    return { board: cells, turn: 0, outcome: null, winningCells: [], lastDrop: null };
+  }
+  const columnOf = (move: unknown): number => (move as { column: number }).column;
+
+  it("at hard, take a win two moves deep: an open three the other side cannot block twice", async () => {
+    const state = board({ "5,2": 0, "5,3": 0, "5,6": 1, "4,6": 1 });
+    const decision = await chooseMove({ game: connectFour, state, view: state, seat: 0, random }, "hard", null);
+    expect([1, 4]).toContain(columnOf(decision?.choice.move));
+  });
+
+  it("at hard, refuse a move that lets the other side make an open three, and block instead", async () => {
+    // The other side's two at columns 2-3: a disc at column 4 would make an open three (columns 1
+    // and 5 both free). Only columns 1, 4 or 5 stop that.
+    const state = board({ "5,2": 1, "5,3": 1, "5,0": 0, "5,6": 0 });
+    for (let trial = 0; trial < 10; trial++) {
+      const seeded = (() => {
+        let value = trial + 1;
+        return () => ((value = (value * 16807) % 2147483647) / 2147483647);
+      })();
+      const decision = await chooseMove({ game: connectFour, state, view: state, seat: 0, random: seeded }, "hard", null);
+      expect([1, 4, 5]).toContain(columnOf(decision?.choice.move));
+    }
+  });
+
+  it("at beginner, play mostly at random, but still take a win at once", async () => {
+    const opening = connectFour.start(2, random);
+    const columns = new Set<number>();
+    let value = 7;
+    const seeded = (): number => (value = (value * 16807) % 2147483647) / 2147483647;
+    for (let trial = 0; trial < 40; trial++) {
+      columns.add(columnOf((await chooseMove({ game: connectFour, state: opening, view: opening, seat: 0, random: seeded }, "beginner", null))?.choice.move));
+    }
+    expect(columns.size).toBeGreaterThan(4);
+    const winning = position();
+    expect(columnOf((await chooseMove({ game: connectFour, state: winning, view: winning, seat: 0, random: seeded }, "beginner", null))?.choice.move)).toBe(3);
+  });
+
+  it("at easy, draw Jev's move by its probabilities rather than always its top pick", async () => {
+    const state = connectFour.start(2, random);
+    const reply = { answers: { next_move: { choice: "column 4 of 7 (from the left)", probabilities: { "column 4 of 7 (from the left)": 0.5, "column 3 of 7 (from the left)": 0.5 } } } };
+    const picks = new Set<number>();
+    for (const roll of [0.1, 0.3, 0.6, 0.9]) {
+      picks.add(columnOf((await chooseMove({ game: connectFour, state, view: state, seat: 0, random: () => roll }, "easy", async () => reply))?.choice.move));
+    }
+    expect(picks).toEqual(new Set([2, 3]));
+    const choices = connectFour.choices(state, 0);
+    expect(drawByProbability(choices, { nonsense: 1 }, random)).toBeNull();
   });
 
   it("find the answers wherever the proxy puts them", () => {

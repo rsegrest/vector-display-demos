@@ -8,10 +8,13 @@ import {
   ROOM_CODE_LENGTH,
   roomCodeFrom,
   rulesFor,
+  SKILL_TITLES,
+  SKILLS,
   type GameFamily,
   type GameId,
   type Outcome,
   type Seat,
+  type Skill,
   type TableInfo,
 } from "@vector-demos/table-games";
 import type { OsApp, PointerKind } from "../OsApp.js";
@@ -95,6 +98,8 @@ export class TableGames implements Demo {
   private seconds = 0;
   // "Play the computer" in a room opens a table for this game, then adds a computer player to it.
   private computerWanted: GameId | null = null;
+  // The skill of the computer players this window adds.
+  public computerSkill: Skill = "normal";
 
   public constructor(private readonly options: TableGamesOptions) {
     this.token = readOrMakeToken(options);
@@ -165,7 +170,7 @@ export class TableGames implements Demo {
   public startPractice(game: GameId, withComputer: boolean): void {
     const rules = rulesFor(game);
     const seats = Math.max(rules.minPlayers, Math.min(2, rules.maxPlayers));
-    this.practice = new Practice(game, Array.from({ length: seats }, (_, seat) => withComputer && seat > 0));
+    this.practice = new Practice(game, Array.from({ length: seats }, (_, seat) => withComputer && seat > 0), this.computerSkill);
   }
 
   // ── The lobby: a name, and a room to make or join ─────────────────────────
@@ -295,7 +300,7 @@ export class TableGames implements Demo {
     }
 
     const rules = rulesFor(this.pickedGame);
-    const card = { x: area.x + listWidth + 16, y: area.y, width: area.width - listWidth - 16, height: Math.min(area.height, 200) };
+    const card = { x: area.x + listWidth + 16, y: area.y, width: area.width - listWidth - 16, height: Math.min(area.height, 236) };
     ui.rect(TEXT, 0.35, card);
     ui.text(BRIGHT, rules.title, card.x + 14, card.y + 14, 16);
     ui.text(DIM, ui.fitted(rules.description, 11, card.width - 28), card.x + 14, card.y + 40, 11);
@@ -307,16 +312,37 @@ export class TableGames implements Demo {
       ui.button(color, { x: card.x + 14, y: buttonTop, width: buttonWidth, height: 26 }, label, action, 12);
       buttonTop += 34;
     };
+    if (rules.maxPlayers > 1) {
+      this.drawSkillPicker(card.x + 14, buttonTop, client?.computerName ?? "Computer");
+      buttonTop += 32;
+    }
     if (client) {
       add("Open a table: anyone here may sit down", ACCENT, () => client.send({ type: "open", game: this.pickedGame, invite: null }));
-      add(`Play ${client.computerName}`, TEXT, () => {
+      add(`Play ${client.computerName} (${SKILL_TITLES[this.computerSkill]})`, TEXT, () => {
         client.send({ type: "open", game: this.pickedGame, invite: null });
         this.computerWanted = this.pickedGame;
       });
       add("Practice here, playing every side", TEXT, () => this.startPractice(this.pickedGame, false));
     } else {
-      add(rules.maxPlayers > 1 ? "Play the computer" : "Play", ACCENT, () => this.startPractice(this.pickedGame, rules.maxPlayers > 1));
+      add(rules.maxPlayers > 1 ? `Play the computer (${SKILL_TITLES[this.computerSkill]})` : "Play", ACCENT, () => this.startPractice(this.pickedGame, rules.maxPlayers > 1));
       if (rules.maxPlayers > 1) add("Practice here, playing every side", TEXT, () => this.startPractice(this.pickedGame, false));
+    }
+  }
+
+  // A row of buttons choosing how well the computer players this window adds will play.
+  private drawSkillPicker(x: number, y: number, computerName: string): void {
+    const ui = this.ui;
+    const label = `${computerName}'s level:`;
+    ui.text(DIM, label, x, y + 6, 10);
+    let left = x + ui.textWidth(label, 10) + 8;
+    for (const skill of SKILLS) {
+      const title = SKILL_TITLES[skill];
+      const width = ui.textWidth(title, 10) + 12;
+      const rect = { x: left, y, width, height: 20 };
+      const isChosen = skill === this.computerSkill;
+      ui.button(isChosen ? ACCENT : TEXT, rect, title, () => (this.computerSkill = skill), 10);
+      if (isChosen) ui.rect(ACCENT, 0.8, rect, 2);
+      left += width + 4;
     }
   }
 
@@ -343,7 +369,7 @@ export class TableGames implements Demo {
     // "Play the computer" opened a table: add the computer player now it is there.
     if (this.computerWanted && table && !table.isStarted && table.host === client.you && table.game === this.computerWanted) {
       this.computerWanted = null;
-      client.send({ type: "addComputer" });
+      client.send({ type: "addComputer", skill: this.computerSkill });
     }
     if (this.practice) {
       this.drawPractice(this.practice, tableArea);
@@ -395,9 +421,10 @@ export class TableGames implements Demo {
     };
     if (!isSeated && !isFull) add(table.invited === client.you ? "Accept: sit down" : "Sit down", ACCENT, () => client.send({ type: "sit" }));
     if (!isSeated && table.invited === client.you) add("No thanks", WARN, () => client.send({ type: "stand" }));
-    if (isHost && !isFull) add(`Add ${client.computerName}`, TEXT, () => client.send({ type: "addComputer" }));
+    if (isHost && !isFull) add(`Add ${client.computerName} (${SKILL_TITLES[this.computerSkill]})`, TEXT, () => client.send({ type: "addComputer", skill: this.computerSkill }));
     if (isHost && table.seats.length >= rules.minPlayers) add("Start", ACCENT, () => client.send({ type: "start" }));
     if (isSeated) add(isHost ? "Close the table" : "Get up", WARN, () => client.send({ type: "stand" }));
+    if (isHost && !isFull) this.drawSkillPicker(area.x, y + 40, client.computerName);
   }
 
   private drawRoomGame(client: TableClient, table: TableInfo, area: Rect, notice: string | null): void {
@@ -436,7 +463,7 @@ export class TableGames implements Demo {
     };
     const buttons = practice.outcome
       ? [
-          { label: "Play again", color: ACCENT, action: () => (this.practice = new Practice(practice.game, practice.isComputer)) },
+          { label: "Play again", color: ACCENT, action: () => (this.practice = new Practice(practice.game, practice.isComputer, practice.skill)) },
           { label: "Done", color: WARN, action: () => (this.practice = null) },
         ]
       : [{ label: "Stop", color: WARN, action: () => practice.stop() }];
