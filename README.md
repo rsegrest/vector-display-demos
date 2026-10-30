@@ -26,6 +26,8 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/docs` | Live Guide: documentation for the `@vector-display` packages in which every example is editable and running |
 | `demos/vector-os` | Vector OS: a desktop drawn by one beam, with windows that run the other demos, the arcade games from `../vector-games`, a terminal, a clock, a beam control panel, a scientific calculator and Gear Spirals, a gear-and-pen drawing toy |
 | `demos/type-specimen` | Type Specimen: the Hershey stroke fonts (`StrokeFont` and `getHersheyFont` in `demo-kit`) at small sizes, to judge readability. At `/type-specimen/` on the dev server; not in the catalog, so not in the menu or the build |
+| `packages/table-games` | The Table Games rules and room, with no drawing and no network: Connect 4, Checkers and Battleship as `TableGame`s (from game-clawtroller's rules, MIT), the message protocol, and `Room` (members, chat, invitations, the game being played), shared by the Vector OS app and its server |
+| `services/table-games` | The Table Games room server: a Cloudflare Worker with one Durable Object per room, on the free plan. See "Table Games server" below |
 | `tools/screenshot.mjs` | Serves a Vite root, opens a route in headless Chrome with software WebGL2, and saves screenshots. `--chrome-flags` passes extra switches, e.g. `--autoplay-policy=no-user-gesture-required` to test audio |
 
 Each demo package exports a `start…(canvas)` function and implements the `Demo` interface from `demo-kit` (`update`, `draw`, optional `drawOverlay`, `drawText` and `resize`), which is what lets Vector OS run them all in windows, unchanged. Every demo returns to the index with Escape.
@@ -41,6 +43,23 @@ npm run build:arcade           # the arcade games' own pages, into site/public/a
 npm run build                  # static multi-page site in site/dist (runs build:arcade first)
 npm run screenshot -- site /tmp/shot --path particle-life/ --at 3,10 --query "seed=777&preset=1"
 ```
+
+## Table Games server (`services/table-games`)
+
+One Cloudflare Durable Object per room, found by the room's code, holds that room's WebSockets and its state (`src/index.ts`); every rule is in `packages/table-games`' `Room`. Sockets use the hibernation API, so an idle room is evicted from memory with its connections kept open and costs nothing; the room is stored after every change and deleted after three days unused.
+
+```sh
+cd services/table-games
+npm run dev                    # http://localhost:8787 on this machine and the LAN, any page allowed
+npm run smoke                  # with dev running: two members chat, play Connect 4 to a win, one reconnects
+npx wrangler login             # once, opens the browser to sign in to Cloudflare
+npm run deploy                 # publishes https://vector-table-games.<your-subdomain>.workers.dev
+npm run smoke -- https://vector-table-games.<your-subdomain>.workers.dev
+```
+
+Vector OS finds the server at `VITE_TABLE_GAMES_SERVER` (e.g. `VITE_TABLE_GAMES_SERVER=https://vector-table-games.<subdomain>.workers.dev npm run build`), and otherwise at port 8787 of the machine serving the page, so `npm run dev` in both places just works, from the LAN too.
+
+**Cost.** It is built for the Workers Free plan (Durable Objects there must use SQLite storage, as `wrangler.toml` sets). Its daily limits (100,000 requests, where a connection is one and every twenty messages received count as one; 13,000 GB-s of duration; 5 GB stored) are far beyond a few friends playing. Past them requests fail until the next day; nothing is billed. `ALLOWED_ORIGINS` in `wrangler.toml` lists the pages that may open rooms, so another site cannot spend the allowance; the room server refuses the rest. Limits per room: 8 people at once, chat lines of 200 characters, 5 lines in any 5 seconds, the last 50 kept.
 
 ## Vector OS VR (`/vr/`)
 
@@ -370,6 +389,7 @@ This is the payoff of every demo implementing one small interface (`update`, `dr
 - **Clock.** An analog face with the local time.
 - **Beam Settings.** Sliders for the beam, drawn by the beam: dragging one changes the display it is drawn on. `SET PERSISTENCE 200` at the terminal does the same thing. The settings are the ones the Live Guide saves, so they carry between the two.
 - **Gear Spirals** (Creative; `apps/gearSpirals/`). A gear rolls inside or outside a fixed ring with a pen in it, drawing hypotrochoids and epitrochoids. DEFINE sets the drawing with the mouse: drag from the base's centre out to its ring, drag inside or outside the ring to size the gear (which side chooses the mode), then click in the gear to place the pen. Every size, the speed and the colour have a slider and a box to type in (click it, type, Enter; Tab moves on). The curve draws itself and stops once it has closed; drag the gear round the ring to crank it by hand. OVERLAY keeps what is drawn and starts another curve on top in the next colour; CLEAR wipes the plate. The equation, with the sizes put in, is set in Hershey Serif on the plain text layer, and the readout says after how many trips and petals the curve closes (from the continued fraction of R/r), or that it does not. Keys: space draws or pauses, `M` mode, `D` define, `O` overlay, `C` clear.
+- **Table Games** (Play Together; `apps/tableGames/`). Connect 4, Checkers and Battleship against someone else, in a room found only by its six-letter code, with a chat beside the board. Type a name, then press NEW ROOM (or type a friend's code and JOIN); COPY LINK copies `os/?open=table-games&room=<CODE>`, which opens the room straight away. Everyone in the room is listed; the C4, CHK and SHIP buttons beside a name invite them, and the one invited answers YES or NO. The room has one table: the two players play and everyone else watches, until the game ends or a player resigns; REMATCH invites the same player again. Typing goes to the chat, Enter sends. The rules run on the room server (`services/table-games`, below), which sends each player only what they may see (the other player's ships stay on the server). The browser keeps a secret member token, so a reload or a dropped connection comes back as the same member, seat and all. The rules follow game-clawtroller's (MIT, same owner), rewritten around two seats in `packages/table-games`.
 
 **One phosphor for everything.** There is one beam and so one set of beam settings for the whole desktop; a demo in a window does not get the persistence it uses on its own page. Slime Mold, whose network *is* the phosphor trail, shows this most: it looks best with persistence turned up, and then every window trails. Demos whose look depends on their own settings are best seen on their own pages, which the box at the right of each demo's title bar opens.
 

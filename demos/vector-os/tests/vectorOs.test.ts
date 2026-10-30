@@ -732,7 +732,7 @@ describe("VectorOsDemo", () => {
 describe("the real programs", () => {
   it("are all listed, each with its own id", () => {
     expect(new Set(APP_ENTRIES.map((entry) => entry.id)).size).toBe(APP_ENTRIES.length);
-    expect(APP_ENTRIES.filter((entry) => entry.kind === "tool").map((entry) => entry.id)).toEqual(["terminal", "clock", "beam", "calc", "gear-spirals"]);
+    expect(APP_ENTRIES.filter((entry) => entry.kind === "tool").map((entry) => entry.id)).toEqual(["terminal", "clock", "beam", "calc", "gear-spirals", "table-games"]);
     expect(APP_ENTRIES.filter((entry) => entry.kind === "demo")).toHaveLength(22);
     const inCategory = (category: string): string[] => APP_ENTRIES.filter((entry) => entry.category === category).map((entry) => entry.id);
     expect(inCategory("utilities")).toEqual(["terminal", "clock", "beam", "calc"]);
@@ -740,6 +740,7 @@ describe("the real programs", () => {
     expect(inCategory("simulation")).toEqual(["ca-terrain", "attractors", "gray-scott", "live-earth"]);
     expect(inCategory("creative")).toEqual(["gear-spirals", "polytopes", "oscilloscope", "text-crawl", "epicycles", "meshes"]);
     expect(inCategory("arcade")).toEqual(["asteroids", "lunar-lander", "battlezone", "tempest", "red-baron", "asteroids-deluxe", "starwars"]);
+    expect(inCategory("together")).toEqual(["table-games"]);
   });
 
   // Lenia and Star Wars need a Web Worker (Star Wars a cross-origin isolated page too: its browser check

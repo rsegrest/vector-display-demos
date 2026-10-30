@@ -1,0 +1,20 @@
+{
+  "name": "@vector-demos/table-games-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The Table Games room server: a Cloudflare Worker with one Durable Object per room.",
+  "scripts": {
+    "dev": "wrangler dev --ip 0.0.0.0 --var ALLOWED_ORIGINS:*",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node smoke.mjs"
+  },
+  "dependencies": {
+    "@vector-demos/table-games": "*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261014.1",
+    "wrangler": "4.151.0"
+  }
+}

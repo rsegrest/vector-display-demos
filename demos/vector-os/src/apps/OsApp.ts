@@ -55,7 +55,7 @@ export interface OsApp {
   dispose?(): void;
 }
 
-export type AppCategory = "utilities" | "creative" | "simulation" | "alife" | "arcade";
+export type AppCategory = "utilities" | "creative" | "simulation" | "alife" | "arcade" | "together";
 
 // The launcher's groups, in the order it lists them. A group with no programs is left out.
 export const APP_CATEGORIES: readonly { readonly id: AppCategory; readonly title: string }[] = [
@@ -64,6 +64,7 @@ export const APP_CATEGORIES: readonly { readonly id: AppCategory; readonly title
   { id: "simulation", title: "Simulation" },
   { id: "alife", title: "Artificial Life" },
   { id: "arcade", title: "Arcade" },
+  { id: "together", title: "Play Together" },
 ];
 
 export interface AppEntry {

@@ -1,0 +1,14 @@
+{
+  "name": "@vector-demos/table-games",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Two-player table games and the room they are played in, shared by the Vector OS Table Games app and its Cloudflare room server.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  }
+}

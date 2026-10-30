@@ -1,0 +1,20 @@
+# The Table Games room server. Free plan: Durable Objects there must use SQLite storage
+# (new_sqlite_classes below). Past the free daily limits, requests fail until the next
+# day; nothing is ever billed.
+name = "vector-table-games"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Pages allowed to open rooms, comma separated. Others are refused, so the free
+# allowance is not spent by someone else's site. "*" allows any page (npm run dev does this,
+# for pages served from other machines on the LAN).
+ALLOWED_ORIGINS = "https://ricksegrest.com,https://www.ricksegrest.com,http://localhost:5180,http://127.0.0.1:5180"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RoomObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomObject"]

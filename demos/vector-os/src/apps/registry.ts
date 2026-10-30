@@ -6,6 +6,7 @@ import { createCalculator } from "./calculator/Calculator.js";
 import { createClock } from "./clock.js";
 import { createGearSpirals } from "./gearSpirals/GearSpirals.js";
 import type { AppEntry, OsApp } from "./OsApp.js";
+import { createTableGames } from "./tableGames/TableGames.js";
 import { createTerminal } from "./terminal.js";
 
 // Where Star Wars' flat picture (251 x 281 AVG units, y down) lies on its 3D picture's distance-1
@@ -40,6 +41,7 @@ export const APP_ENTRIES: readonly AppEntry[] = [
   { id: "beam", title: "Beam Settings", kind: "tool", category: "utilities", size: { width: 520, height: 350 }, create: createBeamPanel },
   { id: "calc", title: "Calculator", kind: "tool", category: "utilities", size: { width: 500, height: 430 }, create: createCalculator },
   { id: "gear-spirals", title: "Gear Spirals", kind: "tool", category: "creative", size: { width: 980, height: 680 }, create: createGearSpirals },
+  { id: "table-games", title: "Table Games", kind: "tool", category: "together", size: { width: 960, height: 640 }, create: createTableGames },
   {
     id: "particle-life",
     title: "Particle Life",
