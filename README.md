@@ -57,7 +57,7 @@ npm run deploy                 # publishes https://vector-table-games.<your-subd
 npm run smoke -- https://vector-table-games.<your-subdomain>.workers.dev
 ```
 
-Vector OS finds the server at `VITE_TABLE_GAMES_SERVER` (e.g. `VITE_TABLE_GAMES_SERVER=https://vector-table-games.<subdomain>.workers.dev npm run build`), and otherwise at port 8787 of the machine serving the page, so `npm run dev` in both places just works, from the LAN too.
+It is deployed at `https://vector-table-games.vector-demos-table-games-server.workers.dev` (since 2026-10-30). Vector OS finds the server at `VITE_TABLE_GAMES_SERVER`, which `site/.env.production` sets to that address for `npm run build`, and otherwise at port 8787 of the machine serving the page, so `npm run dev` in both places just works, from the LAN too.
 
 **Cost.** It is built for the Workers Free plan (Durable Objects there must use SQLite storage, as `wrangler.toml` sets). Its daily limits (100,000 requests, where a connection is one and every twenty messages received count as one; 13,000 GB-s of duration; 5 GB stored) are far beyond a few friends playing. Past them requests fail until the next day; nothing is billed. `ALLOWED_ORIGINS` in `wrangler.toml` lists the pages that may open rooms, so another site cannot spend the allowance; the room server refuses the rest. Limits per room: 8 people at once, chat lines of 200 characters, 5 lines in any 5 seconds, the last 50 kept.
 
