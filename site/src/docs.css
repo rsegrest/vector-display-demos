@@ -1,5 +1,22 @@
-/* The guide is a document, not a full-screen display: it scrolls, and its text is ordinary text. */
+/* The guide is a document, not a full-screen display: it scrolls, and its text is ordinary text,
+   set in the site's own stroke fonts as web fonts (tools/build-stroke-fonts.ts): the arcade font
+   for headings and the section list, Hershey Sans for reading. Code stays monospace. */
+@font-face {
+  font-family: "Vector Arcade";
+  src: url("/fonts/vector-arcade.otf") format("opentype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Hershey Sans";
+  src: url("/fonts/hershey-sans.otf") format("opentype");
+  font-display: swap;
+}
+
 :root {
+  --code-font: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  --heading-font: "Vector Arcade", var(--code-font);
+  --reading-font: "Hershey Sans", system-ui, sans-serif;
   color-scheme: dark;
   --ink: #cfe3f5;
   --dim: #8aa3b8;
@@ -14,7 +31,20 @@ body.docs {
   padding: 0 24px 96px;
   background: #04070b;
   color: var(--ink);
-  font: 16px/1.6 ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  font: 17px/1.65 var(--reading-font);
+}
+
+.docs code,
+.docs pre {
+  font-family: var(--code-font);
+  font-size: 0.9em;
+}
+
+.docs-nav,
+.beam-settings summary,
+.docs button {
+  font-family: var(--heading-font);
+  letter-spacing: 0.06em;
 }
 
 .docs a {
@@ -56,6 +86,8 @@ body.docs {
 
 .docs h1 {
   margin: 8px 0 12px;
+  font-family: var(--heading-font);
+  font-weight: normal;
   font-size: 30px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -67,6 +99,8 @@ body.docs {
   margin: 56px 0 12px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
+  font-family: var(--heading-font);
+  font-weight: normal;
   font-size: 22px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -194,7 +228,7 @@ figure.snippet {
   border: 1px solid var(--line);
   background: #02050a;
   color: #dbeaf7;
-  font: 13px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  font: 13px/1.5 var(--code-font);
   tab-size: 2;
   white-space: pre;
   overflow: auto;

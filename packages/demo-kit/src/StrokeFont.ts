@@ -77,6 +77,11 @@ export class StrokeFont {
     this.capHeight = definition.capHeight;
   }
 
+  // Every glyph, as its definition gave it: for tools that turn the font into other forms (a web font).
+  public get glyphs(): Readonly<Record<string, StrokeGlyph>> {
+    return this.definition.glyphs;
+  }
+
   public hasGlyph(character: string): boolean {
     return this.findDefinition(character) !== undefined;
   }

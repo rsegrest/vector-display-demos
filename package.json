@@ -19,10 +19,12 @@
     "test": "vitest run",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "screenshot": "node tools/screenshot.mjs",
-    "publish:globe": "node tools/publish-globe.mjs"
+    "publish:globe": "node tools/publish-globe.mjs",
+    "build:fonts": "vite-node tools/build-stroke-fonts.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "opentype.js": "^2.0.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^2.1.4"
