@@ -26,13 +26,13 @@ export interface BeamSettingRange {
 }
 
 export const DEFAULT_BEAM_SETTINGS: BeamSettings = {
-  beamWidth: 1.4,
-  glowRadius: 2.8,
-  glowStrength: 0.18,
-  persistenceHalfLifeMilliseconds: 80,
-  bloomStrength: 0.6,
-  exposure: 1.35,
-  flickerAmount: 0.02,
+  beamWidth: 0.5, // 1.4,
+  glowRadius: 0.6, // 2.8,
+  glowStrength: 1.00, // 0.18,
+  persistenceHalfLifeMilliseconds: 120, // 80,
+  bloomStrength: 0.5, // 0.6,
+  exposure: 1.7, // 1.35,
+  flickerAmount: 0.1, // 0.02,
 };
 
 // What each setting may be set to. Flicker stops well short of its full range:
@@ -40,7 +40,7 @@ export const DEFAULT_BEAM_SETTINGS: BeamSettings = {
 export const BEAM_SETTING_RANGES: readonly BeamSettingRange[] = [
   { key: "beamWidth", label: "Beam width", minimum: 0.5, maximum: 4, step: 0.1, unit: "px" },
   { key: "glowRadius", label: "Glow radius", minimum: 0, maximum: 10, step: 0.2, unit: "px" },
-  { key: "glowStrength", label: "Glow strength", minimum: 0, maximum: 1, step: 0.02, unit: "" },
+  { key: "glowStrength", label: "Glow strength", minimum: 0, maximum: 2, step: 0.02, unit: "" },
   { key: "persistenceHalfLifeMilliseconds", label: "Persistence", minimum: 0, maximum: 1500, step: 10, unit: "ms" },
   { key: "bloomStrength", label: "Bloom", minimum: 0, maximum: 2, step: 0.05, unit: "" },
   { key: "exposure", label: "Exposure", minimum: 0.5, maximum: 3, step: 0.05, unit: "" },

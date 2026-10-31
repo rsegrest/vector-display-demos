@@ -322,7 +322,7 @@ describe("terminal commands", () => {
   it("shows every beam setting", () => {
     const lines = runCommand("get", fakeServices())!;
     expect(lines).toHaveLength(7);
-    expect(lines.find((line) => line.startsWith("PERSISTENCE"))).toContain("80 MS");
+    expect(lines.find((line) => line.startsWith("PERSISTENCE"))).toContain(`${DEFAULT_BEAM_SETTINGS.persistenceHalfLifeMilliseconds} MS`);
   });
 
   it("lists and closes windows", () => {
