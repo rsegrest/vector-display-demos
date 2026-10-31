@@ -77,7 +77,8 @@ export const slots: TableGame<SlotsState, SlotsView> = {
   family: "casino",
   isPureChance: true,
   minPlayers: 1,
-  maxPlayers: 6,
+  // Played alone: nobody's play touches anyone else's, so there is no one to play with or against.
+  maxPlayers: 1,
   strategy:
     "Finish with the most chips. Every spin is pure chance and the machine keeps a little on average, so spin for small bets. Three sevens pay 50 times the bet, three diamonds 25, bells 15, bars 10, cherries 5, any other three 3; two alike from the left give the bet back, and a cherry anywhere on the line pays half.",
 

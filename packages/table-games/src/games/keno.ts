@@ -129,7 +129,8 @@ export const keno: TableGame<KenoState, KenoView> = {
   description: "Mark up to ten of 80 numbers; twenty are drawn.",
   family: "casino",
   minPlayers: 1,
-  maxPlayers: 6,
+  // Played alone: nobody's play touches anyone else's, so there is no one to play with or against.
+  maxPlayers: 1,
   strategy:
     "Finish with the most chips. Mark 1 to 10 numbers and bet; 20 of the 80 are drawn and the ticket pays by how many of its numbers came up. Few numbers win more often for less; ten numbers rarely pay much but can pay 10000 times the bet. Keno loses on average, so keep the bets small.",
 

@@ -279,6 +279,22 @@ describe("Table Games window", () => {
     expect(alice.client!.table).toMatchObject({ seats: ["m1", "c1"], isComputer: [false, true], names: ["Alice", "Computer (Normal)"] });
   });
 
+  it("plays a game for one (slots) on this screen, even in a room, leaving the table free", () => {
+    const server = new FakeServer();
+    const alice = window(server);
+    type(alice, "Alice");
+    alice.key("Enter");
+    alice.key("Enter");
+    server.sockets[0].accept();
+    press(alice, "Slots");
+    drawn(alice);
+    expect(alice.pressButton("Open a table: anyone here may sit down")).toBe(false);
+    expect(alice.pressButton("Play Computer (Normal)")).toBe(false);
+    press(alice, "Play: just you, on this screen");
+    expect(alice.practice).toMatchObject({ game: "slots", isComputer: [false] });
+    expect(alice.client!.table).toBeNull();
+  });
+
   it("plays the computer here with no room and no server", async () => {
     const server = new FakeServer();
     const tableGames = window(server);

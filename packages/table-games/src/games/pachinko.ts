@@ -76,11 +76,12 @@ function outcomeOf(state: PachinkoState): Outcome | null {
 export const pachinko: TableGame<PachinkoState, PachinkoView> = {
   id: "pachinko",
   title: "Pachinko",
-  description: "Drop five balls through the pegs; the middle bin pays ten times.",
+  description: "Drop five balls through the pegs; the rare edge bins pay twenty times.",
   family: "casino",
   isPureChance: true,
   minPlayers: 1,
-  maxPlayers: 6,
+  // Played alone: nobody's play touches anyone else's, so there is no one to play with or against.
+  maxPlayers: 1,
   strategy:
     "Finish with the most chips. Each drop sends five balls down the pegs, each carrying a fifth of the bet; a ball bounces left or right at every row by chance, so most land near the middle, where the bins pay 5 and 10 times, and few reach the edges, which pay a fifth. Nothing you choose changes where they fall: only the size of the bet.",
 

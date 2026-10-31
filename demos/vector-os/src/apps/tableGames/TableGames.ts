@@ -304,7 +304,7 @@ export class TableGames implements Demo {
     ui.rect(TEXT, 0.35, card);
     ui.text(BRIGHT, rules.title, card.x + 14, card.y + 14, 16);
     ui.text(DIM, ui.fitted(rules.description, 11, card.width - 28), card.x + 14, card.y + 40, 11);
-    const players = rules.minPlayers === rules.maxPlayers ? `${rules.minPlayers} players` : `${rules.minPlayers} to ${rules.maxPlayers} players`;
+    const players = rules.maxPlayers === 1 ? "One player" : rules.minPlayers === rules.maxPlayers ? `${rules.minPlayers} players` : `${rules.minPlayers} to ${rules.maxPlayers} players`;
     ui.text(DIM, players, card.x + 14, card.y + 58, 10);
     const buttonWidth = card.width - 28;
     let buttonTop = card.y + 82;
@@ -316,7 +316,10 @@ export class TableGames implements Demo {
       this.drawSkillPicker(card.x + 14, buttonTop, client?.computerName ?? "Computer");
       buttonTop += 32;
     }
-    if (client) {
+    if (rules.maxPlayers === 1) {
+      // A game played alone is played on this screen, even in a room: the table stays free.
+      add("Play: just you, on this screen", ACCENT, () => this.startPractice(this.pickedGame, false));
+    } else if (client) {
       add("Open a table: anyone here may sit down", ACCENT, () => client.send({ type: "open", game: this.pickedGame, invite: null }));
       add(`Play ${client.computerName} (${SKILL_TITLES[this.computerSkill]})`, TEXT, () => {
         client.send({ type: "open", game: this.pickedGame, invite: null });
@@ -324,8 +327,8 @@ export class TableGames implements Demo {
       });
       add("Practice here, playing every side", TEXT, () => this.startPractice(this.pickedGame, false));
     } else {
-      add(rules.maxPlayers > 1 ? `Play the computer (${SKILL_TITLES[this.computerSkill]})` : "Play", ACCENT, () => this.startPractice(this.pickedGame, rules.maxPlayers > 1));
-      if (rules.maxPlayers > 1) add("Practice here, playing every side", TEXT, () => this.startPractice(this.pickedGame, false));
+      add(`Play the computer (${SKILL_TITLES[this.computerSkill]})`, ACCENT, () => this.startPractice(this.pickedGame, true));
+      add("Practice here, playing every side", TEXT, () => this.startPractice(this.pickedGame, false));
     }
   }
 
