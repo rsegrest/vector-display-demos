@@ -23,6 +23,7 @@ export const CITIES: readonly { readonly name: string; readonly latitude: number
   { name: "Edinburgh", latitude: 55.95, longitude: -3.19 },
   { name: "Honolulu", latitude: 21.31, longitude: -157.86 },
   { name: "Houston", latitude: 29.76, longitude: -95.37 },
+  { name: "Huntsville", latitude: 34.73, longitude: -86.59 },
   { name: "Istanbul", latitude: 41.01, longitude: 28.98 },
   { name: "Jakarta", latitude: -6.21, longitude: 106.85 },
   { name: "Johannesburg", latitude: -26.2, longitude: 28.05 },
