@@ -40,7 +40,7 @@ export class MenuDemo implements Demo {
     this.itemWidths = this.titles.map((title) => getDemoFont().measureText(title, ITEM_TEXT_SIZE).width);
     this.groups = DEMO_GROUPS.map((group) => {
       const title = group.title.toUpperCase();
-      return { title, size: entries.filter((entry) => entry.group === group.id).length, titleWidth: getDemoFont().measureText(title, ITEM_TEXT_SIZE).width };
+      return { title, size: entries.filter((entry) => entry.group === group.id).length, titleWidth: getDemoFont().measureText(title, ITEM_TEXT_SIZE).width, startsColumn: group.startsColumn };
     }).filter((group) => group.size > 0);
   }
 

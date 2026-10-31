@@ -1,12 +1,13 @@
 export type DemoGroup = "creative" | "simulation" | "alife" | "os";
 
 // The index's groups, in its order: Vector OS's launcher's categories (its Creative, Simulation and
-// Artificial Life hold these same demos), then Vector OS itself and the guide.
-export const DEMO_GROUPS: readonly { readonly id: DemoGroup; readonly title: string }[] = [
-  { id: "creative", title: "Creative" },
-  { id: "simulation", title: "Simulation" },
-  { id: "alife", title: "Artificial Life" },
-  { id: "os", title: "Vector OS and the guide" },
+// Artificial Life hold these same demos), with Vector OS itself and the guide under Simulation.
+export const DEMO_GROUPS: readonly { readonly id: DemoGroup; readonly title: string; readonly startsColumn: boolean }[] = [
+  { id: "creative", title: "Creative", startsColumn: true },
+  { id: "simulation", title: "Simulation", startsColumn: true },
+  // In the middle column, under Simulation, when the screen is wide enough for three.
+  { id: "os", title: "Vector OS and Guide", startsColumn: false },
+  { id: "alife", title: "Artificial Life", startsColumn: true },
 ];
 
 export interface DemoEntry {

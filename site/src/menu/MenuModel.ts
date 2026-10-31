@@ -13,6 +13,10 @@ export interface MenuGroupInput {
   readonly size: number;
   // Measured width of the heading at ITEM_TEXT_SIZE (it is drawn at HEADING_SCALE of that).
   readonly titleWidth: number;
+  // The column it would like: true starts a new one, false stays under the group before. Honored
+  // when the list can then be drawn at MINIMUM_HINTED_SCALE or larger; otherwise groups are packed
+  // into columns by height. Left out, the packing decides.
+  readonly startsColumn?: boolean;
 }
 
 // A group's heading, placed above its first item (or above the first in a later column, when a
@@ -68,6 +72,8 @@ const SIDE_MARGIN = 70;
 // The list shrinks in steps of this much until it fits, but no smaller than MINIMUM_SCALE.
 const SCALE_STEP = 0.05;
 const MINIMUM_SCALE = 0.4;
+// Below this size, the groups' column hints give way to packing by height.
+const MINIMUM_HINTED_SCALE = 0.7;
 
 // Selection, layout and hit testing for the index list, independent of drawing.
 export class MenuModel {
@@ -104,16 +110,27 @@ export class MenuModel {
   // window not maximized), as large as fits: smaller text and spacing, which may also let
   // more rows into a column and so need fewer columns.
   public layout(input: MenuLayoutInput): MenuLayout {
-    let scale = 1;
-    let layout = this.layoutAt(input, scale);
-    while (scale - SCALE_STEP >= MINIMUM_SCALE && layout.columnCount * layout.columnWidth + (layout.columnCount - 1) * layout.columnGap > input.width - 2 * SIDE_MARGIN) {
-      scale -= SCALE_STEP;
-      layout = this.layoutAt(input, scale);
+    if (input.groups?.some((group) => group.startsColumn !== undefined)) {
+      const hinted = this.largestThatFits(input, true, MINIMUM_HINTED_SCALE);
+      if (hinted) return hinted;
     }
-    return layout;
+    return this.largestThatFits(input, false, MINIMUM_SCALE) ?? this.layoutAt(input, MINIMUM_SCALE, false);
   }
 
-  private layoutAt(input: MenuLayoutInput, scale: number): MenuLayout {
+  // The layout at the largest scale, in steps down from 1 to `smallest`, that fits the screen's
+  // width and the room between title and footer; null if none does.
+  private largestThatFits(input: MenuLayoutInput, useHints: boolean, smallest: number): MenuLayout | null {
+    const availableHeight = input.height - TOP_RESERVE - BOTTOM_RESERVE;
+    for (let scale = 1; scale >= smallest - 1e-9; scale -= SCALE_STEP) {
+      const layout = this.layoutAt(input, scale, useHints);
+      const fitsWidth = layout.columnCount * layout.columnWidth + (layout.columnCount - 1) * layout.columnGap <= input.width - 2 * SIDE_MARGIN;
+      const fitsHeight = layout.listBottom - layout.listTop <= availableHeight + 1e-6;
+      if (fitsWidth && fitsHeight) return layout;
+    }
+    return null;
+  }
+
+  private layoutAt(input: MenuLayoutInput, scale: number, useHints: boolean): MenuLayout {
     const textSize = ITEM_TEXT_SIZE * scale;
     const rowSpacing = ROW_SPACING * scale;
     const columnGap = COLUMN_GAP * scale;
@@ -139,7 +156,8 @@ export class MenuModel {
       const groupHeight = headingHeight + (group.size - 1) * rowSpacing + textSize;
       let column = columns[columns.length - 1];
       const spaceBefore = column.lines.length > 0 ? groupGap + rowSpacing - textSize : 0;
-      if (column.lines.length > 0 && column.height + spaceBefore + groupHeight > availableHeight) {
+      const wantsNewColumn = useHints && group.startsColumn !== undefined ? group.startsColumn : column.height + spaceBefore + groupHeight > availableHeight;
+      if (column.lines.length > 0 && wantsNewColumn) {
         startColumn();
         column = columns[columns.length - 1];
       }
