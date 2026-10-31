@@ -68,3 +68,15 @@ export class Projector {
     return this.scale * DEGREES;
   }
 }
+
+// Where the horizon sits on the screen when looking up at `altitude`: the share of the way from the
+// middle to the bottom edge (0 the middle, 1 the bottom edge, more than 1 below the screen, negative
+// above the middle). In a stereographic view the distance from the middle grows as tan(angle / 2).
+export function horizonScreenShare(altitude: number, fieldOfView: number): number {
+  return Math.tan((altitude / 2) * DEGREES) / Math.tan((fieldOfView / 4) * DEGREES);
+}
+
+// The altitude to look up at for the horizon to sit at `share` of the way from the middle to the bottom edge.
+export function altitudeForHorizonAt(share: number, fieldOfView: number): number {
+  return (2 * Math.atan(share * Math.tan((fieldOfView / 4) * DEGREES))) / DEGREES;
+}

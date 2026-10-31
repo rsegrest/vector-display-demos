@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DisplayList } from "@vector-display/core";
 import { equatorialVector, greenwichSiderealTime, julianDate, localSiderealTime, skyRotation, toHorizontal } from "../src/sim/astronomy.js";
-import { Projector } from "../src/sim/projection.js";
+import { horizonScreenShare, Projector } from "../src/sim/projection.js";
 import { SKY } from "../src/sim/sky.js";
 import { StarMapDemo } from "../src/StarMapDemo.js";
 
@@ -101,6 +101,19 @@ describe("the star map", () => {
     demo.draw(withoutGround, { width: 1600, height: 1000, seconds: 0 });
     expect(withGround.segmentCount).toBeGreaterThan(300);
     expect(withoutGround.segmentCount).toBeGreaterThan(withGround.segmentCount);
+  });
+
+  it("starts with the horizon near the bottom of the screen, and keeps it there while zooming", () => {
+    const demo = new StarMapDemo({ place: CHICAGO, placeName: "Chicago", now });
+    expect(horizonScreenShare(demo.view.altitude, demo.view.fieldOfView)).toBeCloseTo(0.84, 6);
+    for (const factor of [1.6, 1.6, 0.3, 0.5]) {
+      demo.zoom(factor);
+      expect(horizonScreenShare(demo.view.altitude, demo.view.fieldOfView)).toBeCloseTo(0.84, 6);
+    }
+    // Looking high, with the horizon off the screen, the zoom keeps the middle where it is.
+    demo.view = { azimuth: 0, altitude: 80, fieldOfView: 40 };
+    demo.zoom(2);
+    expect(demo.view.altitude).toBe(80);
   });
 
   it("looks around and zooms within limits, and runs its clock faster on request", () => {

@@ -1,10 +1,14 @@
 import { SCREEN_SPACE_PLACEMENT, type BeamColor, type DisplayList } from "@vector-display/core";
 import { DemoHud, DynamicGeometry, getDemoFont, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
 import { equatorialVector, localSiderealTime, skyRotation, type Place } from "./sim/astronomy.js";
-import { MAXIMUM_FIELD_OF_VIEW, MINIMUM_FIELD_OF_VIEW, Projector, type View } from "./sim/projection.js";
+import { altitudeForHorizonAt, horizonScreenShare, MAXIMUM_FIELD_OF_VIEW, MINIMUM_FIELD_OF_VIEW, Projector, type View } from "./sim/projection.js";
 import { SKY, type SkyPoint } from "./sim/sky.js";
 
 export const STAR_MAP_WORLD_HEIGHT = 1000;
+// Where the horizon starts on the screen: this share of the way from the middle to the bottom edge,
+// so the sky fills almost all of it.
+export const STARTING_HORIZON_SHARE = 0.84;
+const STARTING_FIELD_OF_VIEW = 90;
 
 // How fast the sky's clock runs, from real time up to an hour a second.
 export const TIME_RATES: readonly { readonly name: string; readonly secondsPerSecond: number }[] = [
@@ -79,7 +83,7 @@ function compassName(azimuth: number): string {
 // horizon with the compass points, and the names of the brightest stars and the constellations. You
 // look around by dragging and zoom with the wheel; the clock runs live, or faster to watch the sky turn.
 export class StarMapDemo implements Demo {
-  public view: View = { azimuth: 180, altitude: 30, fieldOfView: 90 };
+  public view: View = { azimuth: 180, altitude: altitudeForHorizonAt(STARTING_HORIZON_SHARE, STARTING_FIELD_OF_VIEW), fieldOfView: STARTING_FIELD_OF_VIEW };
   public place: Place;
   public placeName: string;
   public timeRateIndex = 0;
@@ -203,9 +207,13 @@ export class StarMapDemo implements Demo {
   }
 
   // Zooms by a factor: below 1 zooms in (a narrower field of view).
+  // While the horizon is on the screen it stays where it is on the screen, so zooming out does not
+  // lift it toward the middle; looking higher up, the zoom is about the middle of the screen.
   public zoom(factor: number): void {
     const fieldOfView = Math.max(MINIMUM_FIELD_OF_VIEW, Math.min(MAXIMUM_FIELD_OF_VIEW, this.view.fieldOfView * factor));
-    this.view = { ...this.view, fieldOfView };
+    const share = horizonScreenShare(this.view.altitude, this.view.fieldOfView);
+    const altitude = share > 0 && share <= 1 ? Math.min(90, altitudeForHorizonAt(share, fieldOfView)) : this.view.altitude;
+    this.view = { ...this.view, fieldOfView, altitude };
   }
 
   public changeTimeRate(delta: number): void {
