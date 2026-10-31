@@ -3,6 +3,25 @@ export interface MenuLayoutInput {
   readonly height: number;
   // Measured width of each item's title at ITEM_TEXT_SIZE.
   readonly itemWidths: readonly number[];
+  // The items in groups, in order, each under a heading; without them, one group with no heading.
+  readonly groups?: readonly MenuGroupInput[];
+}
+
+export interface MenuGroupInput {
+  readonly title: string;
+  // How many items, of those in order, belong to it.
+  readonly size: number;
+  // Measured width of the heading at ITEM_TEXT_SIZE (it is drawn at HEADING_SCALE of that).
+  readonly titleWidth: number;
+}
+
+// A group's heading, placed above its first item (or above the first in a later column, when a
+// group too long for one column is split).
+export interface MenuHeading {
+  readonly title: string;
+  readonly left: number;
+  readonly top: number;
+  readonly size: number;
 }
 
 export interface MenuRow {
@@ -14,6 +33,7 @@ export interface MenuRow {
 
 export interface MenuLayout {
   readonly rows: readonly MenuRow[];
+  readonly headings: readonly MenuHeading[];
   // The size the titles are drawn at: ITEM_TEXT_SIZE, or smaller when the list would not fit.
   readonly textSize: number;
   readonly rowSpacing: number;
@@ -28,6 +48,8 @@ export interface MenuLayout {
 }
 
 export const ITEM_TEXT_SIZE = 30;
+// Headings are smaller than the items they head, as in Vector OS's launcher.
+export const HEADING_SCALE = 0.6;
 const ROW_SPACING = 62;
 // How far the clickable area reaches left of the text, to cover the pointer.
 const HIT_MARGIN_LEFT = 260;
@@ -61,10 +83,18 @@ export class MenuModel {
     this.selectedIndex = (((this.selectedIndex + delta) % this.itemCount) + this.itemCount) % this.itemCount;
   }
 
-  // Steps sideways to the same row of the next column, if there is one.
+  // Steps sideways to the item in the next column whose row is nearest, if there is one.
   public moveColumn(delta: number, layout: MenuLayout): void {
-    const target = this.selectedIndex + delta * layout.rowsPerColumn;
-    if (target >= 0 && target < this.itemCount) this.selectedIndex = target;
+    const current = layout.rows[this.selectedIndex];
+    const lefts = [...new Set(layout.rows.map((row) => row.left))].sort((first, second) => first - second);
+    const targetLeft = lefts[lefts.indexOf(current.left) + delta];
+    if (targetLeft === undefined) return;
+    let best = -1;
+    layout.rows.forEach((row, index) => {
+      if (row.left !== targetLeft) return;
+      if (best < 0 || Math.abs(row.top - current.top) < Math.abs(layout.rows[best].top - current.top)) best = index;
+    });
+    if (best >= 0) this.selectedIndex = best;
   }
 
   // The list at full size if it fits the screen; on a narrower screen (a laptop's 16:10, a
@@ -84,24 +114,71 @@ export class MenuModel {
     const textSize = ITEM_TEXT_SIZE * scale;
     const rowSpacing = ROW_SPACING * scale;
     const columnGap = COLUMN_GAP * scale;
+    const headingSize = textSize * HEADING_SCALE;
+    // A heading takes most of a row; a group ends with a little space before the next.
+    const headingSpacing = rowSpacing * 0.8;
+    const groupGap = rowSpacing * 0.35;
+    const groups = input.groups ?? [{ title: "", size: input.itemWidths.length, titleWidth: 0 }];
     const itemWidths = input.itemWidths.map((width) => width * scale);
-    const widest = Math.max(...itemWidths);
-    // As many rows as fit between the title and the footer; any more start another column.
     const availableHeight = input.height - TOP_RESERVE - BOTTOM_RESERVE;
-    const maximumRows = Math.max(1, Math.floor((availableHeight - textSize) / rowSpacing) + 1);
-    const columnCount = Math.ceil(this.itemCount / maximumRows);
-    const rowsPerColumn = Math.ceil(this.itemCount / columnCount);
+
+    // Lay groups down a column; a group that does not fit below the last starts a new column, and
+    // one too long for any column is split into equal parts, each part a column of its own.
+    type Placed = { readonly kind: "heading"; readonly title: string } | { readonly kind: "item"; readonly index: number };
+    const columns: { lines: { placed: Placed; offset: number }[]; height: number }[] = [];
+    const startColumn = (): void => void columns.push({ lines: [], height: 0 });
+    startColumn();
+    let index = 0;
+    for (const group of groups) {
+      const hasHeading = group.title !== "";
+      const headingHeight = hasHeading ? headingSpacing : 0;
+      const groupHeight = headingHeight + (group.size - 1) * rowSpacing + textSize;
+      let column = columns[columns.length - 1];
+      const spaceBefore = column.lines.length > 0 ? groupGap + rowSpacing - textSize : 0;
+      if (column.lines.length > 0 && column.height + spaceBefore + groupHeight > availableHeight) {
+        startColumn();
+        column = columns[columns.length - 1];
+      }
+      const rowsThatFit = Math.max(1, Math.floor((availableHeight - headingHeight - textSize) / rowSpacing) + 1);
+      const parts = Math.ceil(group.size / rowsThatFit);
+      const perPart = Math.ceil(group.size / parts);
+      for (let part = 0; part < parts; part++) {
+        if (part > 0) {
+          startColumn();
+          column = columns[columns.length - 1];
+        }
+        let offset = column.lines.length > 0 ? column.height + groupGap + rowSpacing - textSize : 0;
+        if (hasHeading && part === 0) {
+          column.lines.push({ placed: { kind: "heading", title: group.title }, offset });
+          offset += headingSpacing;
+        }
+        const count = Math.min(perPart, group.size - part * perPart);
+        for (let line = 0; line < count; line++) {
+          column.lines.push({ placed: { kind: "item", index: index++ }, offset });
+          offset += rowSpacing;
+        }
+        column.height = offset - rowSpacing + textSize;
+      }
+    }
+
+    const headingWidths = new Map(groups.map((group) => [group.title, group.titleWidth * scale * HEADING_SCALE]));
+    const widest = Math.max(...itemWidths, ...groups.map((group) => headingWidths.get(group.title) ?? 0));
+    const columnCount = columns.length;
     const listLeft = (input.width - (columnCount * widest + (columnCount - 1) * columnGap)) / 2;
-    const listHeight = (rowsPerColumn - 1) * rowSpacing + textSize;
-    // Slightly below center, leaving room for the title.
-    const listTop = columnCount === 1 ? input.height * 0.56 - listHeight / 2 : Math.max(TOP_RESERVE, input.height * 0.56 - listHeight / 2);
-    const rows = itemWidths.map((width, index) => ({
-      left: listLeft + Math.floor(index / rowsPerColumn) * (widest + columnGap),
-      top: listTop + (index % rowsPerColumn) * rowSpacing,
-      width,
-      height: textSize,
-    }));
-    return { rows, textSize, rowSpacing, listLeft, listTop, listBottom: listTop + listHeight, columnCount, rowsPerColumn, columnWidth: widest, columnGap };
+    const listHeight = Math.max(...columns.map((column) => column.height));
+    // Slightly below center, leaving room for the title, and never down into the footer's room.
+    const listTop = Math.min(Math.max(TOP_RESERVE, input.height * 0.56 - listHeight / 2), input.height - BOTTOM_RESERVE - listHeight);
+    const rows: MenuRow[] = new Array(itemWidths.length);
+    const headings: MenuHeading[] = [];
+    columns.forEach((column, columnIndex) => {
+      const left = listLeft + columnIndex * (widest + columnGap);
+      for (const { placed, offset } of column.lines) {
+        if (placed.kind === "heading") headings.push({ title: placed.title, left, top: listTop + offset + (textSize - headingSize), size: headingSize });
+        else rows[placed.index] = { left, top: listTop + offset, width: itemWidths[placed.index], height: textSize };
+      }
+    });
+    const rowsPerColumn = Math.max(...columns.map((column) => column.lines.filter((line) => line.placed.kind === "item").length));
+    return { rows, headings, textSize, rowSpacing, listLeft, listTop, listBottom: listTop + listHeight, columnCount, rowsPerColumn, columnWidth: widest, columnGap };
   }
 
   // Index of the row under a point, or -1. Each row's hit area spans half the gap to its neighbors.

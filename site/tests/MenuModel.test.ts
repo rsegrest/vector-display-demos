@@ -124,3 +124,40 @@ describe("MenuModel on a narrower screen", () => {
     }
   });
 });
+
+describe("MenuModel with groups", () => {
+  const groups = [
+    { title: "CREATIVE", size: 5, titleWidth: 200 },
+    { title: "SIMULATION", size: 5, titleWidth: 260 },
+    { title: "ARTIFICIAL LIFE", size: 6, titleWidth: 380 },
+    { title: "VECTOR OS", size: 3, titleWidth: 230 },
+  ];
+  const widths = Array.from({ length: 19 }, () => 360);
+
+  it("puts each group under its heading, a group never split when it fits in a column", () => {
+    const layout = new MenuModel(19).layout({ width: 1778, height: 1000, itemWidths: widths, groups });
+    expect(layout.headings.map((heading) => heading.title)).toEqual(["CREATIVE", "SIMULATION", "ARTIFICIAL LIFE", "VECTOR OS"]);
+    let first = 0;
+    for (const [groupIndex, group] of groups.entries()) {
+      const members = layout.rows.slice(first, first + group.size);
+      const heading = layout.headings[groupIndex];
+      // One column, below its heading, in order.
+      expect(new Set(members.map((row) => row.left))).toEqual(new Set([heading.left]));
+      expect(members[0].top).toBeGreaterThan(heading.top);
+      members.slice(1).forEach((row, index) => expect(row.top).toBeGreaterThan(members[index].top));
+      first += group.size;
+    }
+    // Everything clear of the title and the footer.
+    for (const row of layout.rows) expect(row.top + row.height).toBeLessThanOrEqual(1000 - 180 + 1);
+  });
+
+  it("steps sideways to the nearest item in the next column", () => {
+    const layout = new MenuModel(19).layout({ width: 1778, height: 1000, itemWidths: widths, groups });
+    const menu = new MenuModel(19, 1);
+    menu.moveColumn(1, layout);
+    const moved = layout.rows[menu.selectedIndex];
+    expect(moved.left).toBeGreaterThan(layout.rows[1].left);
+    const sameColumn = layout.rows.filter((row) => row.left === moved.left);
+    expect(Math.min(...sameColumn.map((row) => Math.abs(row.top - layout.rows[1].top)))).toBe(Math.abs(moved.top - layout.rows[1].top));
+  });
+});

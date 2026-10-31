@@ -1,12 +1,14 @@
 import { SCREEN_SPACE_PLACEMENT, Shape, type BeamColor, type DisplayList } from "@vector-display/core";
 import { getDemoFont, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
-import type { DemoEntry } from "../catalog.js";
-import { ITEM_TEXT_SIZE, MenuModel, type MenuLayout } from "./MenuModel.js";
+import { DEMO_GROUPS, type DemoEntry } from "../catalog.js";
+import { ITEM_TEXT_SIZE, MenuModel, type MenuGroupInput, type MenuLayout } from "./MenuModel.js";
 
 const TITLE_COLOR: BeamColor = { red: 0.7, green: 0.95, blue: 1 };
 const ITEM_COLOR: BeamColor = { red: 0.8, green: 0.92, blue: 1 };
 const POINTER_COLOR: BeamColor = { red: 0.55, green: 1, blue: 0.75 };
 const DIM_COLOR: BeamColor = { red: 0.45, green: 0.6, blue: 0.7 };
+// The group headings, in the amber of Vector OS's launcher headings.
+const HEADING_COLOR: BeamColor = { red: 1, green: 0.75, blue: 0.35 };
 const POINTER_GAP = 34;
 const LAUNCH_SECONDS = 0.35;
 
@@ -27,6 +29,7 @@ export class MenuDemo implements Demo {
   private launchSeconds = -1;
   private readonly itemWidths: number[];
   private readonly titles: string[];
+  private readonly groups: MenuGroupInput[];
 
   public constructor(
     private readonly entries: readonly DemoEntry[],
@@ -35,10 +38,14 @@ export class MenuDemo implements Demo {
     this.model = new MenuModel(entries.length, rememberedIndex);
     this.titles = entries.map((entry) => entry.title.toUpperCase());
     this.itemWidths = this.titles.map((title) => getDemoFont().measureText(title, ITEM_TEXT_SIZE).width);
+    this.groups = DEMO_GROUPS.map((group) => {
+      const title = group.title.toUpperCase();
+      return { title, size: entries.filter((entry) => entry.group === group.id).length, titleWidth: getDemoFont().measureText(title, ITEM_TEXT_SIZE).width };
+    }).filter((group) => group.size > 0);
   }
 
   public get layout(): MenuLayout {
-    return this.model.layout({ width: this.width, height: this.height, itemWidths: this.itemWidths });
+    return this.model.layout({ width: this.width, height: this.height, itemWidths: this.itemWidths, groups: this.groups });
   }
 
   public get isLaunching(): boolean {
@@ -99,6 +106,11 @@ export class MenuDemo implements Demo {
       alignment: "center",
       intensity: 0.8,
     });
+
+    displayList.setColor(HEADING_COLOR);
+    for (const heading of layout.headings) {
+      font.addText(displayList, { text: heading.title, x: heading.left, y: heading.top, size: heading.size, intensity: 0.85 });
+    }
 
     const launchFlare = this.isLaunching ? 1 + 2.5 * Math.sin((this.launchSeconds / LAUNCH_SECONDS) * Math.PI) : 1;
     layout.rows.forEach((row, index) => {
