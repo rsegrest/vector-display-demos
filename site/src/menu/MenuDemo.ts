@@ -110,6 +110,7 @@ export class MenuDemo implements Demo {
     displayList.setColor(HEADING_COLOR);
     for (const heading of layout.headings) {
       font.addText(displayList, { text: heading.title, x: heading.left, y: heading.top, size: heading.size, intensity: 0.85 });
+      displayList.addShape(RULE_SHAPE, { x: heading.left + heading.ruleWidth / 2, y: heading.ruleY, rotation: 0, scale: heading.ruleWidth / 2, intensity: 0.4 });
     }
 
     const launchFlare = this.isLaunching ? 1 + 2.5 * Math.sin((this.launchSeconds / LAUNCH_SECONDS) * Math.PI) : 1;

@@ -22,6 +22,9 @@ export interface MenuHeading {
   readonly left: number;
   readonly top: number;
   readonly size: number;
+  // A rule under the heading, across its column, between it and the group's items.
+  readonly ruleY: number;
+  readonly ruleWidth: number;
 }
 
 export interface MenuRow {
@@ -115,8 +118,9 @@ export class MenuModel {
     const rowSpacing = ROW_SPACING * scale;
     const columnGap = COLUMN_GAP * scale;
     const headingSize = textSize * HEADING_SCALE;
-    // A heading takes most of a row; a group ends with a little space before the next.
-    const headingSpacing = rowSpacing * 0.8;
+    // A heading, the rule under it and a little space take a row and a quarter; a group ends with
+    // a little space before the next.
+    const headingSpacing = rowSpacing * 1.25;
     const groupGap = rowSpacing * 0.35;
     const groups = input.groups ?? [{ title: "", size: input.itemWidths.length, titleWidth: 0 }];
     const itemWidths = input.itemWidths.map((width) => width * scale);
@@ -173,7 +177,12 @@ export class MenuModel {
     columns.forEach((column, columnIndex) => {
       const left = listLeft + columnIndex * (widest + columnGap);
       for (const { placed, offset } of column.lines) {
-        if (placed.kind === "heading") headings.push({ title: placed.title, left, top: listTop + offset + (textSize - headingSize), size: headingSize });
+        if (placed.kind === "heading") {
+          const top = listTop + offset + (textSize - headingSize);
+          // The rule sits halfway between the heading and the first item.
+          const ruleY = (top + headingSize + listTop + offset + headingSpacing) / 2;
+          headings.push({ title: placed.title, left, top, size: headingSize, ruleY, ruleWidth: widest });
+        }
         else rows[placed.index] = { left, top: listTop + offset, width: itemWidths[placed.index], height: textSize };
       }
     });
