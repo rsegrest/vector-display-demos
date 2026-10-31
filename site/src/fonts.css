@@ -1,0 +1,13 @@
+/* The site's stroke fonts as web fonts (tools/build-stroke-fonts.ts), for HTML on its pages:
+   the arcade font for headings and controls, Hershey Sans for reading. */
+@font-face {
+  font-family: "Vector Arcade";
+  src: url("/fonts/vector-arcade.otf") format("opentype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Hershey Sans";
+  src: url("/fonts/hershey-sans.otf") format("opentype");
+  font-display: swap;
+}

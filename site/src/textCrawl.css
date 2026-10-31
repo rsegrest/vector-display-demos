@@ -1,0 +1,105 @@
+@import "./fonts.css";
+
+/* Text Crawl's CUSTOMIZE button and panel (demos/text-crawl/src/Customizer.ts): drawn like the
+   crawl, in the arcade font, centered capitals in amber on black, with thin glowing frames. */
+.crawl-customize-button,
+.crawl-customize,
+.crawl-customize input,
+.crawl-customize textarea,
+.crawl-customize button {
+  font-family: "Vector Arcade", ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  color: #ffc74d;
+}
+
+.crawl-customize-button {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 199, 77, 0.6);
+  box-shadow: 0 0 8px rgba(255, 199, 77, 0.25);
+  cursor: pointer;
+}
+
+.crawl-customize-button:hover,
+.crawl-customize-button[aria-expanded="true"] {
+  border-color: #ffc74d;
+  box-shadow: 0 0 12px rgba(255, 199, 77, 0.5);
+}
+
+.crawl-customize {
+  position: fixed;
+  top: 54px;
+  right: 14px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(420px, calc(100vw - 28px));
+  max-height: calc(100vh - 70px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.88);
+  border: 1px solid rgba(255, 199, 77, 0.55);
+  box-shadow: 0 0 14px rgba(255, 199, 77, 0.25);
+}
+
+.crawl-customize[hidden] {
+  display: none;
+}
+
+.crawl-customize label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.crawl-customize label span {
+  color: #7ff2ff;
+}
+
+.crawl-customize input,
+.crawl-customize textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  font-size: 15px;
+  line-height: 1.6;
+  text-align: center;
+  text-transform: uppercase;
+  background: #000;
+  border: 1px solid rgba(255, 199, 77, 0.4);
+  resize: vertical;
+}
+
+.crawl-customize input:focus,
+.crawl-customize textarea:focus {
+  outline: none;
+  border-color: #ffc74d;
+  box-shadow: 0 0 8px rgba(255, 199, 77, 0.4);
+}
+
+.crawl-customize input::placeholder,
+.crawl-customize textarea::placeholder {
+  color: rgba(255, 199, 77, 0.35);
+}
+
+.crawl-customize-submit {
+  align-self: center;
+  padding: 7px 22px;
+  font-size: 14px;
+  background: #000;
+  border: 1px solid #ffc74d;
+  box-shadow: 0 0 10px rgba(255, 199, 77, 0.35);
+  cursor: pointer;
+}
+
+.crawl-customize-submit:hover {
+  box-shadow: 0 0 16px rgba(255, 199, 77, 0.6);
+}

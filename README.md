@@ -264,7 +264,7 @@ Text in the vector font, laid on a plane that recedes from the viewer and slides
 
 Click anywhere in the text to shatter it from that point (`sim/CrawlScene.ts` finds where the click's line of sight meets the plane). Left alone, a page shatters once it has slid far enough away.
 
-`?text=` shows your own words: `|` ends a line, `||` ends a page, and a line starting with `#` is a title. Keep lines under about 26 characters so the nearest ones fit the screen. Characters the font cannot draw become spaces. Example: `?text=%23HELLO|THIS IS MY OWN CRAWL||AND A SECOND PAGE`.
+**Customize**, at the top right, opens a panel for your own words: a header and the text, typed centered and in capitals as the crawl shows them. Submit closes it and the crawl starts again with them: each typed line wrapped to 26 characters, eight lines to a page, the header as the first page's title, a blank line kept as a gap. Escape closes the panel without changing anything. The words are written into the address, so a reload or a shared link shows them again. By hand, `?text=` takes the same words: `|` ends a line, `||` ends a page, and a line starting with `#` is a title. Keep lines under about 26 characters so the nearest ones fit the screen. Characters the font cannot draw become spaces. Example: `?text=%23HELLO|THIS IS MY OWN CRAWL||AND A SECOND PAGE`.
 
 | Input | Action |
 | --- | --- |

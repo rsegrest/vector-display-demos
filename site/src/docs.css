@@ -1,17 +1,7 @@
 /* The guide is a document, not a full-screen display: it scrolls, and its text is ordinary text,
    set in the site's own stroke fonts as web fonts (tools/build-stroke-fonts.ts): the arcade font
    for headings and the section list, Hershey Sans for reading. Code stays monospace. */
-@font-face {
-  font-family: "Vector Arcade";
-  src: url("/fonts/vector-arcade.otf") format("opentype");
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Hershey Sans";
-  src: url("/fonts/hershey-sans.otf") format("opentype");
-  font-display: swap;
-}
+@import "./fonts.css";
 
 :root {
   --code-font: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;

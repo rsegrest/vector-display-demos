@@ -8,10 +8,13 @@ import {
   toggleFullscreen,
 } from "@vector-demos/demo-kit";
 import { DEFAULT_PAGES, TEXT_CRAWL_WORLD_HEIGHT, TRAIL_MODES, TextCrawlDemo } from "./TextCrawlDemo.js";
-import { parsePages } from "./sim/pageLayout.js";
+import { Customizer, type CustomizerWords } from "./Customizer.js";
+import { pagesFromText, pagesToText, parsePages } from "./sim/pageLayout.js";
 
-// Runs the text crawl full screen. ?text=LINE ONE|LINE TWO shows your own words:
-// "|" ends a line, "||" ends a page, and a line starting with "#" is a title.
+// Runs the text crawl full screen. The CUSTOMIZE button in the top right corner sets your own
+// words, and writes them into the address, so a reload or a shared link shows them again:
+// ?text=LINE ONE|LINE TWO, where "|" ends a line, "||" ends a page, and a line starting with "#"
+// is a title.
 export function startTextCrawl(canvas: HTMLCanvasElement): void {
   const custom = new URLSearchParams(location.search).get("text");
   // Only characters the vector font can draw; the rest become spaces.
@@ -42,10 +45,38 @@ export function startTextCrawl(canvas: HTMLCanvasElement): void {
     return;
   }
   demo.onTrailChange = (halfLifeMilliseconds) => host.phosphor.setSettings({ persistenceHalfLifeMilliseconds: halfLifeMilliseconds });
+
+  const customizer = new Customizer(document.body, wordsOf(customPages));
+  customizer.onSubmit = ({ header, text }) => {
+    const pages = pagesFromText(fontSafeText(header), fontSafeText(text));
+    const address = new URL(location.href);
+    // Nothing typed: back to the crawl's own words.
+    if (pages.length === 0 || !demo.showPages(pages)) {
+      demo.showPages(DEFAULT_PAGES);
+      address.searchParams.delete("text");
+    } else {
+      address.searchParams.set("text", pagesToText(pages));
+    }
+    history.replaceState(history.state, "", address);
+    canvas.focus();
+  };
+  // Escape closes the panel first; with it closed, Escape returns to the index as everywhere.
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key !== "Escape" || !customizer.isOpen) return;
+      event.stopImmediatePropagation();
+      customizer.close();
+      canvas.focus();
+    },
+    { capture: true },
+  );
   bindEscapeToIndex();
 
   window.addEventListener("keydown", (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    // Typing in the panel is typing, not the crawl's keys.
+    if (customizer.owns(event.target)) return;
     demo.noteActivity();
     let handled = true;
     switch (event.key) {
@@ -72,4 +103,14 @@ export function startTextCrawl(canvas: HTMLCanvasElement): void {
     if (event.pointerType === "mouse") demo.noteActivity();
   });
   (window as unknown as { textCrawl: unknown }).textCrawl = { demo, host };
+}
+
+// The words already showing (from the address), as the panel's two fields: the first page's
+// titles as the header, every other line as the text.
+function wordsOf(pages: readonly (readonly string[])[]): CustomizerWords {
+  const lines = pages.flat();
+  return {
+    header: lines.filter((line) => line.startsWith("#")).map((line) => line.slice(1)).join(" "),
+    text: lines.filter((line) => !line.startsWith("#")).join("\n"),
+  };
 }

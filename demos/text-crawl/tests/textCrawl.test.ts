@@ -13,7 +13,7 @@ import {
   pageToScene,
   rayToPlane,
 } from "../src/sim/CrawlScene.js";
-import { LINE_HEIGHT, TITLE_SCALE, layoutPage, parsePages } from "../src/sim/pageLayout.js";
+import { LINE_CHARACTERS, LINE_HEIGHT, TITLE_SCALE, layoutPage, pagesFromText, pagesToText, parsePages, wrapWords } from "../src/sim/pageLayout.js";
 
 const STEP = 1 / 60;
 
@@ -261,5 +261,42 @@ describe("TextCrawlDemo", () => {
     const before = demo.scene.distance;
     for (let frame = 0; frame < 60; frame++) demo.update(STEP);
     expect(demo.scene.distance).toBe(before);
+  });
+});
+
+describe("words from the customize panel", () => {
+  it("wraps typed lines to fit, keeps blank lines as gaps, and puts the header on the first page", () => {
+    const pages = pagesFromText("HELLO THERE", "THIS IS A FAIRLY LONG LINE THAT WILL NOT FIT ON ONE CRAWL LINE\n\nSHORT");
+    expect(pages).toHaveLength(1);
+    expect(pages[0][0]).toBe("#HELLO THERE");
+    expect(pages[0].slice(1)).toEqual(["THIS IS A FAIRLY LONG LINE", "THAT WILL NOT FIT ON ONE", "CRAWL LINE", "", "SHORT"]);
+    for (const line of pages[0].slice(1)) expect(line.length).toBeLessThanOrEqual(LINE_CHARACTERS);
+  });
+
+  it("starts a new page every eight lines, wraps a long header into several title lines, and breaks a word too long for a line", () => {
+    const text = Array.from({ length: 19 }, (_, index) => `LINE ${index + 1}`).join("\n");
+    const pages = pagesFromText("A HEADER LONGER THAN FIFTEEN", text);
+    expect(pages.map((page) => page.filter((line) => !line.startsWith("#")).length)).toEqual([8, 8, 3]);
+    expect(pages[0].filter((line) => line.startsWith("#"))).toEqual(["#A HEADER LONGER", "#THAN FIFTEEN"]);
+    expect(wrapWords("X".repeat(30), LINE_CHARACTERS)).toEqual(["X".repeat(26), "XXXX"]);
+  });
+
+  it("goes to and from the address's form, and shows nothing for nothing typed", () => {
+    const pages = pagesFromText("TITLE", "ONE\nTWO");
+    expect(parsePages(pagesToText(pages))).toEqual(pages);
+    // A blank line inside a page stays a blank line, not a new page.
+    const gapped = pagesFromText("TITLE", "ONE\n\nTWO");
+    expect(parsePages(pagesToText(gapped))).toEqual(gapped);
+    expect(pagesFromText("  ", "\n \n")).toEqual([]);
+    expect(pagesFromText("", "JUST TEXT")).toEqual([["JUST TEXT"]]);
+  });
+
+  it("swaps the crawl's words for new ones, starting again from the first page", () => {
+    const demo = new TextCrawlDemo({ seed: 3, pages: DEFAULT_PAGES });
+    demo.nextPage();
+    expect(demo.showPages(pagesFromText("MINE", "MY OWN WORDS"))).toBe(true);
+    expect(demo.scene.pageIndex).toBe(0);
+    expect(demo.scene.phase).toBe("ASSEMBLE");
+    expect(demo.showPages([])).toBe(false);
   });
 });

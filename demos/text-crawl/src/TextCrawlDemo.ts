@@ -58,7 +58,7 @@ const TITLE_COLOR: BeamColor = { red: 0.45, green: 0.95, blue: 1 };
 
 const HELP_LINES = [
   "SPACE OR CLICK SHATTER   N NEXT PAGE   - + SPEED   T TRAILS   P PAUSE   H HUD   F FULLSCREEN   ESC MENU",
-  "ADD ?TEXT=LINE ONE|LINE TWO TO THE ADDRESS FOR YOUR OWN WORDS  (# STARTS A TITLE, || A NEW PAGE)",
+  "CUSTOMIZE, AT THE TOP RIGHT, TO SHOW YOUR OWN WORDS",
 ];
 
 export interface TextCrawlOptions {
@@ -77,7 +77,7 @@ interface Band {
 // from projecting each stroke's two ends, and when the page shatters the same
 // strokes simply stop being held in place.
 export class TextCrawlDemo implements Demo {
-  public readonly scene: CrawlScene;
+  public scene: CrawlScene;
   public isPaused = false;
   public speedIndex = 1;
   public trailIndex = 1;
@@ -85,15 +85,17 @@ export class TextCrawlDemo implements Demo {
 
   private readonly hud = new DemoHud();
   private readonly bands: Band[] = [];
-  private readonly pageCount: number;
+  private pageCount: number;
+  private readonly random: () => number;
   private screenWidth = 1778;
   private screenHeight = TEXT_CRAWL_WORLD_HEIGHT;
   private segmentCount = 0;
 
   public constructor(options: TextCrawlOptions) {
-    const pages = options.pages.map((lines) => layoutPage(lines)).filter((page) => page.segmentCount > 0);
+    this.random = createSeededRandom(options.seed);
+    const pages = TextCrawlDemo.laidOut(options.pages);
     this.pageCount = pages.length;
-    this.scene = new CrawlScene(pages, createSeededRandom(options.seed));
+    this.scene = new CrawlScene(pages, this.random);
     for (const color of [BODY_COLOR, TITLE_COLOR]) {
       for (let band = 0; band < DEPTH_BANDS; band++) {
         const nearness = 1 - band / (DEPTH_BANDS - 1);
@@ -181,6 +183,20 @@ export class TextCrawlDemo implements Demo {
   }
 
   // --- Actions -------------------------------------------------------------------------------------------
+
+  // New words: the crawl starts again from their first page, assembling it. Returns false (and
+  // keeps the old words) if there is nothing to draw.
+  public showPages(lines: readonly (readonly string[])[]): boolean {
+    const pages = TextCrawlDemo.laidOut(lines);
+    if (pages.length === 0) return false;
+    this.pageCount = pages.length;
+    this.scene = new CrawlScene(pages, this.random);
+    return true;
+  }
+
+  private static laidOut(lines: readonly (readonly string[])[]): ReturnType<typeof layoutPage>[] {
+    return lines.map((page) => layoutPage(page)).filter((page) => page.segmentCount > 0);
+  }
 
   public noteActivity(): void {
     this.hud.noteActivity();

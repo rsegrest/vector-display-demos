@@ -69,3 +69,57 @@ export function parsePages(text: string): string[][] {
     .map((page) => page.split("|").map((line) => line.trim()))
     .filter((page) => page.some((line) => line.replace("#", "").trim().length > 0));
 }
+
+// The longest line, in characters, that fits the screen up close; titles are drawn larger, so fewer fit.
+export const LINE_CHARACTERS = 26;
+export const TITLE_CHARACTERS = Math.floor(LINE_CHARACTERS / TITLE_SCALE);
+// Lines of text on one page, after the title.
+export const PAGE_LINES = 8;
+
+// Words laid into lines no longer than `limit` characters; a word longer than a line is broken.
+export function wrapWords(text: string, limit: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    let rest = word;
+    while (rest.length > limit) {
+      if (line) lines.push(line);
+      line = "";
+      lines.push(rest.slice(0, limit));
+      rest = rest.slice(limit);
+    }
+    if (!rest) continue;
+    if (line && line.length + 1 + rest.length > limit) {
+      lines.push(line);
+      line = rest;
+    } else {
+      line = line ? `${line} ${rest}` : rest;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// Pages from a header and text as typed into the customize panel: each typed line wrapped to fit
+// (a blank line kept as a gap), PAGE_LINES lines to a page, the header as the first page's title.
+export function pagesFromText(header: string, text: string): string[][] {
+  const titleLines = wrapWords(header.trim(), TITLE_CHARACTERS).map((line) => `#${line}`);
+  const bodyLines = text
+    .replace(/\r/g, "")
+    .split("\n")
+    .flatMap((typed) => (typed.trim() === "" ? [""] : wrapWords(typed, LINE_CHARACTERS)));
+  // No gaps at the very start or end.
+  while (bodyLines[0] === "") bodyLines.shift();
+  while (bodyLines.at(-1) === "") bodyLines.pop();
+  const pages: string[][] = [];
+  for (let start = 0; start < bodyLines.length; start += PAGE_LINES) pages.push(bodyLines.slice(start, start + PAGE_LINES));
+  if (pages.length === 0) pages.push([]);
+  pages[0] = [...titleLines, ...pages[0]];
+  return pages.filter((page) => page.some((line) => line.replace("#", "").trim().length > 0));
+}
+
+// Pages written the way the address's ?text= takes them, the inverse of parsePages. A blank line
+// is written as a space: two "|" in a row would end the page.
+export function pagesToText(pages: readonly (readonly string[])[]): string {
+  return pages.map((page) => page.map((line) => line || " ").join("|")).join("||");
+}
