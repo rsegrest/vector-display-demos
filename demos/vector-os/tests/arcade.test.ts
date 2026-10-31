@@ -374,14 +374,14 @@ describe("arcade games in Vector OS", () => {
     expect((x1 - x0) / (y1 - y0)).toBeCloseTo(4 / 3);
   });
 
-  it("opens a game's own page, under arcade/, from the box on its title bar", async () => {
+  it("opens a game's own page, under arcade/, when the box on its title bar is shift-clicked", async () => {
     const { os } = createDesk();
     os.launch("first");
     await settle(os);
     const opened: string[] = [];
     os.onNavigate = (page) => void opened.push(page);
     const { rect } = windowOf(os, "FIRST");
-    os.pointer("down", rect.x + rect.width - 15, rect.y + 15);
+    os.pointer("down", rect.x + rect.width - 15, rect.y + 15, true);
     expect(opened).toEqual(["arcade/first"]);
   });
 });

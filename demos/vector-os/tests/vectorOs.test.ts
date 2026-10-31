@@ -723,14 +723,38 @@ describe("VectorOsDemo", () => {
     expect(record.disposed).toBe(1);
   });
 
-  it("asks the page to open a demo full screen from the box on its title bar", async () => {
+  it("shows any program full screen from the box on its title bar, and puts it back in its window", async () => {
+    const { os, record } = createOs(["one"]);
+    await settleOs(os);
+    const changes: boolean[] = [];
+    os.onFullScreenChange = (isFullScreen) => void changes.push(isFullScreen);
+    const window = os.windowManager.windows[0];
+    const before = { ...window.rect };
+    os.pointer("down", before.x + before.width - 15, before.y + 15);
+    os.pointer("up", before.x + before.width - 15, before.y + 15);
+    expect(os.isFullScreen).toBe(true);
+    // Its contents are the whole screen, and the pointer reaches it anywhere on it.
+    expect(os.windowManager.contentRect(window)).toEqual({ x: 0, y: 0, width: FRAME.width, height: FRAME.height });
+    os.pointer("down", 30, 30);
+    expect(record.pointers.length).toBeGreaterThan(0);
+    os.resize(1400, 1000);
+    expect(os.windowManager.contentRect(window)).toEqual({ x: 0, y: 0, width: 1400, height: 1000 });
+    os.resize(FRAME.width, FRAME.height);
+    os.exitFullScreen();
+    expect(os.isFullScreen).toBe(false);
+    expect(window.rect).toEqual(before);
+    expect(changes).toEqual([true, false]);
+  });
+
+  it("opens a demo's own page when its box is shift-clicked", async () => {
     const { os } = createOs(["one"]);
     await settleOs(os);
     const opened: string[] = [];
     os.onNavigate = (id) => void opened.push(id);
     const { rect } = os.windowManager.windows[0];
-    os.pointer("down", rect.x + rect.width - 15, rect.y + 15);
+    os.pointer("down", rect.x + rect.width - 15, rect.y + 15, true);
     expect(opened).toEqual(["one"]);
+    expect(os.isFullScreen).toBe(false);
   });
 
   it("closes the oldest window rather than open too many", async () => {

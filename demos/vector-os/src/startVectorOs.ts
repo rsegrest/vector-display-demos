@@ -34,6 +34,19 @@ export function startVectorOs(canvas: HTMLCanvasElement): void {
   os.onNavigate = (page) => {
     location.href = `../${page}/`;
   };
+  bindFullScreenToHistory(os);
+  // Registered first, so in full screen Escape returns the program to its window instead of
+  // leaving for the index (bindEscapeToIndex below never sees it).
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key !== "Escape" || !os.isFullScreen) return;
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      if (!event.repeat) os.exitFullScreen();
+    },
+    { capture: true },
+  );
   bindEscapeToIndex();
 
   window.addEventListener("keydown", (event) => {
@@ -85,4 +98,27 @@ export function startVectorOs(canvas: HTMLCanvasElement): void {
     os.pointer("leave", point.x, point.y, event.shiftKey);
   });
   (window as unknown as { vectorOs: unknown }).vectorOs = { os, host };
+}
+
+// Full screen is a step in the browser's history, so its Back button returns the program to its
+// window, as Escape does, rather than leaving Vector OS.
+function bindFullScreenToHistory(os: VectorOsDemo): void {
+  const MARK = "vectorOsFullScreen";
+  let isLeavingByBack = false;
+  os.onFullScreenChange = (isFullScreen) => {
+    if (isFullScreen) {
+      // Going from one full-screen program to another replaces the step rather than adding one.
+      if ((history.state as Record<string, unknown> | null)?.[MARK]) history.replaceState({ [MARK]: true }, "");
+      else history.pushState({ [MARK]: true }, "");
+    } else if (!isLeavingByBack && (history.state as Record<string, unknown> | null)?.[MARK]) {
+      // Left by Escape (or the window closing): take the step back off, so Back then leaves the page as usual.
+      history.back();
+    }
+  };
+  window.addEventListener("popstate", () => {
+    if (!os.isFullScreen) return;
+    isLeavingByBack = true;
+    os.exitFullScreen();
+    isLeavingByBack = false;
+  });
 }

@@ -9,6 +9,8 @@ import { TITLE_BAR_HEIGHT, TITLE_BOX_SIZE, RESIZE_GRIP, WindowManager, contains,
 
 export const VECTOR_OS_WORLD_HEIGHT = 1000;
 export const MENU_BAR_HEIGHT = 44;
+// How long full screen shows its line saying how to get back.
+const FULL_SCREEN_HINT_SECONDS = 3;
 export const LAUNCHER_WIDTH = 300;
 const LAUNCHER_ROW = 31;
 const LAUNCHER_TOP = MENU_BAR_HEIGHT + 22;
@@ -69,13 +71,18 @@ export interface VectorOsOptions {
 // here unchanged: they draw exactly as they do full screen.
 export class VectorOsDemo implements Demo {
   public readonly beam: BeamSettingsStore;
-  // Called when a window's "open full screen" box is clicked, with the path of the
+  // Called when a demo's or game's full-screen box is shift-clicked, with the path of the
   // program's own page: its id, or for the games arcade/ and its id.
   public onNavigate: (page: string) => void = () => {};
-  // When set (in VR, where a program's own page cannot open), that box shows the program full
-  // screen inside Vector OS instead: its contents fill the whole screen, with no menu, launcher,
-  // desktop or title bar, until exitFullScreen().
+  // Every window's full-screen box shows its program full screen inside Vector OS: its contents
+  // fill the whole screen, with no menu, launcher, desktop or title bar, until exitFullScreen()
+  // (Escape, or the browser's Back button, on the page). Set in VR, where a program's own page
+  // cannot open, to keep shift-click from leaving for it.
   public launchMaximizes = false;
+  // Told when full screen starts and ends, so the page can tie it to the browser's history.
+  public onFullScreenChange: (isFullScreen: boolean) => void = () => {};
+  // When full screen began, for the hint shown for its first few seconds.
+  private fullScreenSince = 0;
   private fullScreenWindow: OsWindow<Running> | null = null;
   // The window a ray's button went down to in 3D (aimFullScreen3d), for its coming up.
   private aimedWindow: OsWindow<Running> | null = null;
@@ -119,15 +126,29 @@ export class VectorOsDemo implements Demo {
   // Back from full screen to the desktop, the window where it was.
   public exitFullScreen(): void {
     const window = this.fullScreenWindow;
+    if (!window) return;
     this.fullScreenWindow = null;
-    if (window && this.windows.windows.includes(window)) this.windows.toggleMaximized(window);
+    if (this.windows.windows.includes(window)) this.windows.toggleMaximized(window);
+    this.onFullScreenChange(false);
   }
 
   private enterFullScreen(window: OsWindow<Running>): void {
-    this.exitFullScreen();
+    if (this.fullScreenWindow) {
+      const previous = this.fullScreenWindow;
+      this.fullScreenWindow = null;
+      if (this.windows.windows.includes(previous)) this.windows.toggleMaximized(previous);
+    }
     // The title bar goes above the top of the screen, so the contents are the whole screen.
-    this.windows.toggleMaximized(window, { x: 0, y: -TITLE_BAR_HEIGHT, width: this.width, height: this.height + TITLE_BAR_HEIGHT });
+    this.windows.toggleMaximized(window, this.fullScreenRect());
+    this.windows.bringToFront(window);
     this.fullScreenWindow = window;
+    this.fullScreenSince = this.seconds;
+    this.syncFocus();
+    this.onFullScreenChange(true);
+  }
+
+  private fullScreenRect(): Rect {
+    return { x: 0, y: -TITLE_BAR_HEIGHT, width: this.width, height: this.height + TITLE_BAR_HEIGHT };
   }
 
   /** The id of the program in the window in front (its registry entry), or null. */
@@ -222,6 +243,8 @@ export class VectorOsDemo implements Demo {
     this.height = height;
     this.windows.setBounds({ x: LAUNCHER_WIDTH, y: MENU_BAR_HEIGHT, width: Math.max(300, width - LAUNCHER_WIDTH), height: height - MENU_BAR_HEIGHT });
     this.clampLauncherScroll();
+    // A full-screen program follows the screen's size.
+    if (this.fullScreenWindow) Object.assign(this.fullScreenWindow.rect, this.fullScreenRect());
   }
 
   public update(deltaSeconds: number): void {
@@ -252,10 +275,26 @@ export class VectorOsDemo implements Demo {
     const screen = { left: 0, top: 0, right: frame.width, bottom: frame.height };
     this.blitter.beginFrame();
     const full = this.fullScreenWindow;
-    if (full && (full.state !== "open" || !this.windows.windows.includes(full))) this.fullScreenWindow = null;
+    if (full && (full.state !== "open" || !this.windows.windows.includes(full))) {
+      this.fullScreenWindow = null;
+      this.onFullScreenChange(false);
+    }
     if (this.fullScreenWindow) {
-      // Only the program: no desktop, no other windows, no frame.
+      // Only the program: no desktop, no other windows, no frame. For its first seconds, a line
+      // at the top says how to get back to the window.
       this.drawContents(displayList, this.fullScreenWindow, frame.seconds, []);
+      const shown = this.seconds - this.fullScreenSince;
+      if (shown < FULL_SCREEN_HINT_SECONDS) {
+        displayList.setColor(DESKTOP_COLOR);
+        getDemoFont().addText(displayList, {
+          text: "ESC OR BACK: RETURN TO THE WINDOW",
+          x: frame.width / 2,
+          y: 14,
+          size: 13,
+          alignment: "center",
+          intensity: 0.9 * Math.min(1, (FULL_SCREEN_HINT_SECONDS - shown) / 0.8),
+        });
+      }
       this.segmentCount = displayList.segmentCount;
       return;
     }
@@ -410,7 +449,8 @@ export class VectorOsDemo implements Demo {
     const row = rows.find((candidate) => candidate.entry === entry) ?? rows.find((candidate) => candidate.entry === null && candidate.category === entry.category);
     const from = origin ?? row?.rect ?? { x: this.width / 2, y: this.height / 2, width: 0, height: 0 };
     const running: Running = { entry, app: null, failed: false, list: new DisplayList(), worldWidth: 0, worldHeight: 0 };
-    const window = this.windows.open(entry.title, running, entry.size, from, entry.kind === "demo");
+    // Every program can go full screen, from the box at the right of its title bar.
+    const window = this.windows.open(entry.title, running, entry.size, from, true);
     this.syncFocus();
     // Tools are ready at once; demos arrive when their code has loaded.
     Promise.resolve()
@@ -531,8 +571,9 @@ export class VectorOsDemo implements Demo {
     this.syncFocus();
     if (hit.part === "close") return;
     if (hit.part === "launch") {
-      if (this.launchMaximizes) this.enterFullScreen(hit.window);
-      else this.onNavigate(hit.window.payload.entry.page ?? hit.window.payload.entry.id);
+      // Shift-click opens a demo's or game's own page; otherwise the program fills the screen here.
+      if (shiftKey && !this.launchMaximizes && hit.window.payload.entry.kind === "demo") this.onNavigate(hit.window.payload.entry.page ?? hit.window.payload.entry.id);
+      else this.enterFullScreen(hit.window);
     }
     else if (hit.part === "title") this.windows.beginDrag(hit.window, "move", x, y);
     else if (hit.part === "resize") this.windows.beginDrag(hit.window, "resize", x, y);
