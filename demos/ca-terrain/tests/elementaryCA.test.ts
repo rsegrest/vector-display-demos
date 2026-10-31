@@ -21,14 +21,14 @@ describe("cellFromNeighborhood", () => {
   });
 
   it("gives rule 90 the XOR of the outer cells", () => {
-    for (const [left, centre, right] of [
+    for (const [left, center, right] of [
       [0, 0, 0],
       [0, 1, 0],
       [1, 0, 0],
       [0, 0, 1],
       [1, 1, 1],
     ]) {
-      expect(cellFromNeighborhood(left, centre, right, 90)).toBe(left ^ right);
+      expect(cellFromNeighborhood(left, center, right, 90)).toBe(left ^ right);
     }
   });
 });
@@ -61,7 +61,7 @@ describe("nextRow", () => {
     const width = 6;
     const row = createEmptyRow(width);
     row[0] = 1;
-    // Rule 90: the cell at the right end sees the left end as its right neighbour.
+    // Rule 90: the cell at the right end sees the left end as its right neighbor.
     const next = nextRow(row, 90);
     expect(next[width - 1]).toBe(1);
     expect(next[1]).toBe(1);

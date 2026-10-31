@@ -38,8 +38,8 @@ describe.each(calibrated.map((entry) => [entry.attractor.name, entry] as const))
   });
 
   it("stays inside the unit box and travels at about unit speed", () => {
-    const { attractor, centre, radius } = entry;
-    const point: Vector3 = [(attractor.seed[0] - centre[0]) / radius, (attractor.seed[1] - centre[1]) / radius, (attractor.seed[2] - centre[2]) / radius];
+    const { attractor, center, radius } = entry;
+    const point: Vector3 = [(attractor.seed[0] - center[0]) / radius, (attractor.seed[1] - center[1]) / radius, (attractor.seed[2] - center[2]) / radius];
     const field = blendedField(entry, entry, 0);
     const out: Vector3 = [0, 0, 0];
     let totalSpeed = 0;

@@ -18,8 +18,8 @@ export class OrbitCamera {
   public pitch = 0.3;
   public zoom = 1;
 
-  private centreX = 0;
-  private centreY = 0;
+  private centerX = 0;
+  private centerY = 0;
   private unit = 1;
   private sinYaw = 0;
   private cosYaw = 1;
@@ -28,8 +28,8 @@ export class OrbitCamera {
 
   // Call once per frame before projecting: fixes the screen size and the angles.
   public frame(screenWidth: number, screenHeight: number): void {
-    this.centreX = screenWidth / 2;
-    this.centreY = screenHeight / 2;
+    this.centerX = screenWidth / 2;
+    this.centerY = screenHeight / 2;
     this.unit = Math.min(screenWidth, screenHeight) * 0.47 * this.zoom * CAMERA_DISTANCE;
     this.sinYaw = Math.sin(this.yaw);
     this.cosYaw = Math.cos(this.yaw);
@@ -56,8 +56,8 @@ export class OrbitCamera {
     const tippedZ = turnedY * this.sinPitch + z * this.cosPitch;
     const depth = Math.max(0.2, CAMERA_DISTANCE + tippedY);
     const scale = this.unit / depth;
-    out.x = this.centreX + turnedX * scale;
-    out.y = this.centreY - tippedZ * scale;
+    out.x = this.centerX + turnedX * scale;
+    out.y = this.centerY - tippedZ * scale;
     out.depth = depth;
   }
 }

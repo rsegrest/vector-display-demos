@@ -5,7 +5,7 @@
 // that divide like cells, mazes, coral, restless turbulence, or nothing at all.
 //
 // Constants follow Karl Sims' well-known formulation: diffusion rates 1 and 0.5, a
-// time step of 1, and a 3x3 Laplacian weighted 0.2 for edge neighbours and 0.05 for
+// time step of 1, and a 3x3 Laplacian weighted 0.2 for edge neighbors and 0.05 for
 // corners. The grid is a torus.
 
 import type { RandomSource } from "@vector-demos/demo-kit";
@@ -93,13 +93,13 @@ export class GrayScottWorld {
   // Adds a disc of V (or, with `add` false, wipes a disc back to the resting state).
   public paint(x: number, y: number, radius: number, add: boolean): void {
     const reach = Math.ceil(radius);
-    const centreColumn = Math.floor(x);
-    const centreRow = Math.floor(y);
+    const centerColumn = Math.floor(x);
+    const centerRow = Math.floor(y);
     for (let rowOffset = -reach; rowOffset <= reach; rowOffset++) {
       for (let columnOffset = -reach; columnOffset <= reach; columnOffset++) {
         if (rowOffset * rowOffset + columnOffset * columnOffset > radius * radius) continue;
-        const column = (((centreColumn + columnOffset) % this.columns) + this.columns) % this.columns;
-        const row = (((centreRow + rowOffset) % this.rows) + this.rows) % this.rows;
+        const column = (((centerColumn + columnOffset) % this.columns) + this.columns) % this.columns;
+        const row = (((centerRow + rowOffset) % this.rows) + this.rows) % this.rows;
         const cell = row * this.columns + column;
         this.u[cell] = add ? 0.5 : 1;
         this.v[cell] = add ? 0.25 : 0;

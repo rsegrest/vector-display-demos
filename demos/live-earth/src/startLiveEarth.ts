@@ -4,7 +4,7 @@ import { LIVE_EARTH_WORLD_HEIGHT } from "./LiveEarthDemo.js";
 
 // Runs the live Earth full screen. Satellite orbits and earthquakes are fetched
 // from CelesTrak and the USGS when the page opens; if either cannot be reached,
-// the copy bundled with the demo is shown instead and labelled as a snapshot.
+// the copy bundled with the demo is shown instead and labeled as a snapshot.
 export function startLiveEarth(canvas: HTMLCanvasElement): void {
   const { demo } = createLiveEarth();
 

@@ -14,7 +14,7 @@ export function wrapLongitude(lng: number): number {
 }
 
 // The point reached by setting out from (lng, lat) on `bearing` (clockwise from
-// north) and travelling `distance` degrees of arc along a great circle.
+// north) and traveling `distance` degrees of arc along a great circle.
 export function destination(lng: number, lat: number, bearing: number, distance: number, out: LngLat): LngLat {
   const phi = lat * RADIANS;
   const theta = bearing * RADIANS;

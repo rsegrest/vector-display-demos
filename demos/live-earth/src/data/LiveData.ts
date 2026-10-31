@@ -133,9 +133,9 @@ export function loadQuakes(environment: DataEnvironment, snapshot: Snapshot): Pr
 function dedupe(entries: TleEntry[]): TleEntry[] {
   const seen = new Set<string>();
   return entries.filter((entry) => {
-    const catalogueNumber = entry.line1.slice(2, 7);
-    if (seen.has(catalogueNumber)) return false;
-    seen.add(catalogueNumber);
+    const catalogNumber = entry.line1.slice(2, 7);
+    if (seen.has(catalogNumber)) return false;
+    seen.add(catalogNumber);
     return true;
   });
 }

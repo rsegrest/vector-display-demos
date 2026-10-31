@@ -16,7 +16,7 @@ export interface TerrainStyle {
   // How far the terrain has slid toward the camera since the last generation
   // arrived, 0..1 of a row spacing. This is what makes the flight continuous.
   readonly scroll: number;
-  // Number of depth bands; each is one colour and one geometry batch.
+  // Number of depth bands; each is one color and one geometry batch.
   readonly bandCount: number;
   // Hide whatever a nearer ridge stands in front of.
   readonly hiddenLines: boolean;
@@ -98,9 +98,9 @@ export class TerrainRenderer {
     const groundY = projection.horizonY + projection.cameraHeight * scale;
     const rise = style.ridgeHeight * scale;
     const columnWidth = style.screenWidth / OCCLUSION_COLUMNS;
-    const centreColumn = Math.floor(cellCount / 2);
+    const centerColumn = Math.floor(cellCount / 2);
     // Enough cells either side of the flight path to pass both screen edges.
-    const halfSpan = Math.ceil(Math.max(projection.centreX, style.screenWidth - projection.centreX) / cellScreenWidth) + 1;
+    const halfSpan = Math.ceil(Math.max(projection.centerX, style.screenWidth - projection.centerX) / cellScreenWidth) + 1;
 
     let drawing = false;
     let penX = 0;
@@ -112,8 +112,8 @@ export class TerrainRenderer {
     let previousY = 0;
 
     for (let offset = -halfSpan; offset <= halfSpan; offset++) {
-      const cell = (((centreColumn + offset) % cellCount) + cellCount) % cellCount;
-      const x = projection.centreX + offset * cellScreenWidth;
+      const cell = (((centerColumn + offset) % cellCount) + cellCount) % cellCount;
+      const x = projection.centerX + offset * cellScreenWidth;
       const y = groundY - heights[cell] * rise;
       if (offset > -halfSpan) {
         const first = Math.max(0, Math.ceil(previousX / columnWidth - 0.5));

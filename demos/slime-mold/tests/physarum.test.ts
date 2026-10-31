@@ -114,7 +114,7 @@ describe("PhysarumWorld stepping", () => {
     expect(world.trailAt(20, 20)).toBeLessThan(before);
   });
 
-  it("spreads trail into neighbouring cells as it diffuses", () => {
+  it("spreads trail into neighboring cells as it diffuses", () => {
     const world = createWorld(1, { diffuseAmount: 1, decayFactor: 1 });
     world.clearTrail();
     // Deposit a single cell, then park the agent away from it and step.

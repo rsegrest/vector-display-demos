@@ -1,5 +1,5 @@
 // Any closed path can be drawn by a chain of circles, each turning at a steady
-// whole-number speed with its centre riding on the rim of the one before. The
+// whole-number speed with its center riding on the rim of the one before. The
 // Fourier transform is what tells you which circles: treat the path as a list of
 // points in the plane, and for each turning speed it gives a radius and a starting
 // angle. Add the fastest circles last and the tip of the chain traces the path;
@@ -71,7 +71,7 @@ export function epicyclesFor(samples: SampledPath): Epicycle[] {
 
 // Where every joint of the chain is at `time` (0..1 of a trip), using the first
 // `termCount` circles. Writes x, y pairs into `joints`: entry 0 is the origin,
-// entry k the centre of circle k (the rim point of circle k - 1), and the last
+// entry k the center of circle k (the rim point of circle k - 1), and the last
 // written entry the tip. Returns the number of joints written, termCount + 1.
 export function chainAt(epicycles: readonly Epicycle[], termCount: number, time: number, joints: Float64Array): number {
   const used = Math.min(termCount, epicycles.length);

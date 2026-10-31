@@ -24,7 +24,7 @@ const TITLE_GAP = 0.9;
 const CHARACTER_ADVANCE = 6;
 const CAPITAL_WIDTH = 4;
 
-// A line beginning with "#" is a title: larger, and flagged so it can be coloured differently.
+// A line beginning with "#" is a title: larger, and flagged so it can be colored differently.
 export function layoutPage(lines: readonly string[]): Page {
   const coordinates: number[] = [];
   const titles: number[] = [];

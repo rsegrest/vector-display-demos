@@ -1,7 +1,7 @@
 // Where a satellite is, from its published orbital elements. The elements describe
 // the orbit at one moment; SGP4, the standard model they are made for, carries it
 // forward (or back) from there, allowing for the Earth's bulge and thin air. The
-// satellite.js library does that arithmetic. Predictions are good to a kilometre or
+// satellite.js library does that arithmetic. Predictions are good to a kilometer or
 // so for a few days either side of the elements' date and drift after that.
 
 import { degreesLat, degreesLong, eciToGeodetic, gstime, propagate, twoline2satrec, type SatRec } from "satellite.js";
@@ -68,7 +68,7 @@ export function createSatellites(entries: readonly TleEntry[], maximumAltitudeKm
   return satellites;
 }
 
-// Distance from the Earth's centre, in Earth radii, for a height above the ground.
+// Distance from the Earth's center, in Earth radii, for a height above the ground.
 export function radiusFactor(altitudeKm: number): number {
   return 1 + altitudeKm / EARTH_RADIUS_KM;
 }

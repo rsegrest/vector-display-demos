@@ -58,8 +58,8 @@ export class CrawlScene {
   public current = new Float32Array(0);
 
   private home = new Float32Array(0);
-  // Each loose stroke as a centre, half its length as a vector, a velocity and a spin.
-  private centre = new Float32Array(0);
+  // Each loose stroke as a center, half its length as a vector, a velocity and a spin.
+  private center = new Float32Array(0);
   private half = new Float32Array(0);
   private velocity = new Float32Array(0);
   private spinAxis = new Float32Array(0);
@@ -117,12 +117,12 @@ export class CrawlScene {
       const offset = stroke * FLOATS;
       const base = stroke * 3;
       for (let axis = 0; axis < 3; axis++) {
-        this.centre[base + axis] = (this.current[offset + axis] + this.current[offset + 3 + axis]) / 2;
+        this.center[base + axis] = (this.current[offset + axis] + this.current[offset + 3 + axis]) / 2;
         this.half[base + axis] = (this.current[offset + 3 + axis] - this.current[offset + axis]) / 2;
       }
-      const awayX = this.centre[base] - from[0];
-      const awayY = this.centre[base + 1] - from[1];
-      const awayZ = this.centre[base + 2] - from[2];
+      const awayX = this.center[base] - from[0];
+      const awayY = this.center[base + 1] - from[1];
+      const awayZ = this.center[base + 2] - from[2];
       const range = Math.hypot(awayX, awayY, awayZ) + 1e-6;
       // Strokes near the blast are thrown hardest.
       const force = 110 + 340 / (1 + range / 40);
@@ -148,7 +148,7 @@ export class CrawlScene {
     const count = this.page.segmentCount;
     this.current = new Float32Array(count * FLOATS);
     this.home = new Float32Array(count * FLOATS);
-    this.centre = new Float32Array(count * 3);
+    this.center = new Float32Array(count * 3);
     this.half = new Float32Array(count * 3);
     this.velocity = new Float32Array(count * 3);
     this.spinAxis = new Float32Array(count * 3);
@@ -162,9 +162,9 @@ export class CrawlScene {
     for (let stroke = 0; stroke < count; stroke++) {
       const base = stroke * 3;
       const length = Math.hypot(segments[stroke * 4 + 2] - segments[stroke * 4], segments[stroke * 4 + 3] - segments[stroke * 4 + 1]);
-      this.centre[base] = (this.random() - 0.5) * 520;
-      this.centre[base + 1] = -80 + this.random() * 300;
-      this.centre[base + 2] = 70 + this.random() * 520;
+      this.center[base] = (this.random() - 0.5) * 520;
+      this.center[base + 1] = -80 + this.random() * 300;
+      this.center[base + 2] = 70 + this.random() * 520;
       this.randomAxis(this.half, base);
       for (let axis = 0; axis < 3; axis++) this.half[base + axis] *= length / 2;
     }
@@ -187,8 +187,8 @@ export class CrawlScene {
       const offset = stroke * FLOATS;
       const base = stroke * 3;
       for (let axis = 0; axis < 3; axis++) {
-        const startA = this.centre[base + axis] - this.half[base + axis];
-        const startB = this.centre[base + axis] + this.half[base + axis];
+        const startA = this.center[base + axis] - this.half[base + axis];
+        const startB = this.center[base + axis] + this.half[base + axis];
         this.current[offset + axis] = startA + (this.home[offset + axis] - startA) * amount;
         this.current[offset + 3 + axis] = startB + (this.home[offset + 3 + axis] - startB) * amount;
       }
@@ -204,12 +204,12 @@ export class CrawlScene {
       const offset = stroke * FLOATS;
       for (let axis = 0; axis < 3; axis++) {
         this.velocity[base + axis] *= drag;
-        this.centre[base + axis] += this.velocity[base + axis] * deltaSeconds;
+        this.center[base + axis] += this.velocity[base + axis] * deltaSeconds;
       }
       this.rotate(base, this.spinRate[stroke] * deltaSeconds);
       for (let axis = 0; axis < 3; axis++) {
-        this.current[offset + axis] = this.centre[base + axis] - this.half[base + axis];
-        this.current[offset + 3 + axis] = this.centre[base + axis] + this.half[base + axis];
+        this.current[offset + axis] = this.center[base + axis] - this.half[base + axis];
+        this.current[offset + 3 + axis] = this.center[base + axis] + this.half[base + axis];
       }
     }
   }

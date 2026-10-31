@@ -174,12 +174,12 @@ export class EarthRenderer {
   }
 
   private drawLimb(displayList: DisplayList): void {
-    const { centreX, centreY, radius } = this.projector;
+    const { centerX, centerY, radius } = this.projector;
     this.limb.clear();
-    this.limb.moveTo(centreX + radius, centreY);
+    this.limb.moveTo(centerX + radius, centerY);
     for (let index = 1; index < LIMB_POINTS; index++) {
       const angle = (index / LIMB_POINTS) * Math.PI * 2;
-      this.limb.lineTo(centreX + Math.cos(angle) * radius, centreY + Math.sin(angle) * radius);
+      this.limb.lineTo(centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius);
     }
     this.limb.closePath();
     this.add(displayList, this.limb, LIMB_COLOR, 0.8);
@@ -222,9 +222,9 @@ export class EarthRenderer {
     this.add(displayList, this.terminator, SUN_COLOR, 0.35);
 
     this.sun.clear();
-    const centre = this.projector.project(subsolar.lng, subsolar.lat, 1, this.point);
-    if (centre.depth > 0.05) {
-      const { x, y } = centre;
+    const center = this.projector.project(subsolar.lng, subsolar.lat, 1, this.point);
+    if (center.depth > 0.05) {
+      const { x, y } = center;
       const size = Math.max(7, this.projector.radius * 0.022);
       this.ring(this.sun, x, y, size, 12);
       for (let ray = 0; ray < 8; ray++) {
@@ -235,7 +235,7 @@ export class EarthRenderer {
     this.add(displayList, this.sun, SUN_COLOR, 0.9);
   }
 
-  // A ring on the ground at each epicentre, larger for larger earthquakes and
+  // A ring on the ground at each epicenter, larger for larger earthquakes and
   // dimmer with age; those of the last day also send out a ripple.
   private drawQuakes(displayList: DisplayList, scene: EarthScene): void {
     for (const geometry of this.quakeGeometries) geometry.clear();
@@ -244,12 +244,12 @@ export class EarthRenderer {
     if (this.quakeScreen.length < quakes.length * 3) this.quakeScreen = new Float32Array(quakes.length * 3);
     quakes.forEach((quake, index) => {
       const ageHours = (scene.timeMilliseconds - quake.timeMilliseconds) / HOUR_MILLISECONDS;
-      const centre = this.projector.project(quake.lng, quake.lat, 1, this.point);
-      const shown = ageHours >= 0 && centre.depth > 0;
-      this.quakeScreen[index * 3] = centre.x;
-      this.quakeScreen[index * 3 + 1] = centre.y;
+      const center = this.projector.project(quake.lng, quake.lat, 1, this.point);
+      const shown = ageHours >= 0 && center.depth > 0;
+      this.quakeScreen[index * 3] = center.x;
+      this.quakeScreen[index * 3 + 1] = center.y;
       this.quakeScreen[index * 3 + 2] = shown ? 1 : 0;
-      if (ageHours < 0 || centre.depth < -0.1) return;
+      if (ageHours < 0 || center.depth < -0.1) return;
       const band = QUAKE_AGE_LIMITS_HOURS.findIndex((limit) => ageHours < limit);
       const degrees = quakeRingDegrees(quake.magnitude);
       this.surfaceRing(this.quakeGeometries[band], quake.lng, quake.lat, degrees);
@@ -357,11 +357,11 @@ export class EarthRenderer {
     } else if (isNear !== previous.depth >= 0) {
       // Where the line passes over the edge: depth runs through zero between the two points.
       const amount = previous.depth / (previous.depth - point.depth);
-      let edgeX = previous.x + (point.x - previous.x) * amount - this.projector.centreX;
-      let edgeY = previous.y + (point.y - previous.y) * amount - this.projector.centreY;
+      let edgeX = previous.x + (point.x - previous.x) * amount - this.projector.centerX;
+      let edgeY = previous.y + (point.y - previous.y) * amount - this.projector.centerY;
       const scale = this.projector.radius / Math.max(1e-6, Math.hypot(edgeX, edgeY));
-      edgeX = this.projector.centreX + edgeX * scale;
-      edgeY = this.projector.centreY + edgeY * scale;
+      edgeX = this.projector.centerX + edgeX * scale;
+      edgeY = this.projector.centerY + edgeY * scale;
       if (isNear) {
         geometry.moveTo(edgeX, edgeY);
         geometry.lineTo(point.x, point.y);

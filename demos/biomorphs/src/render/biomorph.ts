@@ -80,15 +80,15 @@ export function levelsForBlend(from: Genome, to: Genome): number {
   return Math.max(0, Math.min(MAXIMUM_LEVELS, Math.ceil(Math.max(from[8] ?? 0, to[8] ?? 0))));
 }
 
-// Adds a grown tree to `geometry`, centred on (centreX, centreY) with its longest
+// Adds a grown tree to `geometry`, centered on (centerX, centerY) with its longest
 // side spanning `size`, and flipped so the root sits at the bottom like a plant.
 // Every biomorph therefore drops into any cell at any size.
 export function addBiomorph(
   geometry: DynamicGeometry,
   segments: Float32Array,
   segmentCount: number,
-  centreX: number,
-  centreY: number,
+  centerX: number,
+  centerY: number,
   size: number,
 ): void {
   if (segmentCount === 0) return;
@@ -110,10 +110,10 @@ export function addBiomorph(
   const middleY = (minimumY + maximumY) / 2;
   for (let index = 0; index < floatCount; index += BIOMORPH_FLOATS_PER_SEGMENT) {
     geometry.addSegment(
-      centreX + (segments[index] - middleX) * scale,
-      centreY - (segments[index + 1] - middleY) * scale,
-      centreX + (segments[index + 2] - middleX) * scale,
-      centreY - (segments[index + 3] - middleY) * scale,
+      centerX + (segments[index] - middleX) * scale,
+      centerY - (segments[index + 1] - middleY) * scale,
+      centerX + (segments[index + 2] - middleX) * scale,
+      centerY - (segments[index + 3] - middleY) * scale,
     );
   }
 }

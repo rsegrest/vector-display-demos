@@ -140,7 +140,7 @@ function contains(rect: Rect, x: number, y: number): boolean {
   return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
 }
 
-export function inkColour(hue: number): BeamColor {
+export function inkColor(hue: number): BeamColor {
   return hslToBeamColor(hue / 360, 1, 0.6);
 }
 
@@ -206,7 +206,7 @@ export class GearSpirals implements Demo {
     }
     const swatch = this.layout.swatches.findIndex((rect) => contains(rect, x, y));
     if (swatch >= 0) {
-      model.pickColour(swatch);
+      model.pickColor(swatch);
       return;
     }
     const track = this.layout.sliders.find((candidate) => x >= candidate.trackLeft - 10 && x <= candidate.trackRight + 10 && Math.abs(y - candidate.trackY) <= 10);
@@ -269,8 +269,8 @@ export class GearSpirals implements Demo {
     const model = this.model;
     const { plate } = this.layout;
     const scale = plate.width / 2 / PLATE_HALF_SIZE;
-    const centreX = plate.x + plate.width / 2;
-    const centreY = plate.y + plate.height / 2;
+    const centerX = plate.x + plate.width / 2;
+    const centerY = plate.y + plate.height / 2;
 
     // A faint edge to the plate, so it is clear where the drawing can go.
     this.frame.clear();
@@ -279,8 +279,8 @@ export class GearSpirals implements Demo {
     displayList.addShape(this.frame, { ...SCREEN_SPACE_PLACEMENT, intensity: 0.25 });
 
     // The ink: each drawing's segments, kept from frame to frame and placed with one transform.
-    this.placement.x = centreX;
-    this.placement.y = centreY;
+    this.placement.x = centerX;
+    this.placement.y = centerY;
     this.placement.scale = scale;
     for (const drawing of model.kept) this.drawInk(displayList, drawing);
     this.drawInk(displayList, model.current);
@@ -290,17 +290,17 @@ export class GearSpirals implements Demo {
     const drawing = model.current;
     const isDefining = model.defineStep !== "none";
     if (drawing.isFinished && !isDefining) return;
-    const toScreenX = (plateX: number): number => centreX + plateX * scale;
-    const toScreenY = (plateY: number): number => centreY + plateY * scale;
+    const toScreenX = (plateX: number): number => centerX + plateX * scale;
+    const toScreenY = (plateY: number): number => centerY + plateY * scale;
     const { baseRadius, gearRadius } = drawing.parameters;
 
     this.mechanism.clear();
-    addCircle(this.mechanism, toScreenX(drawing.centreX), toScreenY(drawing.centreY), baseRadius * scale, BASE_SIDES);
+    addCircle(this.mechanism, toScreenX(drawing.centerX), toScreenY(drawing.centerY), baseRadius * scale, BASE_SIDES);
     displayList.setColor(MECHANISM_COLOR);
     displayList.addShape(this.mechanism, { ...SCREEN_SPACE_PLACEMENT, intensity: BASE_INTENSITY });
     if (isDefining && model.defineStep === "base") return;
 
-    const gear = drawing.gearCentre(this.gearPoint);
+    const gear = drawing.gearCenter(this.gearPoint);
     const penPoint = drawing.penPoint(this.point);
     const gearX = toScreenX(gear.x);
     const gearY = toScreenY(gear.y);
@@ -308,8 +308,8 @@ export class GearSpirals implements Demo {
     const penY = toScreenY(penPoint.y);
     this.mechanism.clear();
     addCircle(this.mechanism, gearX, gearY, gearRadius * scale, GEAR_SIDES);
-    // A spoke from the centre to the rim, opposite the pen and turning with the gear, so the gear
-    // is seen to roll even when the pen sits at its centre. The arm points at the angle
+    // A spoke from the center to the rim, opposite the pen and turning with the gear, so the gear
+    // is seen to roll even when the pen sits at its center. The arm points at the angle
     // (±cos kt, sin kt) on screen, k being the spin ratio and the sign that of the mode.
     const { spinRatio } = gearOrbit(drawing.parameters);
     const sign = drawing.parameters.mode === "inside" ? 1 : -1;
@@ -318,17 +318,17 @@ export class GearSpirals implements Demo {
     if (model.defineStep !== "pen") this.mechanism.addSegment(gearX, gearY, penX, penY);
     displayList.addShape(this.mechanism, { ...SCREEN_SPACE_PLACEMENT, intensity: MECHANISM_INTENSITY });
 
-    // The pen itself, a small ring in the ink's colour.
+    // The pen itself, a small ring in the ink's color.
     if (model.defineStep === "pen") return;
     this.pen.clear();
     addCircle(this.pen, penX, penY, PEN_MARK_RADIUS, 10);
-    displayList.setColor(inkColour(drawing.hue));
+    displayList.setColor(inkColor(drawing.hue));
     displayList.addShape(this.pen, { ...SCREEN_SPACE_PLACEMENT, intensity: 0.9 });
   }
 
   private drawInk(displayList: DisplayList, drawing: Drawing): void {
     if (drawing.ink.segmentCount === 0) return;
-    displayList.setColor(inkColour(drawing.hue));
+    displayList.setColor(inkColor(drawing.hue));
     displayList.addShape(drawing.ink, this.placement);
   }
 
@@ -376,15 +376,15 @@ export class GearSpirals implements Demo {
     displayList.setColor(KNOB_COLOR);
     displayList.addShape(this.knobs, { ...SCREEN_SPACE_PLACEMENT, intensity: 1.1 });
 
-    // The palette: a ring of each colour, the one in use ringed twice.
+    // The palette: a ring of each color, the one in use ringed twice.
     layout.swatches.forEach((rect, index) => {
       const hue = PALETTE_HUES[index];
-      const centreX = rect.x + rect.width / 2;
-      const centreY = rect.y + rect.height / 2;
+      const centerX = rect.x + rect.width / 2;
+      const centerY = rect.y + rect.height / 2;
       this.swatch.clear();
-      addCircle(this.swatch, centreX, centreY, rect.width / 2 - 4, 16);
-      if (hue === model.hue) addCircle(this.swatch, centreX, centreY, rect.width / 2, 20);
-      displayList.setColor(inkColour(hue));
+      addCircle(this.swatch, centerX, centerY, rect.width / 2 - 4, 16);
+      if (hue === model.hue) addCircle(this.swatch, centerX, centerY, rect.width / 2, 20);
+      displayList.setColor(inkColor(hue));
       displayList.addShape(this.swatch, { ...SCREEN_SPACE_PLACEMENT, intensity: hue === model.hue ? 1.2 : 0.8 });
     });
 
@@ -406,7 +406,7 @@ export class GearSpirals implements Demo {
     }
   }
 
-  // The colour slider's track is drawn in the colours it chooses between, as short dashes:
+  // The color slider's track is drawn in the colors it chooses between, as short dashes:
   // pieces that touched would burn a bright dot where each meets the next.
   private drawHueTrack(displayList: DisplayList, slider: SliderLayout): void {
     const pieces = 12;
@@ -414,7 +414,7 @@ export class GearSpirals implements Demo {
     for (let piece = 0; piece < pieces; piece++) {
       this.hueTrack.clear();
       this.hueTrack.addSegment(slider.trackLeft + piece * width + 2, slider.trackY, slider.trackLeft + (piece + 1) * width - 2, slider.trackY);
-      displayList.setColor(inkColour(((piece + 0.5) / pieces) * 360));
+      displayList.setColor(inkColor(((piece + 0.5) / pieces) * 360));
       displayList.addShape(this.hueTrack, { ...SCREEN_SPACE_PLACEMENT, intensity: 0.7 });
     }
   }
@@ -432,11 +432,11 @@ function addRectangle(geometry: DynamicGeometry, rect: Rect, inset: number): voi
   geometry.closePath();
 }
 
-function addCircle(geometry: DynamicGeometry, centreX: number, centreY: number, radius: number, sides: number): void {
-  geometry.moveTo(centreX + radius, centreY);
+function addCircle(geometry: DynamicGeometry, centerX: number, centerY: number, radius: number, sides: number): void {
+  geometry.moveTo(centerX + radius, centerY);
   for (let side = 1; side < sides; side++) {
     const angle = (side / sides) * Math.PI * 2;
-    geometry.lineTo(centreX + Math.cos(angle) * radius, centreY + Math.sin(angle) * radius);
+    geometry.lineTo(centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius);
   }
   geometry.closePath();
 }

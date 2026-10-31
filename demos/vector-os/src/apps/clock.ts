@@ -27,10 +27,10 @@ export class Clock implements Demo {
   public update(): void {}
 
   public draw(displayList: DisplayList, frame: DemoFrame): void {
-    const centreX = frame.width / 2;
-    const centreY = frame.height / 2 - 10;
+    const centerX = frame.width / 2;
+    const centerY = frame.height / 2 - 10;
     const radius = Math.max(20, Math.min(frame.width, frame.height - 44) / 2 - 14);
-    const at = (angle: number, distance: number): [number, number] => [centreX + Math.sin(angle) * distance, centreY - Math.cos(angle) * distance];
+    const at = (angle: number, distance: number): [number, number] => [centerX + Math.sin(angle) * distance, centerY - Math.cos(angle) * distance];
 
     this.face.clear();
     this.face.moveTo(...at(0, radius));
@@ -49,8 +49,8 @@ export class Clock implements Demo {
     const time = this.now();
     const angles = handAngles(time);
     this.hands.clear();
-    this.hands.addSegment(centreX, centreY, ...at(angles.hour, radius * 0.5));
-    this.hands.addSegment(centreX, centreY, ...at(angles.minute, radius * 0.76));
+    this.hands.addSegment(centerX, centerY, ...at(angles.hour, radius * 0.5));
+    this.hands.addSegment(centerX, centerY, ...at(angles.minute, radius * 0.76));
     displayList.setColor(HAND_COLOR);
     displayList.addShape(this.hands, { ...SCREEN_SPACE_PLACEMENT, intensity: 1.2 });
 
@@ -62,7 +62,7 @@ export class Clock implements Demo {
 
     const digits = [time.getHours(), time.getMinutes(), time.getSeconds()].map((part) => String(part).padStart(2, "0")).join(":");
     displayList.setColor(FACE_COLOR);
-    getDemoFont().addText(displayList, { text: digits, x: centreX, y: frame.height - 30, size: 15, alignment: "center", intensity: 0.9 });
+    getDemoFont().addText(displayList, { text: digits, x: centerX, y: frame.height - 30, size: 15, alignment: "center", intensity: 0.9 });
   }
 }
 

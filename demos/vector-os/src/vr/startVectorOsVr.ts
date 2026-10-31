@@ -52,7 +52,7 @@ declare const XRWebGLLayer: new (session: XrSession, gl: WebGL2RenderingContext)
 /** The hidden canvas Vector OS draws into: a 16:9 desktop (its default windows are laid out for one). */
 const DESKTOP = { width: 1920, height: 1080 };
 const PREVIEW_EYE: [number, number, number] = [0, 1.6, 0.4];
-/** Half the size of the cross marking where the ray aims a 3D picture, in metres. */
+/** Half the size of the cross marking where the ray aims a 3D picture, in meters. */
 const AIM_MARK = 0.03;
 
 export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButtonElement, note: HTMLElement): void {
@@ -84,7 +84,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
   let screen = desktopScreen;
   // With a game in 3D there is no screen: the panel goes under this one instead, a stand-in 1.4 m ahead
   // at eye height, so it sits about 0.75 m below the eye (under the 4.8 m full screen it was below the floor).
-  const panelPlace3d = { centre: [0, 1.6, -1.4] as const, width: 1.6, height: 0.8 };
+  const panelPlace3d = { center: [0, 1.6, -1.4] as const, width: 1.6, height: 0.8 };
   let panelPlace = desktopScreen as typeof desktopScreen;
   // Whether a game stands in the room in 3D: then there is no screen to point at, and the ray is not a mouse.
   let showing3d = false;
@@ -292,10 +292,10 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
     let styleDiagnosis = "";
     // The 3D style just chosen (right grip), shown on the panel for a moment.
     let styleShown: { name: string; until: number } | null = null;
-    // Where the room stands: recentred on the head when the session starts, when a program goes
+    // Where the room stands: recentered on the head when the session starts, when a program goes
     // full screen, and when the left thumbstick is pressed in (sitting or standing, it faces you).
     let anchor: ReturnType<typeof anchorAt> | null = null;
-    let recentreWanted = true;
+    let recenterWanted = true;
     let wasFullScreen = false;
     // A controller's ray in the room's space.
     const roomRay = (matrix: ArrayLike<number>) => {
@@ -331,7 +331,7 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
             os.aimFullScreen3d("move", aim);
           } else {
             // The ray stops at the screen when it meets it, so its end is the cursor.
-            const t = direction[2] < -1e-6 ? (screen.centre[2] - origin[2]) / direction[2] : 6;
+            const t = direction[2] < -1e-6 ? (screen.center[2] - origin[2]) / direction[2] : 6;
             const reach = rayOnScreen(origin, direction, screen) ? t : 6;
             rays.push({ origin, end: [origin[0] + direction[0] * reach, origin[1] + direction[1] * reach, origin[2] + direction[2] * reach] });
           }
@@ -344,9 +344,9 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
           }
         }
         if (pad && source.handedness === "left") {
-          // The left thumbstick, pressed: recentre the room on the head.
+          // The left thumbstick, pressed: recenter the room on the head.
           const stickPressed = pad.buttons[3]?.pressed === true;
-          if (stickPressed && !leftStickWasPressed) recentreWanted = true;
+          if (stickPressed && !leftStickWasPressed) recenterWanted = true;
           leftStickWasPressed = stickPressed;
         }
         if (pad && source.handedness === "right") {
@@ -398,11 +398,11 @@ export function startVectorOsVr(view: HTMLCanvasElement, enterButton: HTMLButton
       const pose = frame.getViewerPose(floor);
       const layer = session.renderState.baseLayer;
       if (!pose || !layer) return;
-      if (os.isFullScreen && !wasFullScreen) recentreWanted = true;
+      if (os.isFullScreen && !wasFullScreen) recenterWanted = true;
       wasFullScreen = os.isFullScreen;
-      if (recentreWanted || !anchor) {
+      if (recenterWanted || !anchor) {
         anchor = anchorAt(pose.transform.matrix);
-        recentreWanted = false;
+        recenterWanted = false;
       }
       const showingStyle = styleShown && performance.now() < styleShown.until;
       if (showingStyle) showStatus(["3D STYLE", styleShown!.name.toUpperCase(), "RIGHT GRIP or RIGHT STICK LEFT/RIGHT: next style"]);

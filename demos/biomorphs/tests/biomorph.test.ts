@@ -96,11 +96,11 @@ describe("blendGenomes", () => {
 });
 
 describe("addBiomorph", () => {
-  function placed(genome: number[], centreX: number, centreY: number, size: number): Float32Array {
+  function placed(genome: number[], centerX: number, centerY: number, size: number): Float32Array {
     const out = createSegmentBuffer();
     const count = growSegments(genome, genome[8], out);
     const geometry = new DynamicGeometry();
-    addBiomorph(geometry, out, count, centreX, centreY, size);
+    addBiomorph(geometry, out, count, centerX, centerY, size);
     expect(geometry.segmentCount).toBe(count);
     return geometry.segmentCoordinates.subarray(0, count * 4);
   }

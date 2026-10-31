@@ -20,7 +20,7 @@ export interface Quake {
 }
 
 // Element sets from a block of text. Names are optional in the format; an element
-// set without one is named after its catalogue number. Malformed sets are skipped.
+// set without one is named after its catalog number. Malformed sets are skipped.
 export function parseTle(text: string): TleEntry[] {
   const lines = text
     .split(/\r?\n/)
@@ -31,7 +31,7 @@ export function parseTle(text: string): TleEntry[] {
     const line = lines[index];
     if (!line.startsWith("1 ") || index + 1 >= lines.length || !lines[index + 1].startsWith("2 ")) continue;
     const line2 = lines[index + 1];
-    // Both lines carry the catalogue number in the same columns; a mismatch means they are not a pair.
+    // Both lines carry the catalog number in the same columns; a mismatch means they are not a pair.
     if (line.length < 60 || line2.length < 60 || line.slice(2, 7) !== line2.slice(2, 7)) continue;
     const previous = index > 0 ? lines[index - 1] : "";
     const hasName = previous.length > 0 && !previous.startsWith("1 ") && !previous.startsWith("2 ");

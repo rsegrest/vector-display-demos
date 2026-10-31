@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { centreOf, childIndexAt, layoutBiomorphs } from "../src/render/layout.js";
+import { centerOf, childIndexAt, layoutBiomorphs } from "../src/render/layout.js";
 
 const WIDTH = 1600;
 const HEIGHT = 1000;
@@ -27,31 +27,31 @@ describe("layoutBiomorphs", () => {
     }
   });
 
-  it("puts the parent in the centre and the children around it", () => {
+  it("puts the parent in the center and the children around it", () => {
     const layout = layoutBiomorphs(WIDTH, HEIGHT, 130, 170);
-    const parentCentre = centreOf(layout.parent);
-    expect(parentCentre.x).toBeCloseTo(WIDTH / 2, 6);
+    const parentCenter = centerOf(layout.parent);
+    expect(parentCenter.x).toBeCloseTo(WIDTH / 2, 6);
     // The eight children surround the parent.
     for (const child of layout.children) {
-      const centre = centreOf(child);
-      expect(centre.x === parentCentre.x && centre.y === parentCentre.y).toBe(false);
+      const center = centerOf(child);
+      expect(center.x === parentCenter.x && center.y === parentCenter.y).toBe(false);
     }
-    const childCentres = layout.children.map(centreOf);
-    expect(childCentres.some((centre) => centre.y < parentCentre.y)).toBe(true);
-    expect(childCentres.some((centre) => centre.y > parentCentre.y)).toBe(true);
-    expect(childCentres.some((centre) => centre.x < parentCentre.x)).toBe(true);
-    expect(childCentres.some((centre) => centre.x > parentCentre.x)).toBe(true);
+    const childCenters = layout.children.map(centerOf);
+    expect(childCenters.some((center) => center.y < parentCenter.y)).toBe(true);
+    expect(childCenters.some((center) => center.y > parentCenter.y)).toBe(true);
+    expect(childCenters.some((center) => center.x < parentCenter.x)).toBe(true);
+    expect(childCenters.some((center) => center.x > parentCenter.x)).toBe(true);
   });
 });
 
 describe("childIndexAt", () => {
   it("identifies the parent and each child", () => {
     const layout = layoutBiomorphs(WIDTH, HEIGHT, 130, 170);
-    const parent = centreOf(layout.parent);
+    const parent = centerOf(layout.parent);
     expect(childIndexAt(layout, parent.x, parent.y)).toBe(-1);
     layout.children.forEach((rect, index) => {
-      const centre = centreOf(rect);
-      expect(childIndexAt(layout, centre.x, centre.y)).toBe(index);
+      const center = centerOf(rect);
+      expect(childIndexAt(layout, center.x, center.y)).toBe(index);
     });
   });
 

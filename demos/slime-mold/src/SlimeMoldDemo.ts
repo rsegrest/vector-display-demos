@@ -143,7 +143,7 @@ export class SlimeMoldDemo implements Demo {
     const offsetX = (this.worldWidth - GRID_WIDTH * scale) / 2;
     const offsetY = (this.worldHeight - GRID_HEIGHT * scale) / 2;
     const halfStroke = (AGENT_STROKE_CELLS * scale) / 2;
-    const normalise = 1 / Math.max(0.7 * this.world.maximumTrail, 1e-3);
+    const normalize = 1 / Math.max(0.7 * this.world.maximumTrail, 1e-3);
 
     for (const bucket of this.buckets) bucket.geometry.clear();
     for (let agent = 0; agent < this.world.agentCount; agent++) {
@@ -154,7 +154,7 @@ export class SlimeMoldDemo implements Demo {
       const directionY = Math.sin(angle) * halfStroke;
       const x = offsetX + gridX * scale;
       const y = offsetY + gridY * scale;
-      const brightness = Math.min(1, this.world.trailAt(gridX, gridY) * normalise);
+      const brightness = Math.min(1, this.world.trailAt(gridX, gridY) * normalize);
       const bucketIndex = Math.min(BUCKET_COUNT - 1, Math.floor(brightness * BUCKET_COUNT));
       this.buckets[bucketIndex].geometry.addSegment(
         x - directionX,
@@ -178,12 +178,12 @@ export class SlimeMoldDemo implements Demo {
     this.foodGeometry.clear();
     const ringRadius = FOOD_RING_CELLS * scale;
     for (const source of this.world.foodSources) {
-      const centreX = offsetX + source.x * scale;
-      const centreY = offsetY + source.y * scale;
-      this.foodGeometry.moveTo(centreX + ringRadius, centreY);
+      const centerX = offsetX + source.x * scale;
+      const centerY = offsetY + source.y * scale;
+      this.foodGeometry.moveTo(centerX + ringRadius, centerY);
       for (let side = 1; side < FOOD_RING_SIDES; side++) {
         const angle = (side / FOOD_RING_SIDES) * Math.PI * 2;
-        this.foodGeometry.lineTo(centreX + Math.cos(angle) * ringRadius, centreY + Math.sin(angle) * ringRadius);
+        this.foodGeometry.lineTo(centerX + Math.cos(angle) * ringRadius, centerY + Math.sin(angle) * ringRadius);
       }
       this.foodGeometry.closePath();
     }

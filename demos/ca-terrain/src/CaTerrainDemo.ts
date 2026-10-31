@@ -134,7 +134,7 @@ export class CaTerrainDemo implements Demo {
   public draw(displayList: DisplayList, frame: DemoFrame): void {
     const camera = CAMERA_PRESETS[this.cameraIndex];
     const projection: ProjectionSettings = {
-      centreX: frame.width / 2,
+      centerX: frame.width / 2,
       horizonY: frame.height * camera.horizon,
       focalLength: camera.focalLength,
       cameraHeight: camera.cameraHeight,

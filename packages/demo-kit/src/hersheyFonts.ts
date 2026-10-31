@@ -65,9 +65,9 @@ function middleDot(minus: StrokeGlyph): StrokeGlyph {
   const y = minus.polylines[0]?.points[0]?.y ?? DASH_Y;
   const radius = 1.2;
   const advance = 8;
-  const centre = advance / 2;
+  const center = advance / 2;
   return {
-    polylines: [{ points: [{ x: centre, y: y - radius }, { x: centre + radius, y }, { x: centre, y: y + radius }, { x: centre - radius, y }], isClosed: true }],
+    polylines: [{ points: [{ x: center, y: y - radius }, { x: center + radius, y }, { x: center, y: y + radius }, { x: center - radius, y }], isClosed: true }],
     advance,
   };
 }

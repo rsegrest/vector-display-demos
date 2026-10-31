@@ -21,10 +21,10 @@ export const CROSSFADE_SECONDS = 6;
 const AUTO_SECONDS = 26;
 const AUTO_YAW_PER_SECOND = 0.11;
 const SUBSTEPS = 2;
-// Particles are grouped by flow speed for colour, and by depth for brightness.
+// Particles are grouped by flow speed for color, and by depth for brightness.
 const SPEED_BANDS = 6;
 const DEPTH_BANDS = 2;
-// Flow speed (common frame) that maps to the hottest colour.
+// Flow speed (common frame) that maps to the hottest color.
 const HOT_SPEED = 2.4;
 
 const HELP_LINES = [

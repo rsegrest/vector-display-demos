@@ -30,7 +30,7 @@ const stored = (importer: () => Promise<{ default: unknown }>): (() => Promise<T
 };
 
 // The classics of computer graphics, and two shapes made from formulae. The
-// scanned and modelled ones are loaded only when first shown.
+// scanned and modeled ones are loaded only when first shown.
 export const MESHES: readonly MeshEntry[] = [
   { name: "UTAH TEAPOT", credit: "MARTIN NEWELL, UNIVERSITY OF UTAH, 1975", creaseDegrees: 35, load: stored(() => import("./data/teapot.json")) },
   { name: "STANFORD BUNNY", credit: "STANFORD 3D SCANNING REPOSITORY, 1994", creaseDegrees: 65, load: stored(() => import("./data/bunny.json")) },
@@ -56,7 +56,7 @@ export interface MeshesOptions {
   readonly meshes?: readonly MeshEntry[];
 }
 
-// Real meshes as line drawings. Drawing every edge of a mesh gives a grey tangle,
+// Real meshes as line drawings. Drawing every edge of a mesh gives a gray tangle,
 // because most edges are only there to approximate a curved surface. This draws
 // the few that describe the shape: the outline, the sharp folds and any open
 // borders, with whatever the object itself hides cut away. Press M to see the
@@ -146,8 +146,8 @@ export class MeshesDemo implements Demo {
       {
         yaw: this.yaw,
         pitch: this.pitch,
-        centreX: frame.width / 2,
-        centreY: frame.height / 2,
+        centerX: frame.width / 2,
+        centerY: frame.height / 2,
         scale: Math.min(frame.width, frame.height) * MESH_SHARE * this.zoom,
         creaseDegrees: this.creaseDegrees,
         mode: this.mode,

@@ -31,7 +31,7 @@ function length(values: Float32Array, stroke: number): number {
 }
 
 describe("layoutPage", () => {
-  it("turns letters into strokes, centred on the page", () => {
+  it("turns letters into strokes, centered on the page", () => {
     // L is two strokes.
     const page = layoutPage(["L"]);
     expect(page.segmentCount).toBe(2);

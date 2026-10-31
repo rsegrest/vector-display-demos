@@ -22,7 +22,7 @@ export interface ArcadeLayout {
 }
 
 // Fits the game's screen into the window above its lines of controls, as large
-// as it will go at the screen's own shape, and centred in what is left over.
+// as it will go at the screen's own shape, and centered in what is left over.
 export function arcadeLayout(width: number, height: number, screen: ArcadeCabinet["screen"], controlLines: number): ArcadeLayout {
   const controlsHeight = controlLines > 0 ? controlLines * CONTROLS_LINE_HEIGHT + CONTROLS_MARGIN : 0;
   const available = { width: Math.max(1, width), height: Math.max(1, height - controlsHeight) };

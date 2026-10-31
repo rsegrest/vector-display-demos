@@ -1,7 +1,7 @@
 import { SCREEN_SPACE_PLACEMENT, type BeamColor, type DisplayList } from "@vector-display/core";
 import { DemoHud, DynamicGeometry, createSeededRandom, type Demo, type DemoFrame, type RandomSource } from "@vector-demos/demo-kit";
 import { addBiomorph, blendGenomes, createSegmentBuffer, describeGenome, growSegments, levelsForBlend, segmentCountFor } from "./render/biomorph.js";
-import { centreOf, childIndexAt, layoutBiomorphs, type BiomorphLayout, type Rect } from "./render/layout.js";
+import { centerOf, childIndexAt, layoutBiomorphs, type BiomorphLayout, type Rect } from "./render/layout.js";
 import { CHILD_COUNT, breedChildren, clampGene, createRandomGenome, genomeKey, pickAutopilotChild, type Genome } from "./sim/genome.js";
 
 export const BIOMORPH_WORLD_HEIGHT = 1000;
@@ -15,7 +15,7 @@ const EMERGE_OVERLAP_SECONDS = 0.1;
 const CREATURE_FILL = 0.88;
 
 // Starting creatures to breed from. Cycling through them is a quick way to see how
-// much one genome's neighbourhood can hold.
+// much one genome's neighborhood can hold.
 export const BIOMORPH_PRESETS: readonly { readonly name: string; readonly genome: readonly number[] }[] = [
   { name: "TREE", genome: [1, -3, 1, -1, 2, 2, 2, 3, 7] },
   { name: "INSECT", genome: [1, 1, -4, 1, -1, -2, 8, -4, 6] },
@@ -138,15 +138,15 @@ export class BiomorphDemo implements Demo {
     const layout = this.layout();
     const arrive = this.arriveProgress;
     const emerge = this.emergeProgress;
-    const parentCentre = centreOf(layout.parent);
+    const parentCenter = centerOf(layout.parent);
     const size = layout.cellSize * CREATURE_FILL;
 
     this.drawFrames(layout, displayList);
 
     // The parent, on its way in from the cell it was chosen in.
-    const origin = this.arrivingFrom === null ? parentCentre : centreOf(layout.children[this.arrivingFrom]);
+    const origin = this.arrivingFrom === null ? parentCenter : centerOf(layout.children[this.arrivingFrom]);
     this.parentGeometry.clear();
-    this.addCreature(this.parentGeometry, this.parent, levelsForBlend(this.parent, this.parent), mix(origin.x, parentCentre.x, arrive), mix(origin.y, parentCentre.y, arrive), size);
+    this.addCreature(this.parentGeometry, this.parent, levelsForBlend(this.parent, this.parent), mix(origin.x, parentCenter.x, arrive), mix(origin.y, parentCenter.y, arrive), size);
     displayList.setColor(mixColor(HIGHLIGHT_COLOR, PARENT_COLOR, arrive));
     displayList.addShape(this.parentGeometry, { ...SCREEN_SPACE_PLACEMENT, intensity: 1.15 });
 
@@ -154,15 +154,15 @@ export class BiomorphDemo implements Demo {
     if (emerge <= 0) return;
     const selectedChild = this.selectedIndex();
     this.children.forEach((child, index) => {
-      const cellCentre = centreOf(layout.children[index]);
+      const cellCenter = centerOf(layout.children[index]);
       const geometry = this.childGeometries[index];
       geometry.clear();
       this.addCreature(
         geometry,
         blendGenomes(this.parent, child, emerge),
         levelsForBlend(this.parent, child),
-        mix(parentCentre.x, cellCentre.x, emerge),
-        mix(parentCentre.y, cellCentre.y, emerge),
+        mix(parentCenter.x, cellCenter.x, emerge),
+        mix(parentCenter.y, cellCenter.y, emerge),
         size,
       );
       const chosen = index === selectedChild;
@@ -296,9 +296,9 @@ export class BiomorphDemo implements Demo {
     return layoutBiomorphs(this.worldWidth, this.worldHeight, this.worldHeight * 0.1, this.worldHeight * 0.09);
   }
 
-  private addCreature(geometry: DynamicGeometry, genes: Genome, levels: number, centreX: number, centreY: number, size: number): void {
+  private addCreature(geometry: DynamicGeometry, genes: Genome, levels: number, centerX: number, centerY: number, size: number): void {
     const count = growSegments(genes, levels, this.segmentBuffer);
-    addBiomorph(geometry, this.segmentBuffer, count, centreX, centreY, size);
+    addBiomorph(geometry, this.segmentBuffer, count, centerX, centerY, size);
   }
 
   private drawFrames(layout: BiomorphLayout, displayList: DisplayList): void {

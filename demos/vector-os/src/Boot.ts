@@ -71,8 +71,8 @@ export class BootSequence {
   private drawLogo(displayList: DisplayList, frame: DemoFrame, progress: number): void {
     const { points, times, drawn, stopCount } = this.logo;
     const scale = frame.width * 0.3;
-    const centreX = frame.width / 2;
-    const centreY = frame.height / 2;
+    const centerX = frame.width / 2;
+    const centerY = frame.height / 2;
     const geometry = this.logoGeometry;
     geometry.clear();
     for (let stop = 1; stop < stopCount; stop++) {
@@ -83,10 +83,10 @@ export class BootSequence {
       const fromX = points[(stop - 1) * 3];
       const fromY = points[(stop - 1) * 3 + 1];
       geometry.addSegment(
-        centreX + fromX * scale,
-        centreY - fromY * scale,
-        centreX + (fromX + (points[stop * 3] - fromX) * amount) * scale,
-        centreY - (fromY + (points[stop * 3 + 1] - fromY) * amount) * scale,
+        centerX + fromX * scale,
+        centerY - fromY * scale,
+        centerX + (fromX + (points[stop * 3] - fromX) * amount) * scale,
+        centerY - (fromY + (points[stop * 3 + 1] - fromY) * amount) * scale,
       );
     }
     displayList.setColor(LOGO_COLOR);

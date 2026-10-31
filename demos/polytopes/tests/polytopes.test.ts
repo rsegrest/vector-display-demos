@@ -6,7 +6,7 @@ import {
   STEREOGRAPHIC_LIMIT_W,
   identity4,
   projectTo3,
-  reorthonormalise,
+  reorthonormalize,
   rotateInPlane,
   transformPoints,
 } from "../src/sim/rotation4.js";
@@ -85,9 +85,9 @@ describe("rotation in four dimensions", () => {
     const matrix = identity4();
     for (let step = 0; step < 5000; step++) {
       ROTATION_PLANES.forEach((plane, index) => rotateInPlane(matrix, plane.first, plane.second, 0.003 * (index + 1)));
-      if (step % 100 === 0) reorthonormalise(matrix);
+      if (step % 100 === 0) reorthonormalize(matrix);
     }
-    reorthonormalise(matrix);
+    reorthonormalize(matrix);
     const points = regularPolytopes()[3].vertices;
     const out = new Float64Array(points.length);
     transformPoints(matrix, points, out);
@@ -100,7 +100,7 @@ describe("rotation in four dimensions", () => {
     const matrix = identity4();
     matrix[1] = 0.01;
     matrix[0] = 1.02;
-    reorthonormalise(matrix);
+    reorthonormalize(matrix);
     for (let row = 0; row < 4; row++) {
       for (let other = 0; other < 4; other++) {
         let dot = 0;
@@ -129,7 +129,7 @@ describe("projectTo3", () => {
     expect(near).toBeCloseTo((0.5 * EYE_W) / (EYE_W - 0.5), 9);
   });
 
-  it("sends the far pole to the centre and refuses points at the near pole", () => {
+  it("sends the far pole to the center and refuses points at the near pole", () => {
     expect(projectTo3(0, 0, 0, -1, "STEREOGRAPHIC", out)).toBe(true);
     expect(out).toEqual([0, 0, 0]);
     expect(projectTo3(0.1, 0, 0, STEREOGRAPHIC_LIMIT_W + 0.01, "STEREOGRAPHIC", out)).toBe(false);

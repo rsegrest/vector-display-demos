@@ -26,13 +26,13 @@ export const RULE_PRESETS: readonly RulePreset[] = [
 ];
 
 // The rule number's binary digits name the outcome for the eight possible
-// three-cell neighbourhoods, from 111 (the most significant bit) down to 000.
-export function cellFromNeighborhood(left: number, centre: number, right: number, rule: number): number {
-  const index = (left << 2) | (centre << 1) | right;
+// three-cell neighborhoods, from 111 (the most significant bit) down to 000.
+export function cellFromNeighborhood(left: number, center: number, right: number, rule: number): number {
+  const index = (left << 2) | (center << 1) | right;
   return (rule >> index) & 1;
 }
 
-// One generation. The row is a ring: the neighbours of the first cell include the last.
+// One generation. The row is a ring: the neighbors of the first cell include the last.
 export function nextRow(row: Uint8Array, rule: number): Uint8Array {
   const width = row.length;
   const next = new Uint8Array(width);

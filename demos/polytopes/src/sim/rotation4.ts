@@ -47,7 +47,7 @@ export function rotateInPlane(matrix: Matrix4, first: number, second: number, an
 
 // Many small turns let rounding error creep in; this squares the rows up again
 // (Gram-Schmidt) so the shape never slowly shears or shrinks.
-export function reorthonormalise(matrix: Matrix4): void {
+export function reorthonormalize(matrix: Matrix4): void {
   for (let row = 0; row < 4; row++) {
     for (let earlier = 0; earlier < row; earlier++) {
       let dot = 0;

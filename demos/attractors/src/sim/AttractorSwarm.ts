@@ -11,7 +11,7 @@ export const SPAWN_RADIUS = 0.6;
 
 // A cloud of independent particles, all following the same field in the common
 // frame. Each keeps its previous position, so it can be drawn as the stroke it
-// just travelled.
+// just traveled.
 export class AttractorSwarm {
   public positions: Float32Array;
   public previousPositions: Float32Array;

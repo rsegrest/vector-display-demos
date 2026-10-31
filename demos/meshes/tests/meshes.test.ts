@@ -9,7 +9,7 @@ import { buildMeshTopology, readObj, weldMesh } from "@vector-display/3d";
 import { loadStored, type StoredMesh } from "../src/sim/mesh.js";
 import { cube, gear, torusKnot } from "../src/sim/shapes.js";
 
-const VIEW: MeshView = { yaw: 0.6, pitch: 0.35, centreX: 800, centreY: 500, scale: 300, creaseDegrees: 30, mode: "FEATURES", hiddenLines: true };
+const VIEW: MeshView = { yaw: 0.6, pitch: 0.35, centerX: 800, centerY: 500, scale: 300, creaseDegrees: 30, mode: "FEATURES", hiddenLines: true };
 
 function drawCounts(topology: ReturnType<typeof buildMeshTopology>, view: Partial<MeshView> = {}) {
   const displayList = new DisplayList();
@@ -156,7 +156,7 @@ describe("MeshRenderer", () => {
   });
 
   it("puts the drawing where the view says, at the size it says", () => {
-    const { displayList } = drawCounts(box, { centreX: 300, centreY: 200, scale: 100 });
+    const { displayList } = drawCounts(box, { centerX: 300, centerY: 200, scale: 100 });
     const data = displayList.getSegmentData();
     for (let segment = 0; segment < displayList.segmentCount; segment++) {
       const offset = segment * FLOATS_PER_BEAM_SEGMENT;

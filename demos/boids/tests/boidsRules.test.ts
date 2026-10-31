@@ -137,7 +137,7 @@ describe("boidsRules", () => {
     });
 
     describe("steering", () => {
-        it("steers a boid toward a neighbour's heading", () => {
+        it("steers a boid toward a neighbor's heading", () => {
             // Two boids in sight of each other, pointing opposite ways, aligning only.
             const flock = pair(
                 { x: 200, y: 200, vx: 100, vy: 0 },
@@ -149,7 +149,7 @@ describe("boidsRules", () => {
             expect(steering.x).toBeLessThan(0);
         });
 
-        it("pulls a boid toward the centre of the crowd when cohesion is what is switched on", () => {
+        it("pulls a boid toward the center of the crowd when cohesion is what is switched on", () => {
             const flock = pair(
                 { x: 200, y: 200, vx: 100, vy: 0 },
                 { x: 250, y: 200, vx: 100, vy: 0 },
@@ -169,7 +169,7 @@ describe("boidsRules", () => {
             expect(steering.x).toBeLessThan(0);
         });
 
-        it("produces no steering toward a neighbour beyond the perception radius", () => {
+        it("produces no steering toward a neighbor beyond the perception radius", () => {
             const flock = pair(
                 { x: 100, y: 200, vx: 100, vy: 0 },
                 { x: 100 + BALANCED_SETTINGS.perceptionRadius + 10, y: 200, vx: 100, vy: 0 },
@@ -179,7 +179,7 @@ describe("boidsRules", () => {
             expect(steering.y).toBeCloseTo(0, 10);
         });
 
-        it("sees a neighbour across the seam, because distances wrap", () => {
+        it("sees a neighbor across the seam, because distances wrap", () => {
             const flock = pair(
                 { x: 4, y: 200, vx: 100, vy: 0 },
                 { x: FIELD_WIDTH - 4, y: 200, vx: 100, vy: 0 },
@@ -188,7 +188,7 @@ describe("boidsRules", () => {
             expect(neighborhood.neighborCount).toBe(1);
         });
 
-        it("counts a boid as its own neighbour never, and its own distance never", () => {
+        it("counts a boid as its own neighbor never, and its own distance never", () => {
             const single = createEmptyFlock(1, FIELD_WIDTH, FIELD_HEIGHT);
             single.x[0] = 200;
             single.y[0] = 200;

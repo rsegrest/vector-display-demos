@@ -7,7 +7,7 @@ import { DEFAULT_PICTURE_DROP, DEFAULT_PICTURE_SPREAD, floorLines, multiply, pan
 import { spaceBackdrop } from "./backdrop.js";
 import { Lines3d } from "./Lines3d.js";
 
-/** The backdrop is in metres about the eye: moved up to the room's eye height. */
+/** The backdrop is in meters about the eye: moved up to the room's eye height. */
 const BACKDROP_MODEL = Float32Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1.6, 0, 1]);
 
 
@@ -16,14 +16,14 @@ const TEXTURED_VS = `#version 300 es
 in vec3 a_position; in vec2 a_uv; uniform mat4 u_mvp; out vec2 v_uv;
 void main() { v_uv = a_uv; gl_Position = u_mvp * vec4(a_position, 1.0); }`;
 const TEXTURED_FS = `#version 300 es
-precision mediump float; in vec2 v_uv; uniform sampler2D u_picture; uniform float u_alpha; out vec4 colour;
-void main() { colour = vec4(texture(u_picture, v_uv).rgb, u_alpha); }`;
+precision mediump float; in vec2 v_uv; uniform sampler2D u_picture; uniform float u_alpha; out vec4 color;
+void main() { color = vec4(texture(u_picture, v_uv).rgb, u_alpha); }`;
 const LINE_VS = `#version 300 es
 in vec3 a_position; uniform mat4 u_mvp;
 void main() { gl_Position = u_mvp * vec4(a_position, 1.0); }`;
 const LINE_FS = `#version 300 es
-precision mediump float; uniform vec4 u_colour; out vec4 colour;
-void main() { colour = u_colour; }`;
+precision mediump float; uniform vec4 u_color; out vec4 color;
+void main() { color = u_color; }`;
 
 function program(gl: WebGL2RenderingContext, vertex: string, fragment: string): WebGLProgram {
   const compile = (type: number, source: string) => {
@@ -136,17 +136,17 @@ export class VrRoom {
 
   /** A game's picture in 3D in place of the flat screen (ArcadeCabinet.picture3d), or null for the screen. */
   public setPicture3d(
-    picture: { readonly positions: Float32Array; readonly colours: Float32Array; readonly spread?: number; readonly drop?: number; readonly backdrop?: "space" } | null,
+    picture: { readonly positions: Float32Array; readonly colors: Float32Array; readonly spread?: number; readonly drop?: number; readonly backdrop?: "space" } | null,
   ): void {
     this.picture3d = picture !== null;
     this.showBackdrop = picture?.backdrop === "space";
     if (this.showBackdrop && !this.backdrop) {
       const space = spaceBackdrop();
       this.backdrop = new Lines3d(this.gl);
-      this.backdrop.setLines(space.positions, space.colours);
+      this.backdrop.setLines(space.positions, space.colors);
     }
     if (!picture) return;
-    this.lines.setLines(picture.positions, picture.colours);
+    this.lines.setLines(picture.positions, picture.colors);
     this.pictureModel = pictureModel(picture.spread ?? DEFAULT_PICTURE_SPREAD, picture.drop ?? DEFAULT_PICTURE_DROP);
   }
 
@@ -199,7 +199,7 @@ export class VrRoom {
 
     gl.useProgram(this.lineProgram);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.lineProgram, "u_mvp"), false, mvp);
-    gl.uniform4f(gl.getUniformLocation(this.lineProgram, "u_colour"), 0.05, 0.16, 0.18, 1);
+    gl.uniform4f(gl.getUniformLocation(this.lineProgram, "u_color"), 0.05, 0.16, 0.18, 1);
     if (this.showRoom) {
       gl.bindVertexArray(this.floorVao);
       gl.drawArrays(gl.LINES, 0, this.floorCount);
@@ -229,7 +229,7 @@ export class VrRoom {
     if (this.picture3d) this.lines.draw(multiply(mvp, this.pictureModel), viewport);
 
     gl.useProgram(this.lineProgram);
-    gl.uniform4f(gl.getUniformLocation(this.lineProgram, "u_colour"), 0.55, 1, 1, 1);
+    gl.uniform4f(gl.getUniformLocation(this.lineProgram, "u_color"), 0.55, 1, 1, 1);
     gl.bindVertexArray(this.rayVao);
     for (const ray of rays) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.rayBuffer);

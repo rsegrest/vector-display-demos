@@ -123,7 +123,7 @@ Rick's travel map (the data from the travel-map app) on an orthographic vector g
 
 Thousands of Physarum agents crawl across a toroidal chemical field. Each one sniffs three points ahead, turns toward the strongest smell, steps forward and deposits a little more. The demo draws **only the agents**, as short ticks along their heading, and sets the phosphor's persistence long. The display's own decay *is* the trail, which is exactly the package feature this demo exists to show: the mesh of bright veins is where the beam has been.
 
-Two limits keep the network a network. A grid cell holds only so many agents, and the trail in a cell has a ceiling. Without them every strand is free to merge with its neighbour, and the whole dish drains into one line within half a minute; `tests/physarum.test.ts` checks each preset against exactly that.
+Two limits keep the network a network. A grid cell holds only so many agents, and the trail in a cell has a ceiling. Without them every strand is free to merge with its neighbor, and the whole dish drains into one line within half a minute; `tests/physarum.test.ts` checks each preset against exactly that.
 
 Click or drag to drop **food**: a standing smell that never fades. Veins within reach bend toward it and stay, so a few sources become the hubs of the network. Food sources are drawn as small amber rings.
 
@@ -142,7 +142,7 @@ Five presets (`N`) change how far the mold can smell, how sharply it turns and h
 
 Elementary cellular automata (Rule 30, 90, 110 and friends) are stacked into terrain. Each new generation appears as a ridgeline at the horizon and slides toward a perspective camera, so you fly over the computation: Rule 30's chaotic ranges, Rule 90's nested basins, Rule 110's Turing-complete traffic.
 
-- **Height** is not the raw on/off cell but how crowded its neighbourhood has been over the last three generations (`sim/heightField.ts`), so busy regions pile up and the empty triangles become basins.
+- **Height** is not the raw on/off cell but how crowded its neighborhood has been over the last three generations (`sim/heightField.ts`), so busy regions pile up and the empty triangles become basins.
 - **Hidden lines** are removed with a floating horizon (`render/TerrainRenderer.ts`): rows are traced nearest first, and a farther row shows only where it rises above everything already drawn. `L` turns this off to see the difference.
 - **The land fills the view.** The automaton is a ring of 400 cells, tiled sideways as far as each row needs, so the terrain reaches the horizon on both sides.
 - **Motion is continuous.** Rows slide between generations rather than jumping a row at a time.
@@ -182,9 +182,9 @@ URL: `genes=1,2,3,4,5,6,7,8,9`, `seed`. The address follows the parent as you br
 
 ## Strange Attractors
 
-Thousands of particles follow one of six chaotic systems: Lorenz, Aizawa, Thomas, Halvorsen, Rössler and Dadras. Nothing draws the attractor itself. Each particle is the short stroke it just travelled, and the phosphor remembers the rest, so the shape appears only because the particles keep retracing it. Colour is flow speed: slow reaches glow blue, fast ones burn toward orange.
+Thousands of particles follow one of six chaotic systems: Lorenz, Aizawa, Thomas, Halvorsen, Rössler and Dadras. Nothing draws the attractor itself. Each particle is the short stroke it just traveled, and the phosphor remembers the rest, so the shape appears only because the particles keep retracing it. Color is flow speed: slow reaches glow blue, fast ones burn toward orange.
 
-Each system lives at its own size and pace, so each is measured once at start-up (`sim/attractors.ts`) and from then on handled in a common frame: centred, about one unit in radius, moving at about one unit per unit of time. In that frame two systems can simply be averaged, which is how the demo crossfades: it blends the equations, not the pictures, so every particle keeps moving under one consistent law the whole way across. A particle that leaves an attractor's basin is put back near the middle.
+Each system lives at its own size and pace, so each is measured once at start-up (`sim/attractors.ts`) and from then on handled in a common frame: centered, about one unit in radius, moving at about one unit per unit of time. In that frame two systems can simply be averaged, which is how the demo crossfades: it blends the equations, not the pictures, so every particle keeps moving under one consistent law the whole way across. A particle that leaves an attractor's basin is put back near the middle.
 
 URL: `attractor` (1-based), `particles` (500–8000), `seed`.
 
@@ -216,9 +216,9 @@ The simulation runs on the main thread: a 200×112 grid at 8 steps per frame cos
 
 ## 4D Polytopes
 
-The six regular polytopes of four dimensions, the 4D cousins of the Platonic solids: the 5-cell, 16-cell, tesseract, 24-cell, 600-cell and 120-cell. Each is built from its textbook vertex coordinates (`sim/polytopes.ts`). Edges are never listed by hand: in a regular polytope they are exactly the pairs of vertices at the shortest distance. The 120-cell is derived as the dual of the 600-cell, with one vertex at the centre of each of its 600 tetrahedral cells. At 1200 edges it doubles as a load test for the renderer.
+The six regular polytopes of four dimensions, the 4D cousins of the Platonic solids: the 5-cell, 16-cell, tesseract, 24-cell, 600-cell and 120-cell. Each is built from its textbook vertex coordinates (`sim/polytopes.ts`). Edges are never listed by hand: in a regular polytope they are exactly the pairs of vertices at the shortest distance. The 120-cell is derived as the dual of the 600-cell, with one vertex at the center of each of its 600 tetrahedral cells. At 1200 edges it doubles as a load test for the renderer.
 
-Rotation in 4D happens in a plane, not about an axis, and there are six planes; three involve w, the axis we cannot see. `W` turns those three off, and the shape becomes an ordinary rigid object; turn them back on to see what w adds. Colour is the fourth coordinate: edges far along w are deep blue, near ones hot.
+Rotation in 4D happens in a plane, not about an axis, and there are six planes; three involve w, the axis we cannot see. `W` turns those three off, and the shape becomes an ordinary rigid object; turn them back on to see what w adds. Color is the fourth coordinate: edges far along w are deep blue, near ones hot.
 
 `P` switches projection. **Perspective** is the 4D version of an ordinary camera and gives the familiar cube-within-a-cube. **Stereographic** projects from the 3-sphere the vertices lie on; it keeps angles true, so edges become arcs and the cells look like a foam of bubbles.
 
@@ -254,7 +254,7 @@ URL: `figure` (1-based).
 | `[` `]` | Motion (drift and spin) |
 | `-` `+` | Volume |
 | `O`, or drop a file | Play an audio file through the scope |
-| `A` `T` `K` `G` | Auto-cycle, trails, phosphor colour, grid |
+| `A` `T` `K` `G` | Auto-cycle, trails, phosphor color, grid |
 | `Space`, `H`, `F` | Pause, HUD, fullscreen |
 
 ## Text Crawl
@@ -274,11 +274,11 @@ Click anywhere in the text to shatter it from that point (`sim/CrawlScene.ts` fi
 
 ## Fourier Epicycles
 
-Any closed path can be drawn by a chain of circles, each turning at a steady whole-number rate with its centre riding on the rim of the one before. The Fourier transform says which circles (`sim/fourier.ts`): one radius and starting angle per turning speed. With few circles the tip traces a smooth caricature of the shape; each one added sharpens it. Left alone, the demo adds circles on every trip round, then moves to the next shape.
+Any closed path can be drawn by a chain of circles, each turning at a steady whole-number rate with its center riding on the rim of the one before. The Fourier transform says which circles (`sim/fourier.ts`): one radius and starting angle per turning speed. With few circles the tip traces a smooth caricature of the shape; each one added sharpens it. Left alone, the demo adds circles on every trip round, then moves to the next shape.
 
 Shapes come from three places: built-in outlines (star, heart, triangle), glyphs of the vector font (press a digit to trace it; letters and the word VECTOR are in the list), and **your own sketch**: draw on the screen with the pointer and release.
 
-A letter is several separate strokes, and the chain cannot lift its pen. So the path includes the jumps between strokes, crossed quickly, and the trace is simply not drawn while the tip is on one. The faint grey outline is the shape being aimed for.
+A letter is several separate strokes, and the chain cannot lift its pen. So the path includes the jumps between strokes, crossed quickly, and the trace is simply not drawn while the tip is on one. The faint gray outline is the shape being aimed for.
 
 URL: `shape` (1-based).
 
@@ -296,7 +296,7 @@ URL: `shape` (1-based).
 
 A wireframe Earth showing what is actually up there and what has actually happened. Nothing on it is invented.
 
-- **Satellites.** About 170 real ones: the space stations and the brightest satellites, placed from their published orbital elements with the standard SGP4 model (`satellite.js`). Each is a small diamond with a tail showing its direction. The ISS and Tiangong are labelled.
+- **Satellites.** About 170 real ones: the space stations and the brightest satellites, placed from their published orbital elements with the standard SGP4 model (`satellite.js`). Each is a small diamond with a tail showing its direction. The ISS and Tiangong are labeled.
 - **ISS ground track.** The station's path over the ground for the last half hour and the next orbit and a half, with a line down to the point beneath it. `I` turns the globe to follow it.
 - **Earthquakes.** Every earthquake of magnitude 4.5 or more in the past week, as a ring sized by magnitude and dimmed by age. Those of the last day ripple.
 - **Day and night.** The line between them, and a mark where the Sun is overhead, from the date and time.
@@ -326,7 +326,7 @@ npm run update:snapshot -w @vector-demos/live-earth
 
 ## Feature Edges
 
-Real meshes as line drawings. Drawing every edge of a mesh gives a grey tangle, because most edges are only there to approximate a curved surface. This draws the few that describe the shape, the way a draughtsman would:
+Real meshes as line drawings. Drawing every edge of a mesh gives a gray tangle, because most edges are only there to approximate a curved surface. This draws the few that describe the shape, the way a draughtsman would:
 
 - **Silhouette edges**, the outline: edges where a triangle facing the viewer meets one facing away. These change every frame as the object turns.
 - **Crease edges**, the sharp folds: edges where the surface bends by more than a set angle (`[` `]`).
@@ -358,7 +358,7 @@ URL: `mesh` (1-based).
 
 A guide to the five `@vector-display` packages at `/docs/`, in which every example is running. Each has an editor beside a vector display; change the code and the display redraws about a quarter of a second after you stop typing.
 
-**The text is ordinary HTML.** The whole guide, code included, is written in `site/docs/index.html`, so it can be read, searched and navigated without the script, and by a screen reader. The script only upgrades each `<figure class="snippet">`: its `<pre data-snippet>` becomes a labelled text area, and a display appears next to it.
+**The text is ordinary HTML.** The whole guide, code included, is written in `site/docs/index.html`, so it can be read, searched and navigated without the script, and by a screen reader. The script only upgrades each `<figure class="snippet">`: its `<pre data-snippet>` becomes a labeled text area, and a display appears next to it.
 
 **How an example runs** (`demos/docs/src/snippetRuntime.ts`). The code is the body of a function called once per frame. It is given `list` (the display list to fill), `t` (seconds), `width` and `height`, a `view` object for setting line style or phosphor on its own display, and the packages' exports under their own names, so what works in the guide works when imported in a real program.
 
@@ -390,7 +390,7 @@ This is the payoff of every demo implementing one small interface (`update`, `dr
 - **Terminal.** `HELP` lists the commands: `LS`, `RUN NAME`, `PS`, `CLOSE NAME` (or `CLOSE ALL`), `SET NAME VALUE`, `GET`, `RESET`, `DATE`, `ECHO`, `CLEAR`, `ABOUT`, `REBOOT`. `RUN` accepts the start of a name, so `RUN SLIME` works. Up and down arrows recall earlier lines.
 - **Clock.** An analog face with the local time.
 - **Beam Settings.** Sliders for the beam, drawn by the beam: dragging one changes the display it is drawn on. `SET PERSISTENCE 200` at the terminal does the same thing. The settings are the ones the Live Guide saves, so they carry between the two.
-- **Gear Spirals** (Creative; `apps/gearSpirals/`). A gear rolls inside or outside a fixed ring with a pen in it, drawing hypotrochoids and epitrochoids. DEFINE sets the drawing with the mouse: drag from the base's centre out to its ring, drag inside or outside the ring to size the gear (which side chooses the mode), then click in the gear to place the pen. Every size, the speed and the colour have a slider and a box to type in (click it, type, Enter; Tab moves on). The curve draws itself and stops once it has closed; drag the gear round the ring to crank it by hand. OVERLAY keeps what is drawn and starts another curve on top in the next colour; CLEAR wipes the plate. The equation, with the sizes put in, is set in Hershey Serif on the plain text layer, and the readout says after how many trips and petals the curve closes (from the continued fraction of R/r), or that it does not. Keys: space draws or pauses, `M` mode, `D` define, `O` overlay, `C` clear.
+- **Gear Spirals** (Creative; `apps/gearSpirals/`). A gear rolls inside or outside a fixed ring with a pen in it, drawing hypotrochoids and epitrochoids. DEFINE sets the drawing with the mouse: drag from the base's center out to its ring, drag inside or outside the ring to size the gear (which side chooses the mode), then click in the gear to place the pen. Every size, the speed and the color have a slider and a box to type in (click it, type, Enter; Tab moves on). The curve draws itself and stops once it has closed; drag the gear round the ring to crank it by hand. OVERLAY keeps what is drawn and starts another curve on top in the next color; CLEAR wipes the plate. The equation, with the sizes put in, is set in Hershey Serif on the plain text layer, and the readout says after how many trips and petals the curve closes (from the continued fraction of R/r), or that it does not. Keys: space draws or pauses, `M` mode, `D` define, `O` overlay, `C` clear.
 - **Table Games** (Play Together; `apps/tableGames/`). Fifteen games against other people or computer players, in a room found only by its six-letter code, with a chat beside the table. Board games: Tic-tac-toe, Connect 4, Checkers, Chess, Battleship (one shot a turn, as in Milton Bradley's rules). Dice and words: Yahtzee, Boggle. Cards: Texas Hold'em, Blackjack, Baccarat. Casino: Roulette, Craps, Keno, Slots, Pachinko (1,000 chips each; nothing is bought or kept). Keno, Slots and Pachinko are played alone, on your own screen even in a room (nobody's play touches anyone else's, so there is no one to play with or against); Roulette, Craps, Blackjack and Baccarat share a table, everyone betting on the same spin, roll or deal. Type a name, then press New room (or type a friend's code and Join room); Copy link copies `os/?open=table-games&room=<CODE>`, which opens the room straight away. With no table open, the room lists the games; the picked game's card opens a table (anyone in the room may sit down; it starts when the seats are full, or when its host presses Start), plays the room's computer player (Jev when the server has a key, see below), or practices here. Watchers see what a person in no seat may see. In a two-player game Resign gives the other player the game; with more, a computer takes the seat. The casino games go round after round until the host ends them, scored by chips. "Choose a game to play here" on the first screen plays any game with no room and no server: against the simple computer player, or every side in turn. Typing goes to the chat, Enter sends. Text is Hershey Sans on the plain text layer, with no glow. The rules (`packages/table-games`) run on the room server (`services/table-games`, below), which sends each player only what they may see; each game's board is `apps/tableGames/boards/<game>Board.ts`. The browser keeps a secret member token, so a reload or a dropped connection comes back as the same member, seat and all. The rules follow game-clawtroller's (MIT, same owner), rewritten around seats; chess uses `chess.js` (BSD-2).
 
 **One phosphor for everything.** There is one beam and so one set of beam settings for the whole desktop; a demo in a window does not get the persistence it uses on its own page. Slime Mold, whose network *is* the phosphor trail, shows this most: it looks best with persistence turned up, and then every window trails. Demos whose look depends on their own settings are best seen on their own pages, which a shift-click on the box at the right of each demo's title bar opens.
@@ -411,7 +411,7 @@ This is the payoff of every demo implementing one small interface (`update`, `dr
 
 **The arcade games.** Asteroids, Lunar Lander, Battlezone, Tempest and Red Baron are the ROM ports in `../vector-games`, each its own repository, checked against MAME there. They are not copied or changed here: Vector OS imports each one's `src/embed.ts`, the game without its page (the same engine, input adapter, picture and sound, put together as the page puts them), under the name `@vector-games/<game>`. The site's Vite config and the OS's test config point those names at the game folders (`demos/vector-os/arcadeGames.ts`; set `VECTOR_GAMES_DIR` if the games live elsewhere), and resolve the vector-display packages to this workspace's copy, so each game still builds and checks on its own.
 
-- **Playing.** A game plays its attract mode in the background. With its window in front it has the keyboard, held keys and all, with the keys its own page uses; they are listed under the picture. Tempest's spinner is the mouse moved over its window (no pointer capture here) or the arrow keys, and a click fires. Red Baron's flight stick is analog, steered as on its own page: the arrow keys (or WASD) push a sprung stick that springs back when let go, and a click on the picture hands the stick to the mouse, whose place over the picture is then the stick's (the middle is centred), with its button the trigger; the stick centres when the pointer leaves the window, and `M` hands it back to the keys. Gamepads are left to the games' own pages. A key held while another window comes to the front is let go, so nothing is left thrusting. Each game runs at its board's own rate (`FixedStepClock.ts`): 62.5 steps a second for Asteroids, 41.7 for Lunar Lander, 246.1 for Battlezone, Tempest and Red Baron, not the OS's sixty.
+- **Playing.** A game plays its attract mode in the background. With its window in front it has the keyboard, held keys and all, with the keys its own page uses; they are listed under the picture. Tempest's spinner is the mouse moved over its window (no pointer capture here) or the arrow keys, and a click fires. Red Baron's flight stick is analog, steered as on its own page: the arrow keys (or WASD) push a sprung stick that springs back when let go, and a click on the picture hands the stick to the mouse, whose place over the picture is then the stick's (the middle is centered), with its button the trigger; the stick centers when the pointer leaves the window, and `M` hands it back to the keys. Gamepads are left to the games' own pages. A key held while another window comes to the front is let go, so nothing is left thrusting. Each game runs at its board's own rate (`FixedStepClock.ts`): 62.5 steps a second for Asteroids, 41.7 for Lunar Lander, 246.1 for Battlezone, Tempest and Red Baron, not the OS's sixty.
 - **Sound.** One game is heard at a time: the one most recently in front (a window that makes no sound, such as the terminal, leaves it where it was). It starts only after a key or click in that game, as browsers require, and stops when the window closes.
 - **Their own pages.** A shift-click on the box on a game's title bar opens `/arcade/<game>/` (a plain click shows it full screen inside Vector OS): the game's own build, made by `npm run build:arcade` in the game's folder with its own Vite and config, into `site/public/arcade/` (not committed). Vite serves that folder as it is in development and copies it into `site/dist`, so the pages are part of the site, on the same origin, and share their stored high scores with the windows. Run `npm run build:arcade` once before `npm run dev` for those links to work; `npm run build` runs it itself.
 

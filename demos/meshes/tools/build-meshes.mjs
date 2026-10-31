@@ -2,8 +2,8 @@
 // Downloads the classic test meshes and writes them in the compact form the demo
 // loads (src/data/*.json). Run from the package: npm run build:meshes
 //
-// Each mesh is welded (so neighbouring triangles share vertices), optionally
-// thinned, centred, scaled to a unit sphere and rounded to whole numbers.
+// Each mesh is welded (so neighboring triangles share vertices), optionally
+// thinned, centered, scaled to a unit sphere and rounded to whole numbers.
 //
 // Thinning is by vertex clustering: space is cut into a grid of small cubes and
 // all the vertices in one cube are merged into their average. It is crude next to
@@ -11,7 +11,7 @@
 // and the full Stanford bunny (69,451 triangles) is far more than line drawing needs.
 // It leaves the surface faceted like a cut gem, which reads as false creases, so a
 // thinned mesh is then smoothed: each vertex is moved part-way toward the average
-// of its neighbours, a few times over.
+// of its neighbors, a few times over.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -115,20 +115,20 @@ function compact({ positions, indices }) {
 // Moves every vertex half-way toward the average of the vertices it shares an edge with.
 function smooth({ positions, indices }, passes) {
   const count = positions.length / 3;
-  const neighbours = Array.from({ length: count }, () => new Set());
+  const neighbors = Array.from({ length: count }, () => new Set());
   for (let offset = 0; offset < indices.length; offset += 3) {
     const corners = [indices[offset], indices[offset + 1], indices[offset + 2]];
-    for (const from of corners) for (const to of corners) if (from !== to) neighbours[from].add(to);
+    for (const from of corners) for (const to of corners) if (from !== to) neighbors[from].add(to);
   }
   let current = positions;
   for (let pass = 0; pass < passes; pass++) {
     const next = current.slice();
     for (let vertex = 0; vertex < count; vertex++) {
-      if (neighbours[vertex].size === 0) continue;
+      if (neighbors[vertex].size === 0) continue;
       for (let axis = 0; axis < 3; axis++) {
         let total = 0;
-        for (const neighbour of neighbours[vertex]) total += current[neighbour * 3 + axis];
-        next[vertex * 3 + axis] = (current[vertex * 3 + axis] + total / neighbours[vertex].size) / 2;
+        for (const neighbor of neighbors[vertex]) total += current[neighbor * 3 + axis];
+        next[vertex * 3 + axis] = (current[vertex * 3 + axis] + total / neighbors[vertex].size) / 2;
       }
     }
     current = next;
@@ -136,14 +136,14 @@ function smooth({ positions, indices }, passes) {
   return { positions: current, indices };
 }
 
-function normalise({ positions, indices }) {
+function normalize({ positions, indices }) {
   const { minimum, maximum } = bounds(positions);
-  const centre = [0, 1, 2].map((axis) => (minimum[axis] + maximum[axis]) / 2);
+  const center = [0, 1, 2].map((axis) => (minimum[axis] + maximum[axis]) / 2);
   let radius = 0;
   for (let offset = 0; offset < positions.length; offset += 3) {
-    radius = Math.max(radius, Math.hypot(positions[offset] - centre[0], positions[offset + 1] - centre[1], positions[offset + 2] - centre[2]));
+    radius = Math.max(radius, Math.hypot(positions[offset] - center[0], positions[offset + 1] - center[1], positions[offset + 2] - center[2]));
   }
-  return { positions: positions.map((value, index) => Math.round(((value - centre[index % 3]) / radius) * SCALE)), indices };
+  return { positions: positions.map((value, index) => Math.round(((value - center[index % 3]) / radius) * SCALE)), indices };
 }
 
 mkdirSync(OUTPUT, { recursive: true });
@@ -154,7 +154,7 @@ for (const entry of MESHES) {
   const { minimum, maximum } = bounds(raw.positions);
   const size = Math.max(maximum[0] - minimum[0], maximum[1] - minimum[1], maximum[2] - minimum[2]);
   const thinned = compact(cluster(raw, entry.gridCells ? size / entry.gridCells : size * 1e-6));
-  const mesh = normalise(entry.smoothPasses ? smooth(thinned, entry.smoothPasses) : thinned);
+  const mesh = normalize(entry.smoothPasses ? smooth(thinned, entry.smoothPasses) : thinned);
   const stored = { name: entry.name, credit: entry.credit, positions: mesh.positions, indices: mesh.indices };
   writeFileSync(`${OUTPUT}${entry.out ?? entry.file}.json`, `${JSON.stringify(stored)}\n`);
   console.log(`${entry.name}: ${raw.indices.length / 3} triangles in, ${mesh.indices.length / 3} out, ${mesh.positions.length / 3} vertices`);

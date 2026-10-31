@@ -1,6 +1,6 @@
 // Flocking, the Reynolds way, with no DOM dependency: this module moves the agents,
 // an adapter decides how they reach a beam. Three forces compose into the motion --
-// separation (do not crowd), alignment (match your neighbours' heading) and cohesion
+// separation (do not crowd), alignment (match your neighbors' heading) and cohesion
 // (drift toward the crowd). None of them steers the flock; the flock is what happens
 // when every boid applies all three at once.
 //
@@ -137,7 +137,7 @@ export function gatherNeighborhood(flock: BoidFlock, index: number, settings: Fl
         centerX += deltaX;
         centerY += deltaY;
         if (distanceSquared < separationSquared && distanceSquared > 1e-6) {
-            // Closer neighbours push harder, hence the division by distance squared.
+            // Closer neighbors push harder, hence the division by distance squared.
             separationX -= deltaX / distanceSquared;
             separationY -= deltaY / distanceSquared;
             crowdCount++;
@@ -233,7 +233,7 @@ export function polarizationOf(flock: BoidFlock): number {
     return Math.sqrt(sumX * sumX + sumY * sumY) / flock.count;
 }
 
-/** Mean distance from each boid to the centre of its own neighbourhood, a crowding measure. */
+/** Mean distance from each boid to the center of its own neighborhood, a crowding measure. */
 export function averageNeighborDistance(flock: BoidFlock, settings: FlockingSettings): number {
     let total = 0;
     let samples = 0;

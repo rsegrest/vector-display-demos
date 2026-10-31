@@ -89,9 +89,9 @@ describe("HeldKeys", () => {
 describe("arcadeLayout and wrapControls", () => {
   const screen = { width: 1000, height: 800, aspect: 1.25 };
 
-  it("fits the screen into the window at its own shape, centred above the controls", () => {
+  it("fits the screen into the window at its own shape, centered above the controls", () => {
     const wide = arcadeLayout(800, 416, screen, 1);
-    // 416 less one 16-unit line and an 8-unit margin leaves 392 high, so 490 wide, centred in 800.
+    // 416 less one 16-unit line and an 8-unit margin leaves 392 high, so 490 wide, centered in 800.
     expect(wide.picture).toEqual({ left: 155, top: 0, right: 645, bottom: 392 });
     expect(wide.scaleX).toBeCloseTo(0.49);
     expect(wide.scaleY).toBeCloseTo(0.49);
@@ -313,7 +313,7 @@ describe("arcade games in Vector OS", () => {
     expect(first.moved - movedBefore).toBe(30);
   });
 
-  it("steers a stick by where the pointer is over the picture, only in front, and centres it when the pointer leaves", async () => {
+  it("steers a stick by where the pointer is over the picture, only in front, and centers it when the pointer leaves", async () => {
     const stick = stickCabinet();
     const typed: string[] = [];
     const os = new VectorOsDemo({ skipBoot: true, entries: [gameEntry("stick", stick.cabinet), toolEntry("term", typed)], startup: [] });
@@ -392,11 +392,11 @@ const gamesPresent = ARCADE_GAMES.every((game) => existsSync(arcadeGameDirectory
 describe("a game steered by the pointer, aimed at in 3D", () => {
   const flatFrame = { left: -1, right: 1, top: 1.3, bottom: -0.9 };
   const positions = new Float32Array(6);
-  const colours = new Float32Array(4);
+  const colors = new Float32Array(4);
 
   it("gives its 3D picture the flat frame the OS knows for it, and takes the ray's point and button in front", () => {
     const stick = stickCabinet();
-    const app = createArcadeApp({ ...stick.cabinet, picture3d: () => ({ positions, colours, spread: 1, drop: 0 }) }, { flatFrame3d: flatFrame });
+    const app = createArcadeApp({ ...stick.cabinet, picture3d: () => ({ positions, colors, spread: 1, drop: 0 }) }, { flatFrame3d: flatFrame });
     expect(app.picture3d!()!.flatFrame).toEqual(flatFrame);
     // Behind another window it is only watched.
     app.aim3d!("down", { x: 0.2, y: 0.3 });
@@ -412,7 +412,7 @@ describe("a game steered by the pointer, aimed at in 3D", () => {
   it("keeps a frame the cabinet's own picture gives, and offers no aim to a game the pointer does not steer", () => {
     const own = { left: -2, right: 2, top: 1, bottom: -1 };
     const stick = stickCabinet();
-    expect(createArcadeApp({ ...stick.cabinet, picture3d: () => ({ positions, colours, flatFrame: own }) }, { flatFrame3d: flatFrame }).picture3d!()!.flatFrame).toEqual(own);
+    expect(createArcadeApp({ ...stick.cabinet, picture3d: () => ({ positions, colors, flatFrame: own }) }, { flatFrame3d: flatFrame }).picture3d!()!.flatFrame).toEqual(own);
     expect(createArcadeApp(fakeCabinet().cabinet).aim3d).toBeUndefined();
   });
 });

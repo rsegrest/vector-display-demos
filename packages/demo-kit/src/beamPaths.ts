@@ -27,7 +27,7 @@ export interface BeamPath {
 // the jump shows only as a faint line, as it does on a real scope.
 const JUMP_SPEED = 7;
 
-// Joins strokes into one closed tour, centred on the origin and scaled to fit a
+// Joins strokes into one closed tour, centered on the origin and scaled to fit a
 // unit sphere. Time along the tour is shared out by distance, so the beam moves at
 // a steady speed while drawing.
 export function buildPath(strokes: readonly Stroke[]): BeamPath {
@@ -56,16 +56,16 @@ export function buildPath(strokes: readonly Stroke[]): BeamPath {
       maximum[axis] = Math.max(maximum[axis], stop[axis]);
     }
   }
-  const centre = [0, 1, 2].map((axis) => (minimum[axis] + maximum[axis]) / 2);
+  const center = [0, 1, 2].map((axis) => (minimum[axis] + maximum[axis]) / 2);
   let radius = 1e-9;
-  for (const stop of stops) radius = Math.max(radius, Math.hypot(stop[0] - centre[0], stop[1] - centre[1], stop[2] - centre[2]));
+  for (const stop of stops) radius = Math.max(radius, Math.hypot(stop[0] - center[0], stop[1] - center[1], stop[2] - center[2]));
 
   const points = new Float32Array(stops.length * 3);
   const times = new Float32Array(stops.length);
   const drawnFlags = Uint8Array.from(drawn, (isDrawn) => (isDrawn ? 1 : 0));
   let elapsed = 0;
   stops.forEach((stop, index) => {
-    for (let axis = 0; axis < 3; axis++) points[index * 3 + axis] = (stop[axis] - centre[axis]) / radius;
+    for (let axis = 0; axis < 3; axis++) points[index * 3 + axis] = (stop[axis] - center[axis]) / radius;
     if (index > 0) {
       const previous = stops[index - 1];
       const distance = Math.hypot(stop[0] - previous[0], stop[1] - previous[1], stop[2] - previous[2]) / radius;

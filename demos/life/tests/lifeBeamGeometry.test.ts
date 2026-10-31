@@ -45,8 +45,8 @@ describe("lifeBeamGeometry", () => {
         });
     });
 
-    describe("the colour ramp", () => {
-        it("gives the newest bucket the palette's newest colour and the last the oldest", () => {
+    describe("the color ramp", () => {
+        it("gives the newest bucket the palette's newest color and the last the oldest", () => {
             expect(beamColorForBucket(0, 8, DEFAULT_BEAM_PALETTE)).toEqual(DEFAULT_BEAM_PALETTE.newest);
             const oldest = beamColorForBucket(7, 8, DEFAULT_BEAM_PALETTE);
             expect(oldest.red).toBeCloseTo(DEFAULT_BEAM_PALETTE.oldest.red, 10);
@@ -108,12 +108,12 @@ describe("lifeBeamGeometry", () => {
             expect(polylines.every((polyline) => polyline.points.length === 4)).toBe(true);
         });
 
-        it("centres a cell on its grid slot rather than on its corner", () => {
+        it("centers a cell on its grid slot rather than on its corner", () => {
             expect(cellCenter(0, 0, 10)).toEqual({ x: 5, y: 5 });
             expect(cellCenter(2, 3, 20)).toEqual({ x: 50, y: 70 });
         });
 
-        it("draws each square inside its own slot so neighbours never overlap", () => {
+        it("draws each square inside its own slot so neighbors never overlap", () => {
             const boxes = groupCellsByAgeBucket(
                 (() => {
                     const live = createEmptyGrid({ columns: 9, rows: 9 });
@@ -173,7 +173,7 @@ describe("lifeBeamGeometry", () => {
 
         it("ages only the cells that actually survived an oscillator, resetting the reborn ones", () => {
             // A blinker's two end cells die and are reborn every generation, while the
-            // centre survives. That is what makes the ends flash white while the centre
+            // center survives. That is what makes the ends flash white while the center
             // settles into a steady glow -- the phosphor reading the automaton.
             const previous = blinkerGrid();
             const ages = new Uint8Array(previous.cells.length).fill(3);
@@ -183,7 +183,7 @@ describe("lifeBeamGeometry", () => {
                 .map((cell, index) => ({ cell, index }))
                 .filter(({ cell }) => cell !== 0)
                 .map(({ index }) => advanced[index]);
-            // Centre cell (index 4*9+3) is older; the two ends are newborn.
+            // Center cell (index 4*9+3) is older; the two ends are newborn.
             expect(liveAges.sort()).toEqual([0, 0, 4]);
         });
     });

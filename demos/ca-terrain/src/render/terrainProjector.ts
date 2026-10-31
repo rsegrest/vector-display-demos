@@ -7,8 +7,8 @@
 // drawn is a line with both ends visible. That is the whole projection.
 
 export interface ProjectionSettings {
-  // Horizontal centre of the screen.
-  readonly centreX: number;
+  // Horizontal center of the screen.
+  readonly centerX: number;
   // Screen y of the vanishing point.
   readonly horizonY: number;
   // Larger focal lengths flatten the view; smaller ones rush it.
@@ -24,13 +24,13 @@ export interface ProjectedPoint {
   readonly y: number;
 }
 
-// lateral: world x, 0 at the centre of the flight path. altitude: height above the
+// lateral: world x, 0 at the center of the flight path. altitude: height above the
 // ground. depth: distance ahead of the camera, increasing away from the viewer.
 export function projectPoint(lateral: number, altitude: number, depth: number, settings: ProjectionSettings): ProjectedPoint {
   const safeDepth = Math.max(depth, settings.nearDepth);
   const scale = settings.focalLength / safeDepth;
   return {
-    x: settings.centreX + lateral * scale,
+    x: settings.centerX + lateral * scale,
     y: settings.horizonY + (settings.cameraHeight - altitude) * scale,
   };
 }

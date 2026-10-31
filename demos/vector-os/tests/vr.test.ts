@@ -20,7 +20,7 @@ describe("the virtual cabinet's room", () => {
   const screen = screenFor(16 / 10);
 
   it("puts the screen 2.6 m ahead at eye height, 3.2 m wide at the desktop's shape", () => {
-    expect(screen.centre).toEqual([0, 1.5, -2.6]);
+    expect(screen.center).toEqual([0, 1.5, -2.6]);
     expect(screen.height).toBeCloseTo(2);
   });
 
@@ -89,25 +89,25 @@ describe("the controllers as keys", () => {
 describe("the controls panel under the screen", () => {
   const screen = screenFor(16 / 9, 3.6);
   const eye: [number, number, number] = [0, 1.6, 0];
-  const lookingAt = (y: number): [number, number, number] => [0, y - eye[1], screen.centre[2] - eye[2]];
+  const lookingAt = (y: number): [number, number, number] => [0, y - eye[1], screen.center[2] - eye[2]];
 
   it("stays hidden while the gaze is on the screen above its bottom 15%", () => {
-    expect(panelOpacity(eye, lookingAt(screen.centre[1]), screen)).toBe(0);
-    const bottom = screen.centre[1] - screen.height / 2;
+    expect(panelOpacity(eye, lookingAt(screen.center[1]), screen)).toBe(0);
+    const bottom = screen.center[1] - screen.height / 2;
     expect(panelOpacity(eye, lookingAt(bottom + 0.2 * screen.height), screen)).toBe(0);
   });
 
   it("fades in below that, and is fully shown when the gaze reaches it", () => {
-    const bottom = screen.centre[1] - screen.height / 2;
+    const bottom = screen.center[1] - screen.height / 2;
     const between = panelOpacity(eye, lookingAt(bottom), screen);
     expect(between).toBeGreaterThan(0);
     expect(between).toBeLessThan(1);
-    expect(panelOpacity(eye, lookingAt(panelFor(screen).centre[1]), screen)).toBe(1);
+    expect(panelOpacity(eye, lookingAt(panelFor(screen).center[1]), screen)).toBe(1);
     expect(panelOpacity(eye, lookingAt(-1), screen)).toBe(1);
   });
 });
 
-describe("recentring the room on the head", () => {
+describe("recentering the room on the head", () => {
   it("puts the room's eye on a seated head, facing where it faces", () => {
     // A head 1.1 m up, turned 90 degrees to the left (facing -x), at x 0.3.
     const head = Float32Array.from([0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0.3, 1.1, 0, 1]);
@@ -127,7 +127,7 @@ describe("the space backdrop", () => {
     const { spaceBackdrop, STAR_COUNT } = await import("../src/vr/backdrop.js");
     const space = spaceBackdrop();
     const lines = space.positions.length / 6;
-    expect(space.colours.length / 4).toBe(lines);
+    expect(space.colors.length / 4).toBe(lines);
     expect(lines).toBeGreaterThan(STAR_COUNT + 500); // stars, plus the nebula's and the system's lines
     let nearest = Infinity;
     let behind = 0;
@@ -137,7 +137,7 @@ describe("the space backdrop", () => {
     }
     expect(nearest).toBeGreaterThan(30);
     expect(behind).toBeGreaterThan(0); // stars all round, not only ahead
-    for (let i = 3; i < space.colours.length; i += 4) expect(space.colours[i]).toBeLessThan(0.7); // dim
+    for (let i = 3; i < space.colors.length; i += 4) expect(space.colors[i]).toBeLessThan(0.7); // dim
     expect(spaceBackdrop().positions).toEqual(space.positions); // the same every time
   });
 });

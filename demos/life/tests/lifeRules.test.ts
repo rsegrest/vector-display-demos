@@ -42,8 +42,8 @@ function blinkerAt(originColumn: number, originRow: number): LiveCells {
 }
 
 describe("lifeRules", () => {
-    describe("neighbour counting", () => {
-        it("counts the eight surrounding cells and not the centre", () => {
+    describe("neighbor counting", () => {
+        it("counts the eight surrounding cells and not the center", () => {
             const full = gridWith(4, 4, [
                 [0, 0], [1, 0], [2, 0], [3, 0],
                 [0, 1], [1, 1], [2, 1], [3, 1],
@@ -58,16 +58,16 @@ describe("lifeRules", () => {
             expect(countLiveNeighbors(diagonalOnly, 2, 2)).toBe(0);
         });
 
-        it("does not count a cell as its own neighbour on a one-by-one grid", () => {
+        it("does not count a cell as its own neighbor on a one-by-one grid", () => {
             // Every offset wraps back onto the only cell, so a naive torus loop counts it 8 times.
             expect(countLiveNeighbors(gridWith(1, 1, [[0, 0]]), 0, 0)).toBe(0);
         });
 
-        it("counts wrapped offset visits on a two-by-two grid, where a neighbour is reached more than once", () => {
+        it("counts wrapped offset visits on a two-by-two grid, where a neighbor is reached more than once", () => {
             // On a 2x2 torus the three other cells are touched by all eight offsets. This
             // locks in the documented semantics: offsets are visited, not distinct cells.
             // (The one-by-one case above is different: the only offset target is the cell
-            // itself, and a cell is never its own neighbour.)
+            // itself, and a cell is never its own neighbor.)
             const full = gridWith(2, 2, [[0, 0], [1, 0], [0, 1], [1, 1]]);
             expect(countLiveNeighbors(full, 0, 0)).toBe(8);
         });
@@ -86,16 +86,16 @@ describe("lifeRules", () => {
     });
 
     describe("the three rules", () => {
-        it("kills a live cell with fewer than two neighbours", () => {
+        it("kills a live cell with fewer than two neighbors", () => {
             expect(populationOf(nextGeneration(gridWith(9, 9, [[4, 4]])))).toBe(0);
         });
 
-        it("keeps a live cell with two neighbours alive", () => {
-            // The blinker's centre cell has exactly two neighbours and survives.
+        it("keeps a live cell with two neighbors alive", () => {
+            // The blinker's center cell has exactly two neighbors and survives.
             expect(isAlive(nextGeneration(blinkerAt(2, 4)), 3, 4)).toBe(true);
         });
 
-        it("kills a live cell with more than three neighbours", () => {
+        it("kills a live cell with more than three neighbors", () => {
             const crowded = gridWith(9, 9, [
                 [3, 3], [4, 3], [5, 3],
                 [3, 4], [4, 4], [5, 4],
@@ -104,7 +104,7 @@ describe("lifeRules", () => {
             expect(isAlive(nextGeneration(crowded), 4, 4)).toBe(false);
         });
 
-        it("brings a dead cell to life with exactly three neighbours", () => {
+        it("brings a dead cell to life with exactly three neighbors", () => {
             // Both ends of the blinker's row see the other two cells and are reborn vertically.
             const next = nextGeneration(blinkerAt(2, 4));
             expect(isAlive(next, 3, 3)).toBe(true);
@@ -113,8 +113,8 @@ describe("lifeRules", () => {
             expect(isAlive(next, 4, 4)).toBe(false);
         });
 
-        it("does not bring a dead cell with two neighbours to life", () => {
-            // The cell directly above the blinker's centre sees only two cells.
+        it("does not bring a dead cell with two neighbors to life", () => {
+            // The cell directly above the blinker's center sees only two cells.
             const next = nextGeneration(blinkerAt(2, 4));
             expect(isAlive(next, 3, 3)).toBe(true);
             expect(isAlive(next, 2, 3)).toBe(false);
@@ -132,33 +132,33 @@ describe("lifeRules", () => {
             expect(liveCoordinates(nextGeneration(horizontal))).toEqual(blinkerCellsAfter(2, 4, 2));
         });
 
-        it("leaves a block untouched, because every cell has three neighbours", () => {
+        it("leaves a block untouched, because every cell has three neighbors", () => {
             const block = createEmptyGrid({ columns: 9, rows: 9 });
             stampBlock(block, 3, 3);
             expect(liveCoordinates(nextGeneration(block))).toEqual(liveCoordinates(block));
         });
 
         it("moves a glider one cell diagonally every four generations", () => {
-            let travelling = createEmptyGrid({ columns: 20, rows: 20 });
-            stampGlider(travelling, 1, 1);
-            for (let generation = 0; generation < 4; generation++) travelling = nextGeneration(travelling);
-            expect(liveCoordinates(travelling)).toEqual(gliderCellsAfter(1, 1, 4));
+            let traveling = createEmptyGrid({ columns: 20, rows: 20 });
+            stampGlider(traveling, 1, 1);
+            for (let generation = 0; generation < 4; generation++) traveling = nextGeneration(traveling);
+            expect(liveCoordinates(traveling)).toEqual(gliderCellsAfter(1, 1, 4));
         });
 
         it("agrees with the independently computed glider travel, not with the rules themselves", () => {
-            let travelling = createEmptyGrid({ columns: 20, rows: 20 });
-            stampGlider(travelling, 1, 1);
-            for (let generation = 0; generation < 8; generation++) travelling = nextGeneration(travelling);
-            expect(liveCoordinates(travelling)).toEqual(gliderCellsAfter(1, 1, 8));
+            let traveling = createEmptyGrid({ columns: 20, rows: 20 });
+            stampGlider(traveling, 1, 1);
+            for (let generation = 0; generation < 8; generation++) traveling = nextGeneration(traveling);
+            expect(liveCoordinates(traveling)).toEqual(gliderCellsAfter(1, 1, 8));
         });
 
         it("keeps the glider's population at five cells as it crosses an edge", () => {
             // A glider that clipped the edge would lose cells; a wrapping one never does.
-            let travelling = createEmptyGrid({ columns: 20, rows: 20 });
-            stampGlider(travelling, 18, 18);
+            let traveling = createEmptyGrid({ columns: 20, rows: 20 });
+            stampGlider(traveling, 18, 18);
             for (let generation = 0; generation < 24; generation++) {
-                expect(populationOf(travelling)).toBe(5);
-                travelling = nextGeneration(travelling);
+                expect(populationOf(traveling)).toBe(5);
+                traveling = nextGeneration(traveling);
             }
         });
 
@@ -179,7 +179,7 @@ describe("lifeRules", () => {
             expect(boxes.every((box) => box.size === 7)).toBe(true);
         });
 
-        it("centres each box on its cell so neighbours keep a gap", () => {
+        it("centers each box on its cell so neighbors keep a gap", () => {
             // The gap is what stops a dense lattice reading as one solid blob.
             const cellSize = 10;
             const fillRatio = 0.7;

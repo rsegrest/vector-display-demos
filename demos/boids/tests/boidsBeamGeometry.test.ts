@@ -150,7 +150,7 @@ describe("boidsBeamGeometry", () => {
         });
     });
 
-    it("exposes a colour the renderer can use directly", () => {
+    it("exposes a color the renderer can use directly", () => {
         expect(BOID_BEAM_COLOR.green).toBeGreaterThan(BOID_BEAM_COLOR.red);
         expect(BOID_BEAM_COLOR.green).toBeGreaterThan(BOID_BEAM_COLOR.blue);
     });

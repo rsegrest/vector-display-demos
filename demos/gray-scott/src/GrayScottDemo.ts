@@ -15,7 +15,7 @@ export interface ReactionPreset extends ReactionRates {
 }
 
 // Feed and kill rates that each settle into a different kind of pattern. They are
-// neighbours in a small corner of the model's parameter space; almost everywhere
+// neighbors in a small corner of the model's parameter space; almost everywhere
 // else the dish simply dies or fills up.
 export const REACTION_PRESETS: readonly ReactionPreset[] = [
   { name: "CORAL", feed: 0.0545, kill: 0.062 },

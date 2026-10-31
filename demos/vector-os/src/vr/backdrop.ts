@@ -1,6 +1,6 @@
 // A space backdrop for a game drawn in 3D with no depth of its own (Asteroids): something behind the
 // playfield to see its motion and depth against, drawn in lines as the games are.  Pure geometry,
-// in the room's metres with the eye at the origin looking down -z, y up:
+// in the room's meters with the eye at the origin looking down -z, y up:
 //
 //   stars          several hundred dots scattered on a shell 40-80 m away, all round;
 //   a nebula       glowing contour lines of a noise field, on a patch of sky up and to the left;
@@ -12,10 +12,10 @@
 import { createSeededRandom, type RandomSource } from "@vector-demos/demo-kit";
 
 export interface BackdropLines {
-  /** x, y, z per line end, two ends a line (metres; a dot is a line of no length). */
+  /** x, y, z per line end, two ends a line (meters; a dot is a line of no length). */
   readonly positions: Float32Array;
   /** r, g, b, brightness per line. */
-  readonly colours: Float32Array;
+  readonly colors: Float32Array;
 }
 
 type Vec3 = [number, number, number];
@@ -29,13 +29,13 @@ function direction(azimuth: number, elevation: number): Vec3 {
 
 class LineSink {
   readonly positions: number[] = [];
-  readonly colours: number[] = [];
-  line(from: Vec3, to: Vec3, colour: readonly [number, number, number, number]): void {
+  readonly colors: number[] = [];
+  line(from: Vec3, to: Vec3, color: readonly [number, number, number, number]): void {
     this.positions.push(...from, ...to);
-    this.colours.push(...colour);
+    this.colors.push(...color);
   }
   done(): BackdropLines {
-    return { positions: Float32Array.from(this.positions), colours: Float32Array.from(this.colours) };
+    return { positions: Float32Array.from(this.positions), colors: Float32Array.from(this.colors) };
   }
 }
 
@@ -92,15 +92,15 @@ function fractalNoise(random: RandomSource): (x: number, y: number) => number {
   };
 }
 
-/** The nebula's patch of sky (degrees) and distance, and its contour levels with their colours. */
+/** The nebula's patch of sky (degrees) and distance, and its contour levels with their colors. */
 export const NEBULA = { azimuthFrom: -95, azimuthTo: 5, elevationFrom: 12, elevationTo: 58, distance: 60 };
 const NEBULA_GRID = { across: 80, up: 34 };
 /** How many grid cells one unit of the noise spans: larger is smoother, broader clouds. */
 const NEBULA_SMOOTHNESS = 14;
-const NEBULA_LEVELS: readonly { level: number; colour: readonly [number, number, number, number] }[] = [
-  { level: 0.58, colour: [0.35, 0.3, 1, 0.07] },
-  { level: 0.66, colour: [0.65, 0.3, 1, 0.1] },
-  { level: 0.74, colour: [1, 0.45, 0.9, 0.13] },
+const NEBULA_LEVELS: readonly { level: number; color: readonly [number, number, number, number] }[] = [
+  { level: 0.58, color: [0.35, 0.3, 1, 0.07] },
+  { level: 0.66, color: [0.65, 0.3, 1, 0.1] },
+  { level: 0.74, color: [1, 0.45, 0.9, 0.13] },
 ];
 
 /** Marching squares: the pieces of each contour level of the field, laid on the nebula's patch. */
@@ -121,7 +121,7 @@ function nebula(sink: LineSink, random: RandomSource): void {
     const d = direction(azimuth, elevation);
     return [d[0] * NEBULA.distance, d[1] * NEBULA.distance, d[2] * NEBULA.distance];
   };
-  for (const { level, colour } of NEBULA_LEVELS) {
+  for (const { level, color } of NEBULA_LEVELS) {
     for (let j = 0; j < up - 1; j += 1) {
       for (let i = 0; i < across - 1; i += 1) {
         const corners = [field[j * across + i], field[j * across + i + 1], field[(j + 1) * across + i + 1], field[(j + 1) * across + i]];
@@ -143,52 +143,52 @@ function nebula(sink: LineSink, random: RandomSource): void {
           crossings.push([ax + (bx - ax) * t, ay + (by - ay) * t]);
         }
         // Two crossings make a piece; four (a saddle) make two.
-        for (let k = 0; k + 1 < crossings.length; k += 2) sink.line(toSky(...crossings[k]), toSky(...crossings[k + 1]), colour);
+        for (let k = 0; k + 1 < crossings.length; k += 2) sink.line(toSky(...crossings[k]), toSky(...crossings[k + 1]), color);
       }
     }
   }
 }
 
-/** The solar system's place in the sky (degrees) and distance, and its size (metres at that distance). */
+/** The solar system's place in the sky (degrees) and distance, and its size (meters at that distance). */
 export const SOLAR_SYSTEM = { azimuth: 55, elevation: 22, distance: 55 };
 
 function solarSystem(sink: LineSink): void {
   // A plane facing the eye at the system's place, tilted so the orbits are ellipses.
-  const centre = direction(SOLAR_SYSTEM.azimuth, SOLAR_SYSTEM.elevation).map((v) => v * SOLAR_SYSTEM.distance) as Vec3;
+  const center = direction(SOLAR_SYSTEM.azimuth, SOLAR_SYSTEM.elevation).map((v) => v * SOLAR_SYSTEM.distance) as Vec3;
   const azimuth = (SOLAR_SYSTEM.azimuth * Math.PI) / 180;
   const right: Vec3 = [Math.cos(azimuth), 0, Math.sin(azimuth)];
   const upward: Vec3 = [0, 1, 0];
   const tilt = 0.35; // the orbits seen nearly edge on
   const onPlane = (x: number, y: number, lift = 0): Vec3 => [
-    centre[0] + right[0] * x + upward[0] * (y * tilt + lift),
-    centre[1] + right[1] * x + upward[1] * (y * tilt + lift),
-    centre[2] + right[2] * x + upward[2] * (y * tilt + lift),
+    center[0] + right[0] * x + upward[0] * (y * tilt + lift),
+    center[1] + right[1] * x + upward[1] * (y * tilt + lift),
+    center[2] + right[2] * x + upward[2] * (y * tilt + lift),
   ];
-  const circle = (radius: number, x0: number, y0: number, colour: readonly [number, number, number, number], flat = true, steps = 32, dashed = false) => {
+  const circle = (radius: number, x0: number, y0: number, color: readonly [number, number, number, number], flat = true, steps = 32, dashed = false) => {
     for (let s = 0; s < steps; s += 1) {
       if (dashed && s % 2 === 1) continue;
       const a0 = (2 * Math.PI * s) / steps;
       const a1 = (2 * Math.PI * (s + 1)) / steps;
       const from = flat ? onPlane(x0 + radius * Math.cos(a0), y0 + radius * Math.sin(a0)) : onPlane(x0 + radius * Math.cos(a0), y0, radius * Math.sin(a0));
       const to = flat ? onPlane(x0 + radius * Math.cos(a1), y0 + radius * Math.sin(a1)) : onPlane(x0 + radius * Math.cos(a1), y0, radius * Math.sin(a1));
-      sink.line(from, to, colour);
+      sink.line(from, to, color);
     }
   };
-  const sunColour = [1, 0.8, 0.35, 0.55] as const;
+  const sunColor = [1, 0.8, 0.35, 0.55] as const;
   // The sun: a round disc (not on the tilted plane) with short rays.
-  circle(1.6, 0, 0, sunColour, false, 40);
+  circle(1.6, 0, 0, sunColor, false, 40);
   for (let ray = 0; ray < 16; ray += 1) {
     const a = (2 * Math.PI * ray) / 16;
     sink.line(onPlane(Math.cos(a) * 2.1, 0, Math.sin(a) * 2.1), onPlane(Math.cos(a) * 2.8, 0, Math.sin(a) * 2.8), [1, 0.7, 0.3, 0.4]);
   }
-  const orbitColour = [0.5, 0.6, 0.8, 0.14] as const;
-  const planets: readonly { orbit: number; at: number; size: number; colour: readonly [number, number, number, number]; ring?: boolean }[] = [
-    { orbit: 5, at: 2.2, size: 0.35, colour: [0.9, 0.5, 0.35, 0.45] },
-    { orbit: 8.5, at: 4.1, size: 0.6, colour: [0.45, 0.75, 1, 0.45] },
-    { orbit: 13, at: 0.9, size: 0.9, colour: [0.95, 0.85, 0.6, 0.45], ring: true },
+  const orbitColor = [0.5, 0.6, 0.8, 0.14] as const;
+  const planets: readonly { orbit: number; at: number; size: number; color: readonly [number, number, number, number]; ring?: boolean }[] = [
+    { orbit: 5, at: 2.2, size: 0.35, color: [0.9, 0.5, 0.35, 0.45] },
+    { orbit: 8.5, at: 4.1, size: 0.6, color: [0.45, 0.75, 1, 0.45] },
+    { orbit: 13, at: 0.9, size: 0.9, color: [0.95, 0.85, 0.6, 0.45], ring: true },
   ];
   for (const planet of planets) {
-    circle(planet.orbit, 0, 0, orbitColour, true, 72, true);
+    circle(planet.orbit, 0, 0, orbitColor, true, 72, true);
     const x = planet.orbit * Math.cos(planet.at);
     const y = planet.orbit * Math.sin(planet.at);
     // The planet itself faces the eye (not squashed by the tilt).
@@ -197,7 +197,7 @@ function solarSystem(sink: LineSink): void {
       const a0 = (2 * Math.PI * s) / 20;
       const a1 = (2 * Math.PI * (s + 1)) / 20;
       const point = (a: number): Vec3 => [body[0] + right[0] * planet.size * Math.cos(a), body[1] + planet.size * Math.sin(a), body[2] + right[2] * planet.size * Math.cos(a)];
-      sink.line(point(a0), point(a1), planet.colour);
+      sink.line(point(a0), point(a1), planet.color);
     }
     if (planet.ring) {
       // A ring, seen tilted: an ellipse round the planet, wider than it is tall.

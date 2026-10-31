@@ -1,4 +1,4 @@
-// Meshes made from formulae, alongside the scanned and modelled ones. They load
+// Meshes made from formulae, alongside the scanned and modeled ones. They load
 // instantly and each shows off one kind of edge: the knot is all smooth surface, so
 // everything drawn is silhouette; the gear is all flat faces, so nearly everything
 // drawn is a crease.
@@ -12,17 +12,17 @@ import { fitToSphere, fromRightHanded, weldMesh, type TriangleMesh } from "@vect
 export function torusKnot(p = 2, q = 3, steps = 220, sides = 12, tubeRadius = 0.16): TriangleMesh {
   const positions: number[] = [];
   const indices: number[] = [];
-  const centre = (step: number): [number, number, number] => {
+  const center = (step: number): [number, number, number] => {
     const angle = (step / steps) * Math.PI * 2;
     const radius = 1 + 0.45 * Math.cos(q * angle);
     return [radius * Math.cos(p * angle), radius * Math.sin(p * angle), 0.45 * Math.sin(q * angle)];
   };
   for (let step = 0; step < steps; step++) {
-    const here = centre(step);
-    const ahead = centre(step + 0.01);
+    const here = center(step);
+    const ahead = center(step + 0.01);
     // A frame round the curve: along it, and two directions across it.
-    const tangent = normalised([ahead[0] - here[0], ahead[1] - here[1], ahead[2] - here[2]]);
-    const outward = normalised(cross(tangent, [0, 0, 1]));
+    const tangent = normalized([ahead[0] - here[0], ahead[1] - here[1], ahead[2] - here[2]]);
+    const outward = normalized(cross(tangent, [0, 0, 1]));
     const across = cross(outward, tangent);
     for (let side = 0; side < sides; side++) {
       const angle = (side / sides) * Math.PI * 2;
@@ -96,7 +96,7 @@ function cross(a: readonly number[], b: readonly number[]): [number, number, num
   return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 }
 
-function normalised(vector: readonly number[]): [number, number, number] {
+function normalized(vector: readonly number[]): [number, number, number] {
   const length = Math.hypot(vector[0], vector[1], vector[2]) || 1;
   return [vector[0] / length, vector[1] / length, vector[2] / length];
 }

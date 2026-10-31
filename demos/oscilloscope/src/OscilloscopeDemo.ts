@@ -67,7 +67,7 @@ export const PROGRAMS: readonly ScopeProgram[] = [
 const AUTO_SECONDS = 12;
 // Never draw more than this many samples in one frame, however long the frame took.
 const MAX_SAMPLES_PER_FRAME = 4096;
-// Share of the screen's shorter side that a full-scale signal reaches from the centre.
+// Share of the screen's shorter side that a full-scale signal reaches from the center.
 const FULL_SCALE_SHARE = 0.46;
 // A real beam is dimmer the faster it moves, since it spends less time on each
 // spot. Segments are sorted by length (the distance covered in one sample) into
@@ -170,11 +170,11 @@ export class OscilloscopeDemo implements Demo {
     else count = this.heldSamples;
     this.drawnUntil = this.playheadSample;
 
-    const centreX = frame.width / 2;
-    const centreY = frame.height / 2;
+    const centerX = frame.width / 2;
+    const centerY = frame.height / 2;
     const fullScale = Math.min(frame.width, frame.height) * FULL_SCALE_SHARE;
     const color = PHOSPHORS[this.phosphorIndex].color;
-    if (this.showGraticule) this.drawGraticule(displayList, centreX, centreY, fullScale, color);
+    if (this.showGraticule) this.drawGraticule(displayList, centerX, centerY, fullScale, color);
 
     for (const geometry of this.steps) geometry.clear();
     if (count > 0) {
@@ -188,8 +188,8 @@ export class OscilloscopeDemo implements Demo {
         const distance = Math.hypot(left[index] - left[index - 1], right[index] - right[index - 1]);
         const step = distance <= SLOW_BEAM ? 0 : Math.min(SPEED_STEPS.length - 1, Math.floor(Math.log2(distance / SLOW_BEAM)) + 1);
         const geometry = this.steps[step];
-        if (step !== lastStep) geometry.moveTo(centreX + left[index - 1] * fullScale, centreY - right[index - 1] * fullScale);
-        geometry.lineTo(centreX + left[index] * fullScale, centreY - right[index] * fullScale);
+        if (step !== lastStep) geometry.moveTo(centerX + left[index - 1] * fullScale, centerY - right[index - 1] * fullScale);
+        geometry.lineTo(centerX + left[index] * fullScale, centerY - right[index] * fullScale);
         lastStep = step;
       }
     }
@@ -310,22 +310,22 @@ export class OscilloscopeDemo implements Demo {
   }
 
   // The scope's face: a square frame at full scale, cross-hairs, and division ticks.
-  private drawGraticule(displayList: DisplayList, centreX: number, centreY: number, fullScale: number, color: BeamColor): void {
+  private drawGraticule(displayList: DisplayList, centerX: number, centerY: number, fullScale: number, color: BeamColor): void {
     const geometry = this.graticule;
     geometry.clear();
-    geometry.moveTo(centreX - fullScale, centreY - fullScale);
-    geometry.lineTo(centreX + fullScale, centreY - fullScale);
-    geometry.lineTo(centreX + fullScale, centreY + fullScale);
-    geometry.lineTo(centreX - fullScale, centreY + fullScale);
+    geometry.moveTo(centerX - fullScale, centerY - fullScale);
+    geometry.lineTo(centerX + fullScale, centerY - fullScale);
+    geometry.lineTo(centerX + fullScale, centerY + fullScale);
+    geometry.lineTo(centerX - fullScale, centerY + fullScale);
     geometry.closePath();
-    geometry.addSegment(centreX - fullScale, centreY, centreX + fullScale, centreY);
-    geometry.addSegment(centreX, centreY - fullScale, centreX, centreY + fullScale);
+    geometry.addSegment(centerX - fullScale, centerY, centerX + fullScale, centerY);
+    geometry.addSegment(centerX, centerY - fullScale, centerX, centerY + fullScale);
     const tick = fullScale * 0.025;
     for (let division = 1; division < GRATICULE_DIVISIONS; division++) {
       const offset = -fullScale + (division * 2 * fullScale) / GRATICULE_DIVISIONS;
       if (division === GRATICULE_DIVISIONS / 2) continue;
-      geometry.addSegment(centreX + offset, centreY - tick, centreX + offset, centreY + tick);
-      geometry.addSegment(centreX - tick, centreY + offset, centreX + tick, centreY + offset);
+      geometry.addSegment(centerX + offset, centerY - tick, centerX + offset, centerY + tick);
+      geometry.addSegment(centerX - tick, centerY + offset, centerX + tick, centerY + offset);
     }
     displayList.setColor(color);
     displayList.addShape(geometry, { ...SCREEN_SPACE_PLACEMENT, intensity: 0.1 });

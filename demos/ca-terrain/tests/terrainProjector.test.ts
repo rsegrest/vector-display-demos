@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { projectPoint, type ProjectionSettings } from "../src/render/terrainProjector.js";
 
 const SETTINGS: ProjectionSettings = {
-  centreX: 800,
+  centerX: 800,
   horizonY: 340,
   focalLength: 900,
   cameraHeight: 160,
@@ -12,7 +12,7 @@ const SETTINGS: ProjectionSettings = {
 describe("projectPoint", () => {
   it("sends far-away points to the vanishing point", () => {
     const far = projectPoint(500, 0, 1e9, SETTINGS);
-    expect(far.x).toBeCloseTo(SETTINGS.centreX, 3);
+    expect(far.x).toBeCloseTo(SETTINGS.centerX, 3);
     expect(far.y).toBeCloseTo(SETTINGS.horizonY, 3);
   });
 
@@ -34,15 +34,15 @@ describe("projectPoint", () => {
   it("moves points right for increasing lateral position", () => {
     const left = projectPoint(-100, 0, SETTINGS.nearDepth, SETTINGS);
     const right = projectPoint(100, 0, SETTINGS.nearDepth, SETTINGS);
-    expect(left.x).toBeLessThan(SETTINGS.centreX);
-    expect(right.x).toBeGreaterThan(SETTINGS.centreX);
-    expect(SETTINGS.centreX - left.x).toBeCloseTo(right.x - SETTINGS.centreX, 6);
+    expect(left.x).toBeLessThan(SETTINGS.centerX);
+    expect(right.x).toBeGreaterThan(SETTINGS.centerX);
+    expect(SETTINGS.centerX - left.x).toBeCloseTo(right.x - SETTINGS.centerX, 6);
   });
 
-  it("compresses distant rows toward the centre", () => {
+  it("compresses distant rows toward the center", () => {
     const near = projectPoint(100, 0, SETTINGS.nearDepth, SETTINGS);
     const far = projectPoint(100, 0, SETTINGS.nearDepth * 4, SETTINGS);
-    expect(far.x - SETTINGS.centreX).toBeLessThan(near.x - SETTINGS.centreX);
+    expect(far.x - SETTINGS.centerX).toBeLessThan(near.x - SETTINGS.centerX);
   });
 
   it("clamps depths nearer than the near plane", () => {

@@ -23,7 +23,7 @@
         <li><a href="#display-list">The display list</a></li>
         <li><a href="#shapes">Shapes</a></li>
         <li><a href="#placement">Placement</a></li>
-        <li><a href="#colour">Colour and brightness</a></li>
+        <li><a href="#color">Color and brightness</a></li>
         <li><a href="#geometry">Geometry made every frame</a></li>
         <li><a href="#line-style">Line style</a></li>
         <li><a href="#phosphor">Phosphor</a></li>
@@ -86,7 +86,7 @@ view.phosphor = { persistenceHalfLifeMilliseconds: 350 };</code></pre>
       <section id="display-list">
         <h2>The display list</h2>
         <p>
-          A <code>DisplayList</code> is the list of strokes for one frame. You clear it, set a colour, and add shapes; then a renderer draws it. Nothing
+          A <code>DisplayList</code> is the list of strokes for one frame. You clear it, set a color, and add shapes; then a renderer draws it. Nothing
           is kept from one frame to the next, so a program rebuilds the list every frame. It reuses its memory, so that costs very little.
         </p>
         <p>
@@ -201,32 +201,32 @@ for (let index = 0; index &lt; count; index++) {
         </p>
       </section>
 
-      <section id="colour">
-        <h2>Colour and brightness</h2>
+      <section id="color">
+        <h2>Color and brightness</h2>
         <p>
           <code>setColor</code> takes red, green and blue from 0 to 1, and applies to every shape added after it. Light adds up: where two lines cross,
           the crossing is brighter than either, and where red, green and blue lines meet, the meeting point is white. Intensity above 1 is allowed, and
           is how you make something burn.
         </p>
         <figure class="snippet" data-title="Additive light">
-          <pre data-snippet><code>// Three fans of lines, one in each primary colour, sweeping across each other.
-const colours = [
+          <pre data-snippet><code>// Three fans of lines, one in each primary color, sweeping across each other.
+const colors = [
   { red: 1, green: 0.1, blue: 0.1 },
   { red: 0.1, green: 1, blue: 0.1 },
   { red: 0.15, green: 0.25, blue: 1 },
 ];
-colours.forEach((colour, fan) =&gt; {
+colors.forEach((color, fan) =&gt; {
   const coordinates = [];
-  const centreX = width / 2 + Math.cos(t * 0.6 + fan * 2.1) * 120;
-  const centreY = height / 2 + Math.sin(t * 0.6 + fan * 2.1) * 40;
+  const centerX = width / 2 + Math.cos(t * 0.6 + fan * 2.1) * 120;
+  const centerY = height / 2 + Math.sin(t * 0.6 + fan * 2.1) * 40;
   for (let line = 0; line &lt; 14; line++) {
     const angle = (line / 14) * Math.PI + t * 0.2 * (fan + 1);
     coordinates.push(
-      centreX - Math.cos(angle) * 110, centreY - Math.sin(angle) * 110,
-      centreX + Math.cos(angle) * 110, centreY + Math.sin(angle) * 110,
+      centerX - Math.cos(angle) * 110, centerY - Math.sin(angle) * 110,
+      centerX + Math.cos(angle) * 110, centerY + Math.sin(angle) * 110,
     );
   }
-  list.setColor(colour);
+  list.setColor(color);
   list.addShape(Shape.fromSegmentCoordinates(coordinates), SCREEN_SPACE_PLACEMENT);
 });</code></pre>
         </figure>
@@ -273,7 +273,7 @@ list.addShape(
   SCREEN_SPACE_PLACEMENT,
 );</code></pre>
           <figcaption>
-            Here too a real program would allocate the two arrays once and refill them each frame. Telling the renderer which segments are neighbours
+            Here too a real program would allocate the two arrays once and refill them each frame. Telling the renderer which segments are neighbors
             is what lets it join them without a bright bead at every point.
           </figcaption>
         </figure>
@@ -361,13 +361,13 @@ list.addShape(Shape.fromSegmentCoordinates(loose), {
 view.phosphor = { persistenceHalfLifeMilliseconds: 700, bloomStrength: 0.8 };
 
 const dot = Shape.createDot();
-const colours = [
+const colors = [
   { red: 1, green: 0.4, blue: 0.3 },
   { red: 0.4, green: 1, blue: 0.5 },
   { red: 0.4, green: 0.6, blue: 1 },
 ];
-colours.forEach((colour, index) =&gt; {
-  list.setColor(colour);
+colors.forEach((color, index) =&gt; {
+  list.setColor(color);
   list.addShape(dot, {
     x: width / 2 + Math.sin(t * (2 + index)) * (width * 0.38),
     y: height / 2 + Math.sin(t * (3 + index) + index) * 95,

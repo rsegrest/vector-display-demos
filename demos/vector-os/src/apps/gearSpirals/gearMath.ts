@@ -14,7 +14,7 @@ export interface SpiralParameters {
   readonly baseRadius: number;
   // r: the rolling gear's radius.
   readonly gearRadius: number;
-  // d: how far the pen sits from the rolling gear's centre.
+  // d: how far the pen sits from the rolling gear's center.
   readonly penDistance: number;
 }
 
@@ -39,16 +39,16 @@ export const CLOSURE_TOLERANCE_TURNS = 1e-4;
 // sizes always close sooner: after r / gcd(R, r) trips, and r is at most 150.
 export const MAXIMUM_CLOSING_TRIPS = 200;
 
-// The radius of the circle the gear's centre travels on, and how many times the gear turns
-// (relative to the line from the base's centre to its own) for each radian it travels.
+// The radius of the circle the gear's center travels on, and how many times the gear turns
+// (relative to the line from the base's center to its own) for each radian it travels.
 export function gearOrbit(parameters: SpiralParameters): { readonly orbitRadius: number; readonly spinRatio: number } {
   const { mode, baseRadius, gearRadius } = parameters;
   const orbitRadius = mode === "inside" ? baseRadius - gearRadius : baseRadius + gearRadius;
   return { orbitRadius, spinRatio: orbitRadius / gearRadius };
 }
 
-// Where the rolling gear's centre is at time t, in the curve's own coordinates (y up, base centre at the origin).
-export function gearCentreAt(parameters: SpiralParameters, t: number, out: Point): Point {
+// Where the rolling gear's center is at time t, in the curve's own coordinates (y up, base center at the origin).
+export function gearCenterAt(parameters: SpiralParameters, t: number, out: Point): Point {
   const { orbitRadius } = gearOrbit(parameters);
   out.x = orbitRadius * Math.cos(t);
   out.y = orbitRadius * Math.sin(t);
@@ -69,7 +69,7 @@ export function penPointAt(parameters: SpiralParameters, t: number, out: Point):
   return out;
 }
 
-// The fastest the pen can move, in units per radian of t: the gear's centre moves at its
+// The fastest the pen can move, in units per radian of t: the gear's center moves at its
 // orbit's radius, and the pen swings round it at d times the spin ratio. Dividing a wanted
 // step length by this gives a step in t that never draws a longer line than that.
 export function maximumPenSpeed(parameters: SpiralParameters): number {
@@ -90,7 +90,7 @@ export function maximumPenSpeed(parameters: SpiralParameters): number {
 export function findClosure(parameters: SpiralParameters, toleranceTurns = CLOSURE_TOLERANCE_TURNS, maximumTrips = MAXIMUM_CLOSING_TRIPS): Closure | null {
   const ratio = parameters.baseRadius / parameters.gearRadius;
   if (!Number.isFinite(ratio) || ratio <= 0) return null;
-  // With the pen at the gear's centre the curve is a plain circle, closed after one trip.
+  // With the pen at the gear's center the curve is a plain circle, closed after one trip.
   if (parameters.penDistance === 0) return { trips: 1, petals: 0 };
   let previousNumerator = 1;
   let numerator = Math.floor(ratio);

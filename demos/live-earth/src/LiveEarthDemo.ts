@@ -398,11 +398,11 @@ export class LiveEarthDemo implements Demo {
     const font = getDemoFont();
     const screen = this.renderer.satelliteScreen;
     displayList.setColor(HUD_TEXT_COLOR);
-    const labelled = new Set<string>();
+    const labeled = new Set<string>();
     this.satellites.forEach((satellite, index) => {
       const label = stationLabel(satellite.name);
-      if (!label || labelled.has(label) || !screen[index * 3 + 2]) return;
-      labelled.add(label);
+      if (!label || labeled.has(label) || !screen[index * 3 + 2]) return;
+      labeled.add(label);
       font.addText(displayList, { text: label, x: screen[index * 3] + 14, y: screen[index * 3 + 1] - 22, size: 15, intensity: 0.9 });
     });
   }

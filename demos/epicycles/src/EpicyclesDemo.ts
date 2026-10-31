@@ -107,8 +107,8 @@ export class EpicyclesDemo implements Demo {
   private lastTraceIndex = -1;
   private autoStep = 0;
   private sketch: number[] | null = null;
-  private centreX = 889;
-  private centreY = 500;
+  private centerX = 889;
+  private centerY = 500;
   private scale = 360;
   private segmentCount = 0;
 
@@ -129,7 +129,7 @@ export class EpicyclesDemo implements Demo {
     return this.shapeName;
   }
 
-  // Circles in use, not counting the fixed offset that centres the drawing.
+  // Circles in use, not counting the fixed offset that centers the drawing.
   public get termCount(): number {
     return Math.min(TERM_LEVELS[this.termIndex], this.epicycles.length - 1);
   }
@@ -144,8 +144,8 @@ export class EpicyclesDemo implements Demo {
   }
 
   public resize(width: number, height: number): void {
-    this.centreX = width / 2;
-    this.centreY = height / 2;
+    this.centerX = width / 2;
+    this.centerY = height / 2;
     this.scale = Math.min(width, height) * SHAPE_SHARE;
   }
 
@@ -317,11 +317,11 @@ export class EpicyclesDemo implements Demo {
   }
 
   private toScreenX(x: number): number {
-    return this.centreX + x * this.scale;
+    return this.centerX + x * this.scale;
   }
 
   private toScreenY(y: number): number {
-    return this.centreY - y * this.scale;
+    return this.centerY - y * this.scale;
   }
 
   private add(displayList: DisplayList, geometry: DynamicGeometry, color: BeamColor, intensity: number): void {
@@ -355,13 +355,13 @@ export class EpicyclesDemo implements Demo {
     for (let joint = 1; joint < jointCount - 1; joint++) {
       const radius = this.epicycles[joint].radius * this.scale;
       if (radius < SMALLEST_CIRCLE) continue;
-      const centreX = this.toScreenX(this.joints[joint * 2]);
-      const centreY = this.toScreenY(this.joints[joint * 2 + 1]);
+      const centerX = this.toScreenX(this.joints[joint * 2]);
+      const centerY = this.toScreenY(this.joints[joint * 2 + 1]);
       const sides = Math.max(10, Math.min(72, Math.round(radius / 2.5)));
-      this.circles.moveTo(centreX + radius, centreY);
+      this.circles.moveTo(centerX + radius, centerY);
       for (let side = 1; side < sides; side++) {
         const angle = (side / sides) * Math.PI * 2;
-        this.circles.lineTo(centreX + Math.cos(angle) * radius, centreY + Math.sin(angle) * radius);
+        this.circles.lineTo(centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius);
       }
       this.circles.closePath();
     }

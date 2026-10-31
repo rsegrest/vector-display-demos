@@ -1,5 +1,5 @@
 import { DynamicGeometry, clipSegmentInside, type ClipRect } from "@vector-demos/demo-kit";
-import { findClosure, formatSize, gearCentreAt, maximumPenSpeed, penPointAt, type Closure, type Point, type RollMode, type SpiralParameters } from "./gearMath.js";
+import { findClosure, formatSize, gearCenterAt, maximumPenSpeed, penPointAt, type Closure, type Point, type RollMode, type SpiralParameters } from "./gearMath.js";
 
 // The values that can be set with a slider or typed in.
 export type SpiralField = "baseRadius" | "gearRadius" | "penDistance" | "speed" | "hue";
@@ -13,7 +13,7 @@ export interface FieldRange {
   readonly unit: string;
 }
 
-// The drawing area is a square "plate" this many units either side of its centre, whatever
+// The drawing area is a square "plate" this many units either side of its center, whatever
 // size the window is: the sizes mean the same thing in a small window as in a large one, and
 // the largest ring just fits, as does the default curve rolled outside.
 export const PLATE_HALF_SIZE = 170;
@@ -23,13 +23,13 @@ export const FIELD_RANGES: Readonly<Record<SpiralField, FieldRange>> = {
   gearRadius: { label: "GEAR RADIUS", minimum: 5, maximum: 150, step: 1, unit: "" },
   penDistance: { label: "PEN DISTANCE", minimum: 0, maximum: 150, step: 1, unit: "" },
   speed: { label: "SPEED", minimum: 0.1, maximum: 10, step: 0.1, unit: "TRIPS/S" },
-  hue: { label: "COLOUR", minimum: 0, maximum: 359, step: 1, unit: "" },
+  hue: { label: "COLOR", minimum: 0, maximum: 359, step: 1, unit: "" },
 };
 
 // The order of the sliders, and the order Tab moves through the typed fields.
 export const FIELD_ORDER: readonly SpiralField[] = ["baseRadius", "gearRadius", "penDistance", "speed", "hue"];
 
-// The pen colours offered as swatches, as hues in degrees: amber, green, cyan, blue, violet, red.
+// The pen colors offered as swatches, as hues in degrees: amber, green, cyan, blue, violet, red.
 export const PALETTE_HUES: readonly number[] = [38, 120, 180, 215, 285, 350];
 
 // A gear inside the ring must be at least this much smaller than it, or it has no room to roll.
@@ -47,7 +47,7 @@ export const MAXIMUM_OPEN_TRIPS = 40;
 const MAXIMUM_ENTRY_LENGTH = 7;
 // Pressing on the plate this close to the gear's rim, in plate units, still takes hold of it.
 const GEAR_GRAB_MARGIN = 8;
-// A press that moves less than this while placing the base only moves its centre.
+// A press that moves less than this while placing the base only moves its center.
 const BASE_DRAG_THRESHOLD = 4;
 
 export const DEFAULT_PARAMETERS: SpiralParameters = { mode: "inside", baseRadius: 100, gearRadius: 37, penDistance: 30 };
@@ -63,14 +63,14 @@ const PLATE_CLIP: ClipRect = { left: -PLATE_HALF_SIZE, top: -PLATE_HALF_SIZE, ri
 const TURN = Math.PI * 2;
 
 // One curve on the plate: its settings, its ink, and how far the gear has got.
-// Plate coordinates have their origin at the plate's centre with y pointing down, as the
+// Plate coordinates have their origin at the plate's center with y pointing down, as the
 // screen's do; the curve's own coordinates have y up, so a point (x, y) on the curve is
-// drawn at (centreX + x, centreY − y) and the gear turns anticlockwise on screen.
+// drawn at (centerX + x, centerY − y) and the gear turns anticlockwise on screen.
 export class Drawing {
   public readonly ink = new DynamicGeometry(1024);
   public parameters: SpiralParameters = DEFAULT_PARAMETERS;
-  public centreX = 0;
-  public centreY = 0;
+  public centerX = 0;
+  public centerY = 0;
   public hue = PALETTE_HUES[0];
   public closure: Closure | null = null;
   // The gear starts at this angle and has the curve finished by endT.
@@ -99,10 +99,10 @@ export class Drawing {
   }
 
   // Starts the drawing over with these settings, keeping its buffer.
-  public reset(parameters: SpiralParameters, centreX: number, centreY: number, hue: number, startT = 0): void {
+  public reset(parameters: SpiralParameters, centerX: number, centerY: number, hue: number, startT = 0): void {
     this.parameters = parameters;
-    this.centreX = centreX;
-    this.centreY = centreY;
+    this.centerX = centerX;
+    this.centerY = centerY;
     this.hue = hue;
     this.closure = findClosure(parameters);
     this.startT = this.t = this.drawnT = startT;
@@ -150,27 +150,27 @@ export class Drawing {
     return Math.ceil(Math.max(0, Math.min(target, this.endT) - this.drawnT) / this.stepT) + 1;
   }
 
-  // The gear's centre at its present place, in plate coordinates.
-  public gearCentre(out: Point): Point {
-    gearCentreAt(this.parameters, this.t, out);
-    out.x = this.centreX + out.x;
-    out.y = this.centreY - out.y;
+  // The gear's center at its present place, in plate coordinates.
+  public gearCenter(out: Point): Point {
+    gearCenterAt(this.parameters, this.t, out);
+    out.x = this.centerX + out.x;
+    out.y = this.centerY - out.y;
     return out;
   }
 
   // The pen at the gear's present place, in plate coordinates.
   public penPoint(out: Point): Point {
     penPointAt(this.parameters, this.t, out);
-    out.x = this.centreX + out.x;
-    out.y = this.centreY - out.y;
+    out.x = this.centerX + out.x;
+    out.y = this.centerY - out.y;
     return out;
   }
 
   // Inks a line to the pen's place at time t, cut at the plate's edge.
   private addPenPoint(t: number): void {
     penPointAt(this.parameters, t, this.point);
-    const x = this.centreX + this.point.x;
-    const y = this.centreY - this.point.y;
+    const x = this.centerX + this.point.x;
+    const y = this.centerY - this.point.y;
     const isInside = Math.abs(x) <= PLATE_HALF_SIZE && Math.abs(y) <= PLATE_HALF_SIZE;
     if (!this.hasPen) {
       if (isInside) this.ink.moveTo(x, y);
@@ -203,9 +203,9 @@ function roundTo(value: number, step: number): number {
   return Math.round(value / step) * step;
 }
 
-// Angle of a plate point about a centre, in the curve's coordinates (y up), so it can be compared with t.
-function angleAbout(centreX: number, centreY: number, x: number, y: number): number {
-  return Math.atan2(centreY - y, x - centreX);
+// Angle of a plate point about a center, in the curve's coordinates (y up), so it can be compared with t.
+function angleAbout(centerX: number, centerY: number, x: number, y: number): number {
+  return Math.atan2(centerY - y, x - centerX);
 }
 
 // The gear-and-pen toy without its window: the settings, the curves on the plate, the steps
@@ -213,9 +213,9 @@ function angleAbout(centreX: number, centreY: number, x: number, y: number): num
 // lays out the controls and turns presses into calls on this, in plate coordinates.
 export class GearSpiralsModel {
   public parameters: SpiralParameters = DEFAULT_PARAMETERS;
-  // Where the base's centre is on the plate.
-  public centreX = 0;
-  public centreY = 0;
+  // Where the base's center is on the plate.
+  public centerX = 0;
+  public centerY = 0;
   public speed = DEFAULT_SPEED;
   public hue = PALETTE_HUES[0];
   // Whether the motor is turning the gear.
@@ -265,7 +265,7 @@ export class GearSpiralsModel {
     return range.maximum;
   }
 
-  // Sets a field, held to its range. Changing a size starts the curve again; colour recolours it; speed just changes speed.
+  // Sets a field, held to its range. Changing a size starts the curve again; color recolors it; speed just changes speed.
   public setValue(field: SpiralField, value: number): void {
     if (!Number.isFinite(value)) return;
     const range = FIELD_RANGES[field];
@@ -295,7 +295,7 @@ export class GearSpiralsModel {
     this.setMode(this.parameters.mode === "inside" ? "outside" : "inside");
   }
 
-  public pickColour(index: number): void {
+  public pickColor(index: number): void {
     const hue = PALETTE_HUES[index];
     if (hue !== undefined) this.setValue("hue", hue);
   }
@@ -318,7 +318,7 @@ export class GearSpiralsModel {
     this.isRunning = this.defineStep === "none";
   }
 
-  // Keeps what is on the plate and starts another curve on top, in the next colour of the
+  // Keeps what is on the plate and starts another curve on top, in the next color of the
   // palette. It waits for a change of settings or the motor, so it does not simply retrace the last one.
   public overlay(): void {
     if (this.current.ink.segmentCount === 0) return;
@@ -353,16 +353,16 @@ export class GearSpiralsModel {
     const { baseRadius } = this.parameters;
     switch (this.defineStep) {
       case "base": {
-        // Press at the centre, drag out to the ring.
+        // Press at the center, drag out to the ring.
         if (kind === "down") {
           this.pressX = clamp(x, -PLATE_HALF_SIZE, PLATE_HALF_SIZE);
           this.pressY = clamp(y, -PLATE_HALF_SIZE, PLATE_HALF_SIZE);
-          this.centreX = this.pressX;
-          this.centreY = this.pressY;
+          this.centerX = this.pressX;
+          this.centerY = this.pressY;
           this.restart();
           return;
         }
-        const distance = Math.hypot(x - this.centreX, y - this.centreY);
+        const distance = Math.hypot(x - this.centerX, y - this.centerY);
         if (distance >= BASE_DRAG_THRESHOLD) this.setValue("baseRadius", Math.round(distance));
         if (kind === "up") this.defineStep = "gear";
         return;
@@ -374,21 +374,21 @@ export class GearSpiralsModel {
           this.defineStep = "pen";
           return;
         }
-        const distance = Math.hypot(x - this.centreX, y - this.centreY);
+        const distance = Math.hypot(x - this.centerX, y - this.centerY);
         const mode: RollMode = distance < baseRadius ? "inside" : "outside";
         const diameter = Math.abs(distance - baseRadius);
         const range = FIELD_RANGES.gearRadius;
         const maximum = mode === "inside" ? Math.min(range.maximum, baseRadius - INSIDE_CLEARANCE) : range.maximum;
         const gearRadius = clamp(Math.round(diameter / 2), range.minimum, maximum);
         this.parameters = { ...this.parameters, mode, gearRadius };
-        this.restart(angleAbout(this.centreX, this.centreY, x, y));
+        this.restart(angleAbout(this.centerX, this.centerY, x, y));
         return;
       }
       case "pen": {
-        // A click inside the gear puts the pen there; only its distance from the centre counts.
+        // A click inside the gear puts the pen there; only its distance from the center counts.
         if (kind !== "down") return;
-        const centre = this.current.gearCentre(this.point);
-        const distance = Math.hypot(x - centre.x, y - centre.y);
+        const center = this.current.gearCenter(this.point);
+        const distance = Math.hypot(x - center.x, y - center.y);
         if (distance > this.parameters.gearRadius + GEAR_GRAB_MARGIN) return;
         this.parameters = { ...this.parameters, penDistance: Math.round(Math.min(distance, this.parameters.gearRadius)) };
         this.restart(this.current.startT);
@@ -401,15 +401,15 @@ export class GearSpiralsModel {
     }
   }
 
-  // Dragging the gear around the base cranks it by hand: t follows the pointer's angle about the base's centre.
+  // Dragging the gear around the base cranks it by hand: t follows the pointer's angle about the base's center.
   private crankPointer(kind: "down" | "move" | "up", x: number, y: number): void {
     const drawing = this.current;
     if (kind === "down") {
-      const centre = drawing.gearCentre(this.point);
-      if (drawing.isFinished || Math.hypot(x - centre.x, y - centre.y) > this.parameters.gearRadius + GEAR_GRAB_MARGIN) return;
+      const center = drawing.gearCenter(this.point);
+      if (drawing.isFinished || Math.hypot(x - center.x, y - center.y) > this.parameters.gearRadius + GEAR_GRAB_MARGIN) return;
       this.cranking = true;
       this.isRunning = false;
-      this.crankAngle = angleAbout(drawing.centreX, drawing.centreY, x, y);
+      this.crankAngle = angleAbout(drawing.centerX, drawing.centerY, x, y);
       return;
     }
     if (!this.cranking) return;
@@ -417,7 +417,7 @@ export class GearSpiralsModel {
       this.cranking = false;
       return;
     }
-    const angle = angleAbout(drawing.centreX, drawing.centreY, x, y);
+    const angle = angleAbout(drawing.centerX, drawing.centerY, x, y);
     // The change since the last move, taken the short way round, so the gear can be cranked round and round.
     let change = angle - this.crankAngle;
     change -= TURN * Math.round(change / TURN);
@@ -488,7 +488,7 @@ export class GearSpiralsModel {
   // What the curve is doing, for the line under the controls.
   public get status(): string {
     switch (this.defineStep) {
-      case "base": return "DRAG FROM THE CENTRE\nOUT TO THE BASE RING";
+      case "base": return "DRAG FROM THE CENTER\nOUT TO THE BASE RING";
       case "gear": return "DRAG INSIDE OR OUTSIDE\nTHE RING TO SIZE THE GEAR";
       case "pen": return "CLICK IN THE GEAR\nTO PLACE THE PEN";
       case "none": break;
@@ -543,6 +543,6 @@ export class GearSpiralsModel {
 
   private restart(startT = this.current.startT): void {
     this.cranking = false;
-    this.current.reset(this.parameters, this.centreX, this.centreY, this.hue, startT);
+    this.current.reset(this.parameters, this.centerX, this.centerY, this.hue, startT);
   }
 }

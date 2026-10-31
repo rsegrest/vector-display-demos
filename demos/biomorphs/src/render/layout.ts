@@ -16,7 +16,7 @@ export interface BiomorphLayout {
   readonly cellSize: number;
 }
 
-// The eight cells around the centre, clockwise from the top left.
+// The eight cells around the center, clockwise from the top left.
 const CHILD_CELLS: readonly (readonly [number, number])[] = [
   [0, 0],
   [1, 0],
@@ -47,7 +47,7 @@ export function layoutBiomorphs(width: number, height: number, topInset: number,
   };
 }
 
-export function centreOf(rect: Rect): { x: number; y: number } {
+export function centerOf(rect: Rect): { x: number; y: number } {
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
 }
 

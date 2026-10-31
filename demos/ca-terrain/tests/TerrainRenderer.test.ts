@@ -8,7 +8,7 @@ const SCREEN_HEIGHT = 1000;
 const CELL_COUNT = 64;
 
 const PROJECTION: ProjectionSettings = {
-  centreX: SCREEN_WIDTH / 2,
+  centerX: SCREEN_WIDTH / 2,
   horizonY: 240,
   focalLength: 900,
   cameraHeight: 300,
@@ -134,8 +134,8 @@ describe("TerrainRenderer", () => {
   it("cuts a ridgeline where it dips behind nearer ground instead of dropping the whole row", () => {
     // Near wall with a gap in the middle of the view; the far row shows only through the gap.
     const wall = new Float32Array(CELL_COUNT).fill(1);
-    const centre = CELL_COUNT / 2;
-    for (let cell = centre - 3; cell <= centre + 3; cell++) wall[cell] = 0;
+    const center = CELL_COUNT / 2;
+    for (let cell = center - 3; cell <= center + 3; cell++) wall[cell] = 0;
     const segments = drawSegments([wall, ...flatRows(1)], { ridgeHeight: 250 });
     const farY = groundY(440);
     const far = segments.filter((segment) => Math.abs(segment.startY - farY) < 0.01 && Math.abs(segment.endY - farY) < 0.01);

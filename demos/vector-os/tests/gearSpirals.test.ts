@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DisplayList } from "@vector-display/core";
-import { equationLines, findClosure, formatSize, gearCentreAt, maximumPenSpeed, penPointAt, type SpiralParameters } from "../src/apps/gearSpirals/gearMath.js";
+import { equationLines, findClosure, formatSize, gearCenterAt, maximumPenSpeed, penPointAt, type SpiralParameters } from "../src/apps/gearSpirals/gearMath.js";
 import {
   DEFAULT_PARAMETERS,
   Drawing,
@@ -49,16 +49,16 @@ describe("the pen's path", () => {
     }
   });
 
-  it("keeps the pen its distance from the gear's centre, and the gear touching the ring", () => {
+  it("keeps the pen its distance from the gear's center, and the gear touching the ring", () => {
     const pen = { x: 0, y: 0 };
     const gear = { x: 0, y: 0 };
     for (const parameters of [inside(96, 36, 20), outside(96, 36, 50)]) {
       for (const t of [0, 0.7, 4]) {
         penPointAt(parameters, t, pen);
-        gearCentreAt(parameters, t, gear);
+        gearCenterAt(parameters, t, gear);
         expect(Math.hypot(pen.x - gear.x, pen.y - gear.y)).toBeCloseTo(parameters.penDistance, 10);
-        const fromCentre = Math.hypot(gear.x, gear.y);
-        expect(parameters.mode === "inside" ? fromCentre + 36 : fromCentre - 36).toBeCloseTo(96, 10);
+        const fromCenter = Math.hypot(gear.x, gear.y);
+        expect(parameters.mode === "inside" ? fromCenter + 36 : fromCenter - 36).toBeCloseTo(96, 10);
       }
     }
   });
@@ -116,7 +116,7 @@ describe("closing the curve", () => {
     expect(findClosure(inside(100, 100 / Math.PI, 20))).toEqual({ trips: 113, petals: 355 });
   });
 
-  it("treats a pen at the gear's centre as a circle, closed after one trip", () => {
+  it("treats a pen at the gear's center as a circle, closed after one trip", () => {
     expect(findClosure(inside(100, 37, 0))).toEqual({ trips: 1, petals: 0 });
   });
 });
@@ -225,11 +225,11 @@ describe("the toy", () => {
     expect(model.entry).toBeNull();
   });
 
-  it("starts the curve again when a size changes, and recolours it when the colour does", () => {
+  it("starts the curve again when a size changes, and recolors it when the color does", () => {
     const model = new GearSpiralsModel();
     model.update(1);
     const before = model.current.ink.segmentCount;
-    model.pickColour(2);
+    model.pickColor(2);
     expect(model.current.hue).toBe(PALETTE_HUES[2]);
     expect(model.current.ink.segmentCount).toBe(before);
     model.setFromSlider("gearRadius", 0.1);
@@ -285,11 +285,11 @@ describe("the toy", () => {
     model.toggleDefine();
     expect(model.defineStep).toBe("base");
     expect(model.isRunning).toBe(false);
-    // Press at the centre and drag out to the ring.
+    // Press at the center and drag out to the ring.
     model.platePointer("down", 10, -20);
     model.platePointer("move", 60, -20);
     model.platePointer("up", 130, -20);
-    expect([model.centreX, model.centreY]).toEqual([10, -20]);
+    expect([model.centerX, model.centerY]).toEqual([10, -20]);
     expect(model.parameters.baseRadius).toBe(120);
     expect(model.defineStep).toBe("gear");
     // Dragging inside the ring sizes a gear that rolls inside: here its far side is 40 in from the ring.
@@ -298,7 +298,7 @@ describe("the toy", () => {
     expect(model.parameters.mode).toBe("inside");
     expect(model.parameters.gearRadius).toBe(20);
     expect(model.defineStep).toBe("pen");
-    // The gear sits at the ring's right, centred 100 from the base's centre; a click 12 from its centre sets the pen.
+    // The gear sits at the ring's right, centered 100 from the base's center; a click 12 from its center sets the pen.
     model.platePointer("down", 10 + 100 + 12, -20);
     expect(model.parameters.penDistance).toBe(12);
     expect(model.defineStep).toBe("none");
@@ -310,30 +310,30 @@ describe("the toy", () => {
     model.toggleDefine();
     model.platePointer("down", 0, 0);
     model.platePointer("up", 80, 0);
-    // Straight up from the centre, 60 beyond the ring.
+    // Straight up from the center, 60 beyond the ring.
     model.platePointer("down", 0, -140);
     model.platePointer("up", 0, -140);
     expect(model.parameters).toMatchObject({ mode: "outside", baseRadius: 80, gearRadius: 30 });
     expect(model.current.startT).toBeCloseTo(Math.PI / 2, 9);
     model.platePointer("down", 150, 150);
     expect(model.defineStep).toBe("pen");
-    // The gear's centre is at (0, −110).
+    // The gear's center is at (0, −110).
     model.platePointer("down", 0, -110 + 25);
     expect(model.parameters.penDistance).toBe(25);
   });
 
-  it("moves only the base's centre when it is clicked rather than dragged", () => {
+  it("moves only the base's center when it is clicked rather than dragged", () => {
     const model = new GearSpiralsModel();
     model.toggleDefine();
     model.platePointer("down", 30, 30);
     model.platePointer("up", 31, 30);
     expect(model.parameters.baseRadius).toBe(100);
-    expect(model.centreX).toBe(30);
+    expect(model.centerX).toBe(30);
   });
 
   it("is cranked by hand by dragging the gear around the base", () => {
     const model = new GearSpiralsModel();
-    // The gear starts at the right of the ring, its centre 63 out.
+    // The gear starts at the right of the ring, its center 63 out.
     model.platePointer("down", 63, 0);
     expect(model.isCranking).toBe(true);
     expect(model.isRunning).toBe(false);

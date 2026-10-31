@@ -8,9 +8,9 @@ export interface MeshView {
   // Turn about the vertical axis, then tip toward the viewer, in radians.
   readonly yaw: number;
   readonly pitch: number;
-  // The middle of the frame: the drawing is centred there, and the frame is twice this size.
-  readonly centreX: number;
-  readonly centreY: number;
+  // The middle of the frame: the drawing is centered there, and the frame is twice this size.
+  readonly centerX: number;
+  readonly centerY: number;
   // Screen units that the mesh's bounding radius covers.
   readonly scale: number;
   // Edges where the surface bends by more than this many degrees are drawn as creases.
@@ -31,7 +31,7 @@ const SILHOUETTE_COLOR: BeamColor = { red: 1, green: 0.95, blue: 0.8 };
 const CREASE_COLOR: BeamColor = { red: 0.4, green: 0.9, blue: 1 };
 const OTHER_COLOR: BeamColor = { red: 0.3, green: 0.5, blue: 0.9 };
 
-// The eye sits this many bounding radii from the mesh's centre.
+// The eye sits this many bounding radii from the mesh's center.
 const EYE_DISTANCE = 4;
 // Depth-grid cells across the mesh (with a margin), whatever its size on screen.
 const DEPTH_CELLS_ACROSS_MESH = 512;
@@ -56,8 +56,8 @@ export class MeshRenderer {
       pitch: Angle.fromRadians(view.pitch),
       viewDistance: view.scale * EYE_DISTANCE,
       nearDistance: 1,
-      screenCenterX: view.centreX,
-      screenCenterY: view.centreY,
+      screenCenterX: view.centerX,
+      screenCenterY: view.centerY,
     };
     // In the library's axes (z away from the viewer), turning the demo's way is a negative yaw.
     const placement = createModelPlacement({ rotationY: Angle.fromRadians(-view.yaw), scale: view.scale });
@@ -86,8 +86,8 @@ export class MeshRenderer {
   // A scene for this frame size and mesh size, its depth grid as fine across the mesh as
   // the demo's own was; made again only when those change.
   private sceneFor(view: MeshView): MeshScene {
-    const screenWidth = Math.max(1, view.centreX * 2);
-    const screenHeight = Math.max(1, view.centreY * 2);
+    const screenWidth = Math.max(1, view.centerX * 2);
+    const screenHeight = Math.max(1, view.centerY * 2);
     const depthColumns = Math.min(MAX_DEPTH_COLUMNS, Math.ceil((DEPTH_CELLS_ACROSS_MESH * screenWidth) / (2 * view.scale * GRID_MARGIN)));
     const key = `${screenWidth}x${screenHeight}:${depthColumns}:${view.hiddenLines}`;
     if (!this.scene || key !== this.sceneKey) {

@@ -51,7 +51,7 @@ describe("sphere geometry", () => {
     destination(20, 10, 0, 30, out);
     expect(out.lng).toBeCloseTo(20, 6);
     expect(out.lat).toBeCloseTo(40, 6);
-    // Wherever you set out from, you end up as far away as you travelled.
+    // Wherever you set out from, you end up as far away as you traveled.
     for (const bearing of [0, 37, 180, 271]) {
       destination(-120, 55, bearing, 25, out);
       expect(angularDistance(-120, 55, out.lng, out.lat)).toBeCloseTo(25, 5);
@@ -180,7 +180,7 @@ describe("Satellite", () => {
     expect(createSatellites([{ name: "JUNK", line1: "1 junk", line2: "2 junk" }])).toEqual([]);
   });
 
-  it("converts height to distance from the Earth's centre", () => {
+  it("converts height to distance from the Earth's center", () => {
     expect(radiusFactor(0)).toBe(1);
     expect(radiusFactor(6371)).toBe(2);
   });
@@ -216,7 +216,7 @@ describe("EarthProjector", () => {
     expect(out.y).toBeCloseTo(fromVector.y, 6);
   });
 
-  it("places something overhead the view's centre straight out toward the viewer", () => {
+  it("places something overhead the view's center straight out toward the viewer", () => {
     projector.project(37, 22, 1.5, out);
     expect(out.x).toBeCloseTo(800, 6);
     expect(out.y).toBeCloseTo(500, 6);
@@ -225,7 +225,7 @@ describe("EarthProjector", () => {
   });
 
   it("hides what is behind the globe, but not what shows past its edge", () => {
-    // Directly behind the centre, at any height: hidden.
+    // Directly behind the center, at any height: hidden.
     projector.project(37 + 180, -22, 1.07, out);
     expect(out.visible).toBe(false);
     // Low orbit, a little beyond the edge as seen from here: the globe covers it.

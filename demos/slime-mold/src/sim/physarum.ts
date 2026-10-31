@@ -1,8 +1,8 @@
 // Physarum polycephalum, the slime mold, in the abstract. Each agent is a tiny
-// creature that sniffs the chemical it and its neighbours have left behind, turns
+// creature that sniffs the chemical it and its neighbors have left behind, turns
 // toward the strongest smell, crawls forward and deposits a little more. No agent
 // knows about the network; the network is what the agents do to each other over
-// time. Kept apart from the demo so the behaviour can be tested without a canvas.
+// time. Kept apart from the demo so the behavior can be tested without a canvas.
 
 import type { RandomSource } from "@vector-demos/demo-kit";
 
@@ -19,12 +19,12 @@ export interface PhysarumSettings {
   readonly depositAmount: number;
   // Trail kept from one step to the next, 0..1 (1 keeps everything forever).
   readonly decayFactor: number;
-  // How much a cell blends with its neighbours each step, 0..1.
+  // How much a cell blends with its neighbors each step, 0..1.
   readonly diffuseAmount: number;
   // Random steering wobble, so perfectly straight runs of uniform trail break up.
   readonly jitter: number;
   // Most agents one grid cell can hold; 0 means no limit. Without a limit every
-  // strand is free to merge with its neighbour, and the whole dish drains into a
+  // strand is free to merge with its neighbor, and the whole dish drains into a
   // single line. With one, a vein can only carry so much, so the network stays wide.
   readonly cellCapacity: number;
   // Ceiling on the trail in any cell, so a busy junction cannot out-shout the rest.
@@ -58,7 +58,7 @@ export interface FoodSource {
 }
 
 // How far a food source can be smelled, in grid cells, and how strongly at its
-// centre, as a multiple of the trail limit (so food out-smells the busiest vein).
+// center, as a multiple of the trail limit (so food out-smells the busiest vein).
 export const FOOD_REACH = 30;
 export const FOOD_STRENGTH = 1.6;
 export const MINIMUM_FOOD_SPACING = 10;
@@ -85,7 +85,7 @@ export class PhysarumWorld {
   public agentY: Float32Array;
   public heading: Float32Array;
   public stepCount = 0;
-  // Largest trail value seen during the last step, for normalising drawing.
+  // Largest trail value seen during the last step, for normalizing drawing.
   public maximumTrail = 1;
 
   private scratchTrail: Float32Array;

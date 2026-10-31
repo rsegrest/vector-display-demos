@@ -5,9 +5,9 @@
 // beam and glow.
 
 const VS = `#version 300 es
-in vec3 a_from; in vec3 a_to; in vec2 a_corner; in vec4 a_colour;
+in vec3 a_from; in vec3 a_to; in vec2 a_corner; in vec4 a_color;
 uniform mat4 u_mvp; uniform vec2 u_viewport; uniform float u_width;
-out float v_side; out vec4 v_colour;
+out float v_side; out vec4 v_color;
 void main() {
   vec4 a = u_mvp * vec4(a_from, 1.0);
   vec4 b = u_mvp * vec4(a_to, 1.0);
@@ -23,13 +23,13 @@ void main() {
   p.xy += offset / (u_viewport * 0.5) * p.w;
   gl_Position = p;
   v_side = a_corner.y;
-  v_colour = a_colour;
+  v_color = a_color;
 }`;
 const FS = `#version 300 es
-precision mediump float; in float v_side; in vec4 v_colour; uniform float u_gain; out vec4 colour;
+precision mediump float; in float v_side; in vec4 v_color; uniform float u_gain; out vec4 color;
 void main() {
-  float light = exp(-3.0 * v_side * v_side) * v_colour.a * u_gain;
-  colour = vec4(v_colour.rgb * light, 1.0);
+  float light = exp(-3.0 * v_side * v_side) * v_color.a * u_gain;
+  color = vec4(v_color.rgb * light, 1.0);
 }`;
 
 const CORNERS = [0, -1, 0, 1, 1, -1, 1, -1, 0, 1, 1, 1]; // (end, side) for the strip's two triangles
@@ -69,12 +69,12 @@ export class Lines3d {
     attribute("a_from", 3, 0);
     attribute("a_to", 3, 3);
     attribute("a_corner", 2, 6);
-    attribute("a_colour", 4, 8);
+    attribute("a_color", 4, 8);
     gl.bindVertexArray(null);
   }
 
   /** Takes a picture's lines: x, y, z per end (two ends a line), and r, g, b, brightness per line. */
-  public setLines(positions: Float32Array, colours: Float32Array): void {
+  public setLines(positions: Float32Array, colors: Float32Array): void {
     const lines = positions.length / 6;
     const size = lines * 6 * 12;
     if (this.data.length < size) this.data = new Float32Array(size);
@@ -85,7 +85,7 @@ export class Lines3d {
         out.set(positions.subarray(i * 6, i * 6 + 6), o);
         out[o + 6] = CORNERS[c * 2];
         out[o + 7] = CORNERS[c * 2 + 1];
-        out.set(colours.subarray(i * 4, i * 4 + 4), o + 8);
+        out.set(colors.subarray(i * 4, i * 4 + 4), o + 8);
         o += 12;
       }
     }

@@ -5,7 +5,7 @@ import {
   ROTATION_PLANES,
   identity4,
   projectTo3,
-  reorthonormalise,
+  reorthonormalize,
   rotateInPlane,
   transformPoints,
   type Matrix4,
@@ -27,9 +27,9 @@ export const MAX_ZOOM = 4;
 const DEFAULT_RATES: readonly number[] = [0.13, 0.09, 0.05, 0.21, 0.16, 0.11];
 const AUTO_SECONDS = 22;
 const FADE_SECONDS = 0.35;
-// Edges are grouped by how far along the unseen axis they sit, for colour and brightness.
+// Edges are grouped by how far along the unseen axis they sit, for color and brightness.
 const W_BANDS = 7;
-const REORTHONORMALISE_EVERY = 120;
+const REORTHONORMALIZE_EVERY = 120;
 
 interface ViewSettings {
   // Distance of the ordinary 3D camera from the origin.
@@ -62,7 +62,7 @@ interface Band {
 }
 
 // The regular polytopes of four dimensions, turning. Each is rotated in 4D, brought
-// down to 3D, then drawn in perspective like any wireframe. Colour is the fourth
+// down to 3D, then drawn in perspective like any wireframe. Color is the fourth
 // coordinate: edges far away along w are deep blue, edges near are hot, so when a
 // rotation through w carries part of the shape "past" another, you can see which
 // part is which.
@@ -150,7 +150,7 @@ export class PolytopesDemo implements Demo {
       if (plane.involvesW && !this.rotateThroughW) return;
       rotateInPlane(this.orientation, plane.first, plane.second, this.rates[index] * turn);
     });
-    if (++this.updateCount % REORTHONORMALISE_EVERY === 0) reorthonormalise(this.orientation);
+    if (++this.updateCount % REORTHONORMALIZE_EVERY === 0) reorthonormalize(this.orientation);
   }
 
   public draw(displayList: DisplayList, frame: DemoFrame): void {
@@ -160,8 +160,8 @@ export class PolytopesDemo implements Demo {
     for (const band of this.bands) band.geometry.clear();
 
     const view = VIEWS[this.projection];
-    const centreX = frame.width / 2;
-    const centreY = frame.height / 2;
+    const centerX = frame.width / 2;
+    const centerY = frame.height / 2;
     const unit = Math.min(frame.width, frame.height) * view.unitShare * this.zoom * view.cameraDistance;
     // Straight edges curve under the stereographic projection, so they are drawn in pieces.
     const pieces = this.projection === "PERSPECTIVE" ? 1 : polytope.edgeCount > 200 ? 8 : 14;
@@ -195,8 +195,8 @@ export class PolytopesDemo implements Demo {
           drawing = false;
           continue;
         }
-        const screenX = centreX + (this.point[0] * unit) / depth;
-        const screenY = centreY - (this.point[1] * unit) / depth;
+        const screenX = centerX + (this.point[0] * unit) / depth;
+        const screenY = centerY - (this.point[1] * unit) / depth;
         if (drawing) band.geometry.lineTo(screenX, screenY);
         else band.geometry.moveTo(screenX, screenY);
         drawing = true;

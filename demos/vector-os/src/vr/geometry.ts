@@ -1,4 +1,4 @@
-// The virtual cabinet's room, in metres, in WebXR's "local-floor" space: y up,
+// The virtual cabinet's room, in meters, in WebXR's "local-floor" space: y up,
 // the floor at y = 0, the viewer starting at the origin looking down -z.  Pure
 // math, no browser: the page and the tests share it.
 
@@ -7,15 +7,15 @@ export type Mat4 = Float32Array;
 
 /** The screen: a flat rectangle facing the viewer. */
 export interface Screen {
-  /** Its centre. */
-  readonly centre: readonly [number, number, number];
+  /** Its center. */
+  readonly center: readonly [number, number, number];
   readonly width: number;
   readonly height: number;
 }
 
 /** A big screen in a dark room: 3.2 m wide, 16:10, its middle at standing eye height, 2.6 m away. */
-export function screenFor(aspect: number, width = 3.2, distance = 2.6, centreHeight = 1.5): Screen {
-  return { centre: [0, centreHeight, -distance], width, height: width / aspect };
+export function screenFor(aspect: number, width = 3.2, distance = 2.6, centerHeight = 1.5): Screen {
+  return { center: [0, centerHeight, -distance], width, height: width / aspect };
 }
 
 /**
@@ -27,14 +27,14 @@ export function rayOnScreen(
   direction: readonly [number, number, number],
   screen: Screen,
 ): { x: number; y: number } | null {
-  // The screen lies in the plane z = centre z, facing +z.
+  // The screen lies in the plane z = center z, facing +z.
   if (direction[2] >= -1e-6) return null;
-  const t = (screen.centre[2] - origin[2]) / direction[2];
+  const t = (screen.center[2] - origin[2]) / direction[2];
   if (t <= 0) return null;
   const hitX = origin[0] + direction[0] * t;
   const hitY = origin[1] + direction[1] * t;
-  const x = (hitX - (screen.centre[0] - screen.width / 2)) / screen.width;
-  const y = (screen.centre[1] + screen.height / 2 - hitY) / screen.height;
+  const x = (hitX - (screen.center[0] - screen.width / 2)) / screen.width;
+  const y = (screen.center[1] + screen.height / 2 - hitY) / screen.height;
   if (x < 0 || x > 1 || y < 0 || y > 1) return null;
   return { x, y };
 }
@@ -84,8 +84,8 @@ export function lookAt(eye: readonly [number, number, number], target: readonly 
 
 /** The controls panel under a screen: 1.6 m x 0.4 m, its top 0.15 m below the screen's bottom, a hair in front. */
 export function panelFor(screen: Screen): Screen {
-  const top = screen.centre[1] - screen.height / 2 - 0.15;
-  return { centre: [screen.centre[0], top - 0.2, screen.centre[2] + 0.01], width: 1.6, height: 0.4 };
+  const top = screen.center[1] - screen.height / 2 - 0.15;
+  return { center: [screen.center[0], top - 0.2, screen.center[2] + 0.01], width: 1.6, height: 0.4 };
 }
 
 /**
@@ -94,16 +94,16 @@ export function panelFor(screen: Screen): Screen {
  */
 export function panelOpacity(origin: readonly [number, number, number], direction: readonly [number, number, number], screen: Screen, start = 0.15): number {
   if (direction[2] >= -1e-6) return 0;
-  const t = (screen.centre[2] - origin[2]) / direction[2];
+  const t = (screen.center[2] - origin[2]) / direction[2];
   const gazeY = origin[1] + direction[1] * t;
-  const fadeFrom = screen.centre[1] - screen.height / 2 + start * screen.height;
-  const fullAt = panelFor(screen).centre[1];
+  const fadeFrom = screen.center[1] - screen.height / 2 + start * screen.height;
+  const fullAt = panelFor(screen).center[1];
   return Math.max(0, Math.min(1, (fadeFrom - gazeY) / (fadeFrom - fullAt)));
 }
 
 /** The screen's two triangles: x, y, z, u, v per corner (u right, v down the picture). */
 export function screenVertices(screen: Screen): Float32Array {
-  const [cx, cy, cz] = screen.centre;
+  const [cx, cy, cz] = screen.center;
   const l = cx - screen.width / 2;
   const r = cx + screen.width / 2;
   const t = cy + screen.height / 2;
@@ -111,7 +111,7 @@ export function screenVertices(screen: Screen): Float32Array {
   return Float32Array.from([l, t, cz, 0, 0, l, b, cz, 0, 1, r, t, cz, 1, 0, r, t, cz, 1, 0, l, b, cz, 0, 1, r, b, cz, 1, 1]);
 }
 
-/** The floor's grid lines, x, y, z per end: a dim square of the given half-size, a line a metre. */
+/** The floor's grid lines, x, y, z per end: a dim square of the given half-size, a line a meter. */
 export function floorLines(half = 6): Float32Array {
   const out: number[] = [];
   for (let i = -half; i <= half; i += 1) {
@@ -126,7 +126,7 @@ export const ROOM_EYE_HEIGHT = 1.6;
 
 /**
  * Where the room stands in the headset's space, from the head's pose at the moment of
- * recentring: the room's eye (0, ROOM_EYE_HEIGHT, 0) on the head, its -z along the head's
+ * recentering: the room's eye (0, ROOM_EYE_HEIGHT, 0) on the head, its -z along the head's
  * facing (turned about the vertical only).  Returns the room-to-headset matrix and its inverse.
  */
 export function anchorAt(head: ArrayLike<number>): { toWorld: Mat4; toRoom: Mat4 } {
@@ -161,7 +161,7 @@ export function transformRay(
 
 /**
  * Where a game's 3D picture stands in the room: its eye (the picture's origin) where the viewer's
- * eye is, lowered by its drop, its distance 1 PICTURE_RIM_DISTANCE metres ahead, and its width and
+ * eye is, lowered by its drop, its distance 1 PICTURE_RIM_DISTANCE meters ahead, and its width and
  * height squeezed by its spread, depth kept.  The defaults are Tempest's: its eye sits so close to
  * the rim that the picture spans 150 degrees (squeezed to a quarter, about 90), and the owner's
  * tries on the Quest (2026-10-18) put the well best 0.3 m below the eye.  A game whose picture is

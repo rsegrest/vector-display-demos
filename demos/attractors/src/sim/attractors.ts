@@ -2,7 +2,7 @@
 // and never repeat, yet stay on one intricate shape for ever. Every system here
 // lives at its own size and runs at its own pace (Lorenz spans about fifty units,
 // Aizawa about three), so each is measured once and from then on handled in a
-// common frame: centred on the origin, about one unit in radius, moving at about
+// common frame: centered on the origin, about one unit in radius, moving at about
 // one unit per unit of time. In that frame two systems can simply be averaged,
 // which is how the demo flows from one attractor into the next.
 
@@ -85,7 +85,7 @@ export const ATTRACTORS: readonly Attractor[] = [
 export interface CalibratedAttractor {
   readonly attractor: Attractor;
   // Middle of the attractor's bounding box, in its own units.
-  readonly centre: Readonly<Vector3>;
+  readonly center: Readonly<Vector3>;
   // Half the longest side of that box: the attractor fits in [-1, 1] once divided by this.
   readonly radius: number;
   // Average speed along the attractor, in radii per unit of its own time.
@@ -135,17 +135,17 @@ export function calibrate(attractor: Attractor): CalibratedAttractor {
   const radius = Math.max(maximum[0] - minimum[0], maximum[1] - minimum[1], maximum[2] - minimum[2]) / 2;
   return {
     attractor,
-    centre: [(minimum[0] + maximum[0]) / 2, (minimum[1] + maximum[1]) / 2, (minimum[2] + maximum[2]) / 2],
+    center: [(minimum[0] + maximum[0]) / 2, (minimum[1] + maximum[1]) / 2, (minimum[2] + maximum[2]) / 2],
     radius,
     pace: totalSpeed / MEASURE_STEPS / radius,
   };
 }
 
 // The attractor's equations in the common frame: positions in radii from its
-// centre, time scaled so the average speed is one.
+// center, time scaled so the average speed is one.
 export function commonFrameDerivative(calibrated: CalibratedAttractor, x: number, y: number, z: number, out: Vector3): void {
-  const { attractor, centre, radius, pace } = calibrated;
-  attractor.derivative(centre[0] + x * radius, centre[1] + y * radius, centre[2] + z * radius, out);
+  const { attractor, center, radius, pace } = calibrated;
+  attractor.derivative(center[0] + x * radius, center[1] + y * radius, center[2] + z * radius, out);
   const scale = 1 / (radius * pace);
   out[0] *= scale;
   out[1] *= scale;

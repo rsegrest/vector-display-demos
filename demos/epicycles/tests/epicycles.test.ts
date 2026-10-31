@@ -22,7 +22,7 @@ function tip(epicycles: ReturnType<typeof epicyclesFor>, termCount: number, time
 }
 
 describe("epicyclesFor", () => {
-  it("finds the one circle that draws a circle, with its centre as the fixed offset", () => {
+  it("finds the one circle that draws a circle, with its center as the fixed offset", () => {
     const epicycles = epicyclesFor(circleSamples(64, 1, 2.5, 0.7));
     expect(epicycles[0].frequency).toBe(0);
     expect(epicycles[0].radius).toBeCloseTo(Math.hypot(3, -2), 9);
@@ -57,7 +57,7 @@ describe("chainAt", () => {
     }
   });
 
-  it("links each circle's centre to the rim of the one before", () => {
+  it("links each circle's center to the rim of the one before", () => {
     const joints = new Float64Array((epicycles.length + 1) * 2);
     const count = chainAt(epicycles, 6, 0.3, joints);
     expect(count).toBe(7);

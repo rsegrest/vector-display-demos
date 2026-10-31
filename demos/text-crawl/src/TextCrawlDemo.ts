@@ -117,8 +117,8 @@ export class TextCrawlDemo implements Demo {
     const { scene } = this;
     const { current } = scene;
     const { isTitle, segmentCount } = scene.page;
-    const centreX = frame.width / 2;
-    const centreY = frame.height / 2;
+    const centerX = frame.width / 2;
+    const centerY = frame.height / 2;
     for (const band of this.bands) band.geometry.clear();
 
     for (let stroke = 0; stroke < segmentCount; stroke++) {
@@ -145,10 +145,10 @@ export class TextCrawlDemo implements Demo {
       const depth = (z0 + z1) / 2;
       const band = Math.max(0, Math.min(DEPTH_BANDS - 1, Math.floor((depth / FADE_DEPTH) * DEPTH_BANDS)));
       this.bands[(isTitle[stroke] ? DEPTH_BANDS : 0) + band].geometry.addSegment(
-        centreX + (FOCAL_LENGTH * x0) / z0,
-        centreY - (FOCAL_LENGTH * y0) / z0,
-        centreX + (FOCAL_LENGTH * x1) / z1,
-        centreY - (FOCAL_LENGTH * y1) / z1,
+        centerX + (FOCAL_LENGTH * x0) / z0,
+        centerY - (FOCAL_LENGTH * y0) / z0,
+        centerX + (FOCAL_LENGTH * x1) / z1,
+        centerY - (FOCAL_LENGTH * y1) / z1,
       );
     }
 

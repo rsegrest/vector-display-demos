@@ -56,7 +56,7 @@ export class SegmentBlitter {
     let chainY = 0;
 
     for (let offset = 0; offset < data.length; offset += FLOATS_PER_BEAM_SEGMENT) {
-      // A change of colour or brightness starts a new batch: each is drawn in one colour.
+      // A change of color or brightness starts a new batch: each is drawn in one color.
       if (data[offset + 8] !== red || data[offset + 9] !== green || data[offset + 10] !== blue || data[offset + 11] !== intensity) {
         red = data[offset + 8];
         green = data[offset + 9];

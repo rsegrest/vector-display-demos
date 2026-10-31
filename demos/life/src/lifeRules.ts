@@ -34,7 +34,7 @@ export function cellSizeForGrid(grid: CellGridSize, worldWidth: number, worldHei
 }
 
 /**
- * Squares are grown about their own centre so neighbours leave a gap of
+ * Squares are grown about their own center so neighbors leave a gap of
  * (1 - fillRatio) of a cell. Cells that touch read as one continuous shape and a
  * dense lattice turns back into blobs; the gap is what keeps the grid legible.
  */
@@ -72,7 +72,7 @@ export function setAlive(live: LiveCells, column: number, row: number, alive: bo
     live.cells[wrappedRow * live.columns + wrappedColumn] = alive ? 1 : 0;
 }
 
-/** Living neighbours among the eight surrounding cells, wrapping at every edge. */
+/** Living neighbors among the eight surrounding cells, wrapping at every edge. */
 export function countLiveNeighbors(live: LiveCells, column: number, row: number): number {
     const wrappedColumn = wrapCoordinate(column, live.columns);
     const wrappedRow = wrapCoordinate(row, live.rows);
@@ -82,7 +82,7 @@ export function countLiveNeighbors(live: LiveCells, column: number, row: number)
             if (columnOffset === 0 && rowOffset === 0) continue;
             const neighborColumn = wrapCoordinate(column + columnOffset, live.columns);
             const neighborRow = wrapCoordinate(row + rowOffset, live.rows);
-            // A cell is never its own neighbour. This only bites on tiny grids, where an
+            // A cell is never its own neighbor. This only bites on tiny grids, where an
             // offset wraps all the way back; real grids are far wider than three cells.
             if (neighborColumn === wrappedColumn && neighborRow === wrappedRow) continue;
             if (live.cells[neighborRow * live.columns + neighborColumn] !== 0) count++;
@@ -91,7 +91,7 @@ export function countLiveNeighbors(live: LiveCells, column: number, row: number)
     return count;
 }
 
-/** Conway's rules: a live cell survives on two or three neighbours; a dead cell with exactly three comes to life. */
+/** Conway's rules: a live cell survives on two or three neighbors; a dead cell with exactly three comes to life. */
 export function nextGeneration(live: LiveCells): LiveCells {
     const { columns, rows } = live;
     const next = createEmptyGrid(live);

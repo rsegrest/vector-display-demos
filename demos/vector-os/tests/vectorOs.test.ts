@@ -61,7 +61,7 @@ describe("SegmentBlitter", () => {
     expect([segment.x0, segment.y0, segment.x1, segment.y1]).toEqual([105, 240, 115, 280]);
   });
 
-  it("keeps each stroke's colour and scales its brightness", () => {
+  it("keeps each stroke's color and scales its brightness", () => {
     const source = listOf([0, 0, 10, 0], { red: 0.25, green: 1, blue: 1 }, 0.8);
     source.setColor({ red: 0.75, green: 0, blue: 0 });
     source.addShape(Shape.fromSegmentCoordinates([0, 5, 10, 5]), { ...SCREEN_SPACE_PLACEMENT, intensity: 1 });
@@ -313,7 +313,7 @@ describe("terminal commands", () => {
     expect(services.beam.current.persistenceHalfLifeMilliseconds).toBe(200);
     // Out of range values are brought back within it.
     expect(runCommand("SET FLICKER 5", services)).toEqual(["FLICKER 0.15"]);
-    expect(runCommand("set colour 3", services)![0]).toContain("SET WHAT");
+    expect(runCommand("set color 3", services)![0]).toContain("SET WHAT");
     expect(runCommand("set bloom lots", services)![0]).toContain("WHAT NUMBER");
     expect(runCommand("reset", services)).toEqual(["BEAM SETTINGS RESET"]);
     expect(services.beam.current).toEqual(DEFAULT_BEAM_SETTINGS);
@@ -548,9 +548,9 @@ describe("VectorOsDemo", () => {
     // The demo was told its space is 1000 tall, and as wide as the window is in proportion.
     expect(record.resized.at(-1)![1]).toBe(1000);
     expect(record.resized.at(-1)![0]).toBeCloseTo((1000 * content.width) / content.height, 3);
-    const grey = drawOs(os).filter((segment) => segment.red === 0.25);
-    expect(grey.length).toBeGreaterThan(0);
-    for (const segment of grey) {
+    const gray = drawOs(os).filter((segment) => segment.red === 0.25);
+    expect(gray.length).toBeGreaterThan(0);
+    for (const segment of gray) {
       for (const [x, y] of [[segment.x0, segment.y0], [segment.x1, segment.y1]]) {
         expect(x).toBeGreaterThanOrEqual(content.x);
         expect(x).toBeLessThanOrEqual(content.x + content.width);
@@ -559,7 +559,7 @@ describe("VectorOsDemo", () => {
       }
     }
     // The stroke that ran far off both sides now spans the window and no more.
-    const longest = Math.max(...grey.map((segment) => Math.abs(segment.x1 - segment.x0)));
+    const longest = Math.max(...gray.map((segment) => Math.abs(segment.x1 - segment.x0)));
     expect(longest).toBeCloseTo(content.width - 2, 0);
   });
 

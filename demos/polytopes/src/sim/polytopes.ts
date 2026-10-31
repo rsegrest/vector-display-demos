@@ -73,7 +73,7 @@ function evenPermutations(point: Point): number[][] {
   return distinct(orderings(point).filter((ordering) => ordering.even).map((ordering) => ordering.point));
 }
 
-function normalise(points: number[][]): Float64Array {
+function normalize(points: number[][]): Float64Array {
   const vertices = new Float64Array(points.length * 4);
   points.forEach((point, index) => {
     const length = Math.hypot(point[0], point[1], point[2], point[3]);
@@ -108,7 +108,7 @@ export function shortestEdges(vertices: Float64Array): Uint16Array {
 }
 
 function build(name: string, cells: string, points: number[][]): Polytope {
-  const vertices = normalise(points);
+  const vertices = normalize(points);
   const edges = shortestEdges(vertices);
   return { name, cells, vertices, edges, vertexCount: points.length, edgeCount: edges.length / 2 };
 }
@@ -126,24 +126,24 @@ function sixHundredCellPoints(): number[][] {
 // that are all joined to one another.
 function oneHundredTwentyCellPoints(): number[][] {
   const dual = build("", "", sixHundredCellPoints());
-  const neighbours: Set<number>[] = Array.from({ length: dual.vertexCount }, () => new Set<number>());
+  const neighbors: Set<number>[] = Array.from({ length: dual.vertexCount }, () => new Set<number>());
   for (let edge = 0; edge < dual.edgeCount; edge++) {
-    neighbours[dual.edges[edge * 2]].add(dual.edges[edge * 2 + 1]);
-    neighbours[dual.edges[edge * 2 + 1]].add(dual.edges[edge * 2]);
+    neighbors[dual.edges[edge * 2]].add(dual.edges[edge * 2 + 1]);
+    neighbors[dual.edges[edge * 2 + 1]].add(dual.edges[edge * 2]);
   }
   const points: number[][] = [];
   for (let first = 0; first < dual.vertexCount; first++) {
-    for (const second of neighbours[first]) {
+    for (const second of neighbors[first]) {
       if (second < first) continue;
-      for (const third of neighbours[second]) {
-        if (third < second || !neighbours[first].has(third)) continue;
-        for (const fourth of neighbours[third]) {
-          if (fourth < third || !neighbours[first].has(fourth) || !neighbours[second].has(fourth)) continue;
-          const centre = [0, 0, 0, 0];
+      for (const third of neighbors[second]) {
+        if (third < second || !neighbors[first].has(third)) continue;
+        for (const fourth of neighbors[third]) {
+          if (fourth < third || !neighbors[first].has(fourth) || !neighbors[second].has(fourth)) continue;
+          const center = [0, 0, 0, 0];
           for (const vertex of [first, second, third, fourth]) {
-            for (let axis = 0; axis < 4; axis++) centre[axis] += dual.vertices[vertex * 4 + axis];
+            for (let axis = 0; axis < 4; axis++) center[axis] += dual.vertices[vertex * 4 + axis];
           }
-          points.push(centre);
+          points.push(center);
         }
       }
     }
