@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MenuModel } from "../src/menu/MenuModel.js";
+import { ITEM_TEXT_SIZE, MenuModel } from "../src/menu/MenuModel.js";
 
 const ITEMS = ["PARTICLE LIFE", "LENIA", "SLIME MOLD"];
 
@@ -107,5 +107,20 @@ describe("MenuModel", () => {
       for (let step = 0; step < 90; step++) model.update(1 / 60, layout);
       expect(model.pointerX).toBeCloseTo(layout.rows[6].left, 1);
     });
+  });
+});
+
+describe("MenuModel on a narrower screen", () => {
+  it("shrinks the list until every column fits, with room for the pointer at the left", () => {
+    // Nineteen titles of up to 540 units at full size: three columns, wider than a 16:10 screen (1600 units).
+    const widths = Array.from({ length: 19 }, (_, index) => 300 + (index % 4) * 80);
+    const wide = new MenuModel(19).layout({ width: 2200, height: 1000, itemWidths: widths });
+    expect(wide.textSize).toBe(ITEM_TEXT_SIZE);
+    for (const width of [1600, 1500, 1333, 1100]) {
+      const layout = new MenuModel(19).layout({ width, height: 1000, itemWidths: widths });
+      expect(layout.textSize).toBeLessThan(ITEM_TEXT_SIZE);
+      expect(Math.min(...layout.rows.map((row) => row.left))).toBeGreaterThanOrEqual(60);
+      expect(Math.max(...layout.rows.map((row) => row.left + row.width))).toBeLessThanOrEqual(width);
+    }
   });
 });

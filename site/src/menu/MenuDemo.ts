@@ -108,7 +108,7 @@ export class MenuDemo implements Demo {
         text: this.titles[index],
         x: row.left,
         y: row.top,
-        size: ITEM_TEXT_SIZE,
+        size: layout.textSize,
         intensity: isSelected ? 1.25 * launchFlare : 0.45,
       });
     });
