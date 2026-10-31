@@ -3,7 +3,8 @@ import { DisplayList } from "@vector-display/core";
 import { equatorialVector, greenwichSiderealTime, julianDate, localSiderealTime, skyRotation, toHorizontal } from "../src/sim/astronomy.js";
 import { horizonScreenShare, Projector } from "../src/sim/projection.js";
 import { SKY } from "../src/sim/sky.js";
-import { StarMapDemo } from "../src/StarMapDemo.js";
+import { formatClock, StarMapDemo } from "../src/StarMapDemo.js";
+import { moonPhaseAt, solarSystemAt } from "../src/sim/solarSystem.js";
 
 const CHICAGO = { latitude: 41.88, longitude: -87.63 };
 
@@ -130,5 +131,59 @@ describe("the star map", () => {
     expect(demo.time.getTime() - now().getTime()).toBeCloseTo((3600 - 1) * 10 * 1000, -2);
     demo.returnToNow();
     expect(demo.time.getTime()).toBe(now().getTime());
+  });
+});
+
+describe("the Sun, Moon and planets", () => {
+  it("puts the Sun at its solstice declinations and the seven planets in the list", () => {
+    const june = solarSystemAt(new Date(Date.UTC(2026, 5, 21, 12)), CHICAGO);
+    expect(june[0].name).toBe("Sun");
+    expect(june[0].declination).toBeCloseTo(23.44, 1);
+    const december = solarSystemAt(new Date(Date.UTC(2026, 11, 21, 12)), CHICAGO);
+    expect(december[0].declination).toBeCloseTo(-23.44, 1);
+    expect(june.map((body) => body.name)).toEqual(["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"]);
+  });
+
+  it("takes the Moon from new to full within a month, waxing between", () => {
+    const shares = Array.from({ length: 30 }, (_, day) => moonPhaseAt(new Date(Date.UTC(2026, 9, 1 + day))));
+    expect(Math.min(...shares.map((phase) => phase.litShare))).toBeLessThan(0.02);
+    expect(Math.max(...shares.map((phase) => phase.litShare))).toBeGreaterThan(0.98);
+    const fullIndex = shares.findIndex((phase) => phase.name === "full");
+    expect(fullIndex).toBeGreaterThan(0);
+    expect(shares.some((phase) => phase.name === "waxing gibbous")).toBe(true);
+  });
+});
+
+describe("time and the headset", () => {
+  const now = (): Date => new Date(Date.UTC(2026, 9, 31, 4, 0));
+
+  it("shows the time of a faraway place, estimated from its longitude, and the browser's own nearby", () => {
+    const demo = new StarMapDemo({ place: { latitude: -33.87, longitude: 151.21 }, placeName: "Sydney", now });
+    const zone = demo.clockZone();
+    if (!zone.isBrowsers) {
+      expect(zone.offsetMinutes).toBe(600);
+      expect(formatClock(now(), zone)).toContain("APPROX. TIME THERE");
+      // 04:00 UT is 2 PM in a zone ten hours ahead.
+      expect(formatClock(now(), zone)).toMatch(/02:00\sPM/);
+    }
+    demo.setTime(new Date(Date.UTC(2027, 0, 1)));
+    expect(demo.time.toISOString()).toBe("2027-01-01T00:00:00.000Z");
+  });
+
+  it("gives the headset every visible star and the horizon on the sphere around the eye", () => {
+    const demo = new StarMapDemo({ place: CHICAGO, placeName: "Chicago", now });
+    demo.draw(new DisplayList(), { width: 1600, height: 1000, seconds: 0 });
+    const picture = demo.picture3d();
+    expect(picture.spread).toBe(1);
+    expect(picture.drop).toBe(0);
+    expect(picture.positions.length).toBe((picture.colors.length / 4) * 6);
+    // About half the stars are above the horizon.
+    const lines = picture.colors.length / 4;
+    expect(lines).toBeGreaterThan(2500);
+    for (let index = 0; index < picture.positions.length; index += 3) {
+      const distance = Math.hypot(picture.positions[index], picture.positions[index + 1], picture.positions[index + 2]);
+      expect(distance).toBeGreaterThan(0.95);
+      expect(distance).toBeLessThan(1.05);
+    }
   });
 });

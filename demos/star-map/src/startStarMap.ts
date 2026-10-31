@@ -1,5 +1,7 @@
 import { DemoHost, bindEscapeToIndex, showFatalError, toggleFullscreen } from "@vector-demos/demo-kit";
+import { CornerPanel } from "./CornerPanel.js";
 import { LocationPanel, type NamedPlace } from "./LocationPanel.js";
+import { TimePanel } from "./TimePanel.js";
 import { STAR_MAP_WORLD_HEIGHT, StarMapDemo } from "./StarMapDemo.js";
 
 // Where this browser keeps the place last chosen.
@@ -27,7 +29,20 @@ export function startStarMap(canvas: HTMLCanvasElement): void {
     return;
   }
 
-  const panel = new LocationPanel(document.body, demo.place);
+  const bar = CornerPanel.bar(document.body);
+  const timePanel = new TimePanel(bar, () => demo.time, () => demo.clockZone());
+  const panel = new LocationPanel(bar, demo.place);
+  const panels: CornerPanel[] = [timePanel, panel];
+  // One panel open at a time.
+  for (const each of panels) {
+    const opened = each.onOpen;
+    each.onOpen = () => {
+      for (const other of panels) if (other !== each) other.close();
+      opened();
+    };
+  }
+  timePanel.onChange = (time) => demo.setTime(time);
+  timePanel.onNow = () => demo.returnToNow();
   panel.onChoose = (place: NamedPlace) => {
     demo.setPlace({ latitude: place.latitude, longitude: place.longitude }, place.name);
     try {
@@ -42,9 +57,10 @@ export function startStarMap(canvas: HTMLCanvasElement): void {
   window.addEventListener(
     "keydown",
     (event) => {
-      if (event.key !== "Escape" || !panel.isOpen) return;
+      const open = panels.filter((each) => each.isOpen);
+      if (event.key !== "Escape" || open.length === 0) return;
       event.stopImmediatePropagation();
-      panel.close();
+      for (const each of open) each.close();
       canvas.focus();
     },
     { capture: true },
@@ -52,28 +68,12 @@ export function startStarMap(canvas: HTMLCanvasElement): void {
   bindEscapeToIndex();
 
   window.addEventListener("keydown", (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey || panel.owns(event.target)) return;
+    if (event.metaKey || event.ctrlKey || event.altKey || panels.some((each) => each.owns(event.target))) return;
     demo.noteActivity();
-    const step = (ARROW_STEP * demo.view.fieldOfView) / 90;
-    let handled = true;
-    switch (event.key) {
-      case "ArrowLeft": demo.look(-step, 0); break;
-      case "ArrowRight": demo.look(step, 0); break;
-      case "ArrowUp": demo.look(0, step); break;
-      case "ArrowDown": demo.look(0, -step); break;
-      case "-": case "_": demo.zoom(1.15); break;
-      case "=": case "+": demo.zoom(1 / 1.15); break;
-      case ",": case "<": demo.changeTimeRate(-1); break;
-      case ".": case ">": demo.changeTimeRate(1); break;
-      case "0": demo.returnToNow(); break;
-      case "l": case "L": demo.toggle("lines"); break;
-      case "k": case "K": demo.toggle("names"); break;
-      case "m": case "M": demo.toggle("milkyWay"); break;
-      case "g": case "G": demo.toggle("grid"); break;
-      case "b": case "B": demo.toggle("ground"); break;
-      case "h": case "H": demo.toggleHud(); break;
-      case "f": case "F": toggleFullscreen(); break;
-      default: handled = false;
+    let handled = starMapKey(demo, event.key);
+    if (!handled && (event.key === "f" || event.key === "F")) {
+      toggleFullscreen();
+      handled = true;
     }
     if (handled) event.preventDefault();
   });
@@ -113,8 +113,7 @@ export function startStarMap(canvas: HTMLCanvasElement): void {
   (window as unknown as { starMap: unknown }).starMap = { demo, host };
 }
 
-// The address's place, the one last chosen here, or a guess from the time zone: its longitude (15
-// degrees an hour from Greenwich) at 40 degrees north, marked as approximate.
+// The address's place, or else the one last chosen in this browser, or a guess from the time zone.
 function startingPlace(): { place: { latitude: number; longitude: number }; placeName: string } {
   const parameters = new URLSearchParams(location.search);
   const latitude = Number.parseFloat(parameters.get("lat") ?? "");
@@ -122,6 +121,13 @@ function startingPlace(): { place: { latitude: number; longitude: number }; plac
   if (Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180) {
     return { place: { latitude, longitude }, placeName: "Location from the address" };
   }
+  return browserPlace();
+}
+
+// The place last chosen in this browser (on the page or in Vector OS), or, the first time, a guess
+// from the time zone: its longitude (15 degrees an hour from Greenwich) at 40 degrees north, marked
+// as approximate.
+export function browserPlace(): { place: { latitude: number; longitude: number }; placeName: string } {
   try {
     const stored = JSON.parse(localStorage.getItem(PLACE_KEY) ?? "null") as NamedPlace | null;
     if (stored && Number.isFinite(stored.latitude) && Number.isFinite(stored.longitude)) {
@@ -132,4 +138,28 @@ function startingPlace(): { place: { latitude: number; longitude: number }; plac
   }
   const hoursEast = -new Date().getTimezoneOffset() / 60;
   return { place: { latitude: 40, longitude: Math.max(-180, Math.min(180, hoursEast * 15)) }, placeName: "Approximate (time zone)" };
+}
+
+// What a key does to the map, for the page and for Vector OS's window alike; false if nothing.
+export function starMapKey(demo: StarMapDemo, key: string): boolean {
+  const step = (ARROW_STEP * demo.view.fieldOfView) / 90;
+  switch (key) {
+    case "ArrowLeft": demo.look(-step, 0); return true;
+    case "ArrowRight": demo.look(step, 0); return true;
+    case "ArrowUp": demo.look(0, step); return true;
+    case "ArrowDown": demo.look(0, -step); return true;
+    case "-": case "_": demo.zoom(1.15); return true;
+    case "=": case "+": demo.zoom(1 / 1.15); return true;
+    case ",": case "<": demo.changeTimeRate(-1); return true;
+    case ".": case ">": demo.changeTimeRate(1); return true;
+    case "0": demo.returnToNow(); return true;
+    case "p": case "P": demo.toggle("solarSystem"); return true;
+    case "l": case "L": demo.toggle("lines"); return true;
+    case "k": case "K": demo.toggle("names"); return true;
+    case "m": case "M": demo.toggle("milkyWay"); return true;
+    case "g": case "G": demo.toggle("grid"); return true;
+    case "b": case "B": demo.toggle("ground"); return true;
+    case "h": case "H": demo.toggleHud(); return true;
+    default: return false;
+  }
 }

@@ -221,6 +221,37 @@ export const APP_ENTRIES: readonly AppEntry[] = [
     },
   },
   {
+    id: "star-map",
+    title: "Star Map",
+    kind: "demo",
+    category: "simulation",
+    size: { width: 680, height: 460 },
+    create: async () => {
+      const { browserPlace, StarMapDemo, starMapKey } = await import("@vector-demos/star-map");
+      const demo = new StarMapDemo(browserPlace());
+      let dragFrom: { x: number; y: number } | null = null;
+      return demoApp(demo, {
+        brightness: 1,
+        // The page's keys (arrows look around, - + zoom, , . time...) and dragging to look around;
+        // the place is the one last chosen on the Star Map's page, which its LOCATION button sets.
+        onKeyDown: (press) => {
+          demo.noteActivity();
+          return starMapKey(demo, press.key);
+        },
+        onPointer: (kind, x, y) => {
+          demo.noteActivity();
+          if (kind === "down") dragFrom = { x, y };
+          else if (kind === "move" && dragFrom) {
+            demo.drag(x - dragFrom.x, y - dragFrom.y);
+            dragFrom = { x, y };
+          } else if (kind === "up") dragFrom = null;
+        },
+        // In the headset, full screen puts the viewer inside the sky.
+        picture3d: () => demo.picture3d(),
+      });
+    },
+  },
+  {
     id: "meshes",
     title: "Feature Edges",
     kind: "demo",

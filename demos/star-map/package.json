@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@vector-demos/demo-kit": "*",
-    "@vector-display/core": "^0.1.0"
+    "@vector-display/core": "^0.1.0",
+    "astronomy-engine": "2.1.19"
   }
 }

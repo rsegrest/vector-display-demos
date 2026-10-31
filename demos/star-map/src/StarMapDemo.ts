@@ -1,8 +1,9 @@
 import { SCREEN_SPACE_PLACEMENT, type BeamColor, type DisplayList } from "@vector-display/core";
-import { DemoHud, DynamicGeometry, getDemoFont, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
+import { DemoHud, DynamicGeometry, getDemoFont, glyphStrokes, type Demo, type DemoFrame } from "@vector-demos/demo-kit";
 import { equatorialVector, localSiderealTime, skyRotation, type Place } from "./sim/astronomy.js";
 import { altitudeForHorizonAt, horizonScreenShare, MAXIMUM_FIELD_OF_VIEW, MINIMUM_FIELD_OF_VIEW, Projector, type View } from "./sim/projection.js";
 import { SKY, type SkyPoint } from "./sim/sky.js";
+import { moonPhaseAt, solarSystemAt, type MoonPhase, type SolarBody } from "./sim/solarSystem.js";
 
 export const STAR_MAP_WORLD_HEIGHT = 1000;
 // Where the horizon starts on the screen: this share of the way from the middle to the bottom edge,
@@ -42,8 +43,14 @@ const NAME_COLOR: BeamColor = { red: 0.55, green: 0.75, blue: 1 };
 
 const HELP_LINES = [
   "DRAG OR ARROWS LOOK AROUND   WHEEL OR - + ZOOM   , . TIME SPEED   0 NOW",
-  "L LINES   K NAMES   M MILKY WAY   G GRID   B GROUND   H HUD   F FULLSCREEN   ESC MENU",
+  "P SUN MOON PLANETS   L LINES   K NAMES   M MILKY WAY   G GRID   B GROUND   H HUD   F FULLSCREEN   ESC MENU",
 ];
+// The Sun's and Moon's real size across, in degrees; drawn no smaller than MINIMUM_DISC_RADIUS.
+const SUN_DIAMETER = 0.53;
+const MOON_DIAMETER = 0.52;
+const MINIMUM_DISC_RADIUS = 9;
+// The solar system is worked out again when the sky's clock has moved this many seconds.
+const SOLAR_SYSTEM_SECONDS = 30;
 
 interface Star {
   readonly vector: readonly [number, number, number];
@@ -55,6 +62,30 @@ interface Batch {
   readonly geometry: DynamicGeometry;
   readonly color: BeamColor;
   intensity: number;
+}
+
+// The sky as a headset draws it (Vector OS VR's Picture3d): line ends x, y, z and, per line,
+// r, g, b and brightness; spread 1 and drop 0 make it a sphere around the eye.
+export interface SkyPicture3d {
+  readonly positions: Float32Array;
+  readonly colors: Float32Array;
+  readonly spread: number;
+  readonly drop: number;
+}
+
+export interface ClockZone {
+  // Minutes ahead of UTC.
+  readonly offsetMinutes: number;
+  // Whether it is this browser's own zone (otherwise an estimate for the place).
+  readonly isBrowsers: boolean;
+}
+
+// The time in a zone, as the overlay shows it: "OCT 31, 2026, 11:00 PM", with "(APPROX. TIME THERE)"
+// when the zone is an estimate for a faraway place.
+export function formatClock(time: Date, zone: ClockZone): string {
+  const shifted = new Date(time.getTime() + zone.offsetMinutes * 60_000);
+  const text = shifted.toLocaleString(undefined, { timeZone: "UTC", year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).toUpperCase();
+  return zone.isBrowsers ? text : `${text} (APPROX. TIME THERE)`;
 }
 
 export interface StarMapOptions {
@@ -93,6 +124,7 @@ export class StarMapDemo implements Demo {
   public showGrid = false;
   // With the ground on, what is below the horizon is hidden, as it would be outdoors.
   public showGround = true;
+  public showSolarSystem = true;
 
   private readonly hud = new DemoHud();
   private readonly projector = new Projector();
@@ -113,6 +145,12 @@ export class StarMapDemo implements Demo {
   private height = STAR_MAP_WORLD_HEIGHT;
   private rotation: ArrayLike<number> = new Float64Array(9);
   private readonly scratch = new Float64Array(4);
+  private readonly bodies = new DynamicGeometry(512);
+  private solarSystem: { bodies: SolarBody[]; moon: MoonPhase; time: number; place: Place } | null = null;
+  // The bodies' places this frame, for their names on the overlay.
+  private readonly bodyLabels: { name: string; x: number; y: number; radius: number; color: BeamColor }[] = [];
+  // How bright the night sky is drawn: 1 at night, less in twilight and daylight.
+  private skyDarkness = 1;
 
   public constructor(options: StarMapOptions) {
     this.place = options.place;
@@ -153,12 +191,14 @@ export class StarMapDemo implements Demo {
     this.height = frame.height;
     this.projector.set(this.view, frame.width, frame.height);
     this.rotation = skyRotation(this.place, localSiderealTime(this.time, this.place.longitude)).matrix;
+    this.updateSolarSystem();
     this.placeStars();
 
     if (this.showMilkyWay) this.drawMilkyWay(displayList);
     if (this.showGrid) this.drawGrid(displayList);
     if (this.showLines) this.drawConstellationLines(displayList);
     this.drawStars(displayList);
+    if (this.showSolarSystem) this.drawSolarSystem(displayList);
     this.drawHorizon(displayList);
   }
 
@@ -166,13 +206,19 @@ export class StarMapDemo implements Demo {
     const scale = frame.height / 1000;
     this.drawCompass(displayList, scale);
     if (this.showNames) this.drawNames(displayList, scale);
-    const time = this.time;
-    const clock = time.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).toUpperCase();
+    if (this.showSolarSystem) {
+      for (const { name, x, y, radius, color } of this.bodyLabels) {
+        displayList.setColor(color);
+        // Past the body's edge, up and to the right of it.
+        getDemoFont().addText(displayList, { text: name.toUpperCase(), x: x + radius + 6 * scale, y: y - radius - 12 * scale, size: 10 * scale, intensity: 0.75 });
+      }
+    }
+    const clock = formatClock(this.time, this.clockZone());
     this.hud.draw(displayList, {
       title: "STAR MAP",
       statusLines: [
         `${this.placeName.toUpperCase()}  ${formatLatitude(this.place.latitude)} ${formatLongitude(this.place.longitude)}  ${clock}  ${TIME_RATES[this.timeRateIndex].name}`,
-        `LOOKING ${compassName(this.view.azimuth)} ${Math.round(this.view.azimuth)}°  UP ${Math.round(this.view.altitude)}°  FIELD ${Math.round(this.view.fieldOfView)}°`,
+        `LOOKING ${compassName(this.view.azimuth)} ${Math.round(this.view.azimuth)}°  UP ${Math.round(this.view.altitude)}°  FIELD ${Math.round(this.view.fieldOfView)}°  ${this.skyCondition()}  MOON ${this.solarSystem?.moon.name.toUpperCase() ?? ""}`,
       ],
       helpLines: HELP_LINES,
       width: frame.width,
@@ -221,6 +267,21 @@ export class StarMapDemo implements Demo {
     this.hud.showBanner(TIME_RATES[this.timeRateIndex].name);
   }
 
+  // The time zone the clock is shown in: this browser's, when the place is within an hour of it;
+  // otherwise the place's own, estimated from its longitude (15 degrees an hour), since the sky is
+  // read by the time there.
+  public clockZone(): ClockZone {
+    const browserMinutes = -this.time.getTimezoneOffset();
+    const placeMinutes = Math.round(this.place.longitude / 15) * 60;
+    if (Math.abs(placeMinutes - browserMinutes) <= 60) return { offsetMinutes: browserMinutes, isBrowsers: true };
+    return { offsetMinutes: placeMinutes, isBrowsers: false };
+  }
+
+  // Shows the sky at this moment; the clock then runs on from it at the current speed.
+  public setTime(time: Date): void {
+    this.timeOffsetSeconds = (time.getTime() - this.now().getTime()) / 1000;
+  }
+
   public returnToNow(): void {
     this.timeOffsetSeconds = 0;
     this.timeRateIndex = 0;
@@ -233,7 +294,12 @@ export class StarMapDemo implements Demo {
     this.hud.showBanner(placeName.toUpperCase());
   }
 
-  public toggle(what: "lines" | "names" | "milkyWay" | "grid" | "ground"): void {
+  public toggle(what: "lines" | "names" | "milkyWay" | "grid" | "ground" | "solarSystem"): void {
+    if (what === "solarSystem") {
+      this.showSolarSystem = !this.showSolarSystem;
+      this.hud.showBanner(`SUN, MOON AND PLANETS ${this.showSolarSystem ? "ON" : "OFF"}`);
+      return;
+    }
     const banners = { lines: "CONSTELLATION LINES", names: "NAMES", milkyWay: "MILKY WAY", grid: "GRID", ground: "GROUND" };
     if (what === "lines") this.showLines = !this.showLines;
     if (what === "names") this.showNames = !this.showNames;
@@ -272,7 +338,7 @@ export class StarMapDemo implements Demo {
     for (const batch of this.starBatches) batch.geometry.clear();
     this.stars.forEach((star, index) => {
       if (!this.visible[index]) return;
-      const intensity = Math.min(2.4, starIntensity(star.magnitude) * zoomGain);
+      const intensity = Math.min(2.4, starIntensity(star.magnitude) * zoomGain * this.skyDarkness);
       // Batched by color and by brightness in steps.
       const step = Math.min(BRIGHTNESS_STEPS - 1, Math.max(0, Math.floor((1 - intensity / 2.4) * BRIGHTNESS_STEPS)));
       const batch = this.starBatches[starColorIndex(star.colorIndex) * BRIGHTNESS_STEPS + step];
@@ -308,29 +374,15 @@ export class StarMapDemo implements Demo {
     this.milkyWay.clear();
     for (const ring of SKY.milkyWay) this.addSkyPath(this.milkyWay, [...ring.points, ring.points[0]]);
     displayList.setColor(MILKY_WAY_COLOR);
-    displayList.addShape(this.milkyWay, { ...SCREEN_SPACE_PLACEMENT, intensity: 0.16 });
+    displayList.addShape(this.milkyWay, { ...SCREEN_SPACE_PLACEMENT, intensity: 0.16 * this.skyDarkness });
   }
 
   // A path through points given as right ascension and declination, each piece broken into arcs of
   // ARC_STEP or less so it curves as it should, and lifted where it goes out of sight (behind the
   // viewer, below the ground, far off the screen).
   private addSkyPath(geometry: DynamicGeometry, points: readonly SkyPoint[]): void {
-    const along: SkyPoint[] = [points[0]];
-    for (let index = 1; index < points.length; index++) {
-      const [fromRa, fromDec] = points[index - 1];
-      const [toRa, toDec] = points[index];
-      // The shorter way round in right ascension.
-      const deltaRa = ((((toRa - fromRa) % 360) + 540) % 360) - 180;
-      const steps = Math.max(1, Math.ceil(angularDistance(points[index - 1], points[index]) / ARC_STEP));
-      for (let step = 1; step <= steps; step++) along.push([fromRa + (deltaRa * step) / steps, fromDec + ((toDec - fromDec) * step) / steps]);
-    }
-    const matrix = this.rotation;
     let isDrawing = false;
-    for (const [rightAscension, declination] of along) {
-      const [x, y, z] = equatorialVector(rightAscension, declination);
-      const east = matrix[0] * x + matrix[1] * y + matrix[2] * z;
-      const north = matrix[3] * x + matrix[4] * y + matrix[5] * z;
-      const up = matrix[6] * x + matrix[7] * y + matrix[8] * z;
+    for (const [east, north, up] of this.skyArc(points)) {
       const isVisible =
         (!this.showGround || up > -0.002) && this.projector.project(east, north, up, this.scratch, 0) && this.isInsideScreen(this.scratch[0], this.scratch[1], this.width);
       if (!isVisible) {
@@ -341,6 +393,21 @@ export class StarMapDemo implements Demo {
       else geometry.moveTo(this.scratch[0], this.scratch[1]);
       isDrawing = true;
     }
+  }
+
+  // The points of a path given as right ascension and declination, with arcs of ARC_STEP or less
+  // between them, as horizon-frame unit vectors [east, north, up].
+  private skyArc(points: readonly SkyPoint[]): [number, number, number][] {
+    const along: [number, number, number][] = [this.toHorizon(points[0][0], points[0][1])];
+    for (let index = 1; index < points.length; index++) {
+      const [fromRa, fromDec] = points[index - 1];
+      const [toRa, toDec] = points[index];
+      // The shorter way round in right ascension.
+      const deltaRa = ((((toRa - fromRa) % 360) + 540) % 360) - 180;
+      const steps = Math.max(1, Math.ceil(angularDistance(points[index - 1], points[index]) / ARC_STEP));
+      for (let step = 1; step <= steps; step++) along.push(this.toHorizon(fromRa + (deltaRa * step) / steps, fromDec + ((toDec - fromDec) * step) / steps));
+    }
+    return along;
   }
 
   // A path through points given as altitude and azimuth (the horizon, the grid).
@@ -381,6 +448,201 @@ export class StarMapDemo implements Demo {
     }
     displayList.setColor(GRID_COLOR);
     displayList.addShape(this.grid, { ...SCREEN_SPACE_PLACEMENT, intensity: 0.25 });
+  }
+
+  // The Sun, Moon and planets, worked out again when the sky's clock or the place has moved on; and
+  // from the Sun's height, how dark the sky is (night below 12 degrees under the horizon, daylight above it).
+  private updateSolarSystem(): void {
+    const time = this.time;
+    const cached = this.solarSystem;
+    if (!cached || Math.abs(time.getTime() - cached.time) > SOLAR_SYSTEM_SECONDS * 1000 || cached.place !== this.place) {
+      this.solarSystem = { bodies: solarSystemAt(time, this.place), moon: moonPhaseAt(time), time: time.getTime(), place: this.place };
+    }
+    const sun = this.solarSystem!.bodies[0];
+    const [, , up] = this.toHorizon(sun.rightAscension, sun.declination);
+    const sunAltitude = Math.asin(up) / DEGREES;
+    // Faint stars stay faintly visible in daylight, so the map is never blank.
+    this.skyDarkness = sunAltitude >= 0 ? 0.25 : sunAltitude <= -12 ? 1 : 0.25 + (0.75 * -sunAltitude) / 12;
+  }
+
+  private skyCondition(): string {
+    return this.skyDarkness >= 1 ? "NIGHT" : this.skyDarkness <= 0.25 ? "DAYLIGHT" : "TWILIGHT";
+  }
+
+  private toHorizon(rightAscension: number, declination: number): [number, number, number] {
+    const [x, y, z] = equatorialVector(rightAscension, declination);
+    const matrix = this.rotation;
+    return [matrix[0] * x + matrix[1] * y + matrix[2] * z, matrix[3] * x + matrix[4] * y + matrix[5] * z, matrix[6] * x + matrix[7] * y + matrix[8] * z];
+  }
+
+  private drawSolarSystem(displayList: DisplayList): void {
+    this.bodyLabels.length = 0;
+    const solarSystem = this.solarSystem;
+    if (!solarSystem) return;
+    const sunHorizon = this.toHorizon(solarSystem.bodies[0].rightAscension, solarSystem.bodies[0].declination);
+    // Drawn faintest first, so the Sun and Moon come last.
+    for (const body of [...solarSystem.bodies].reverse()) {
+      const [east, north, up] = this.toHorizon(body.rightAscension, body.declination);
+      if (this.showGround && up < 0) continue;
+      if (!this.projector.project(east, north, up, this.scratch, 0) || !this.isInsideScreen(this.scratch[0], this.scratch[1], 30)) continue;
+      const x = this.scratch[0];
+      const y = this.scratch[1];
+      this.bodies.clear();
+      let radius = 4;
+      if (body.kind === "sun") {
+        radius = Math.max(MINIMUM_DISC_RADIUS, (SUN_DIAMETER / 2) * this.projector.unitsPerDegree);
+        this.addCircle(x, y, radius, 24);
+        for (let ray = 0; ray < 8; ray++) {
+          const angle = (ray / 8) * 2 * Math.PI;
+          this.bodies.addSegment(x + Math.cos(angle) * radius * 1.4, y + Math.sin(angle) * radius * 1.4, x + Math.cos(angle) * radius * 1.9, y + Math.sin(angle) * radius * 1.9);
+        }
+      } else if (body.kind === "moon") {
+        radius = this.addMoon(x, y, [east, north, up], sunHorizon, solarSystem.moon);
+      } else {
+        this.bodies.addSegment(x, y, x, y);
+        this.addCircle(x, y, 4, 10);
+      }
+      displayList.setColor(body.color);
+      const brightness = body.kind === "planet" ? Math.min(1.6, Math.max(0.5, 1.2 - 0.18 * body.magnitude)) : 1.3;
+      displayList.addShape(this.bodies, { ...SCREEN_SPACE_PLACEMENT, intensity: brightness });
+      this.bodyLabels.push({ name: body.kind === "moon" ? `Moon (${solarSystem.moon.name})` : body.name, x, y, radius, color: body.color });
+    }
+  }
+
+  private addCircle(x: number, y: number, radius: number, sides: number): void {
+    this.bodies.moveTo(x + radius, y);
+    for (let side = 1; side < sides; side++) this.bodies.lineTo(x + radius * Math.cos((side / sides) * 2 * Math.PI), y + radius * Math.sin((side / sides) * 2 * Math.PI));
+    this.bodies.closePath();
+  }
+
+  // The Moon as its phase shows it: a faint full outline, and the lit part bright: the half of the
+  // disc toward the Sun, closed by the terminator, a half ellipse whose width follows how much is lit.
+  // Returns the disc's radius on the screen.
+  private addMoon(x: number, y: number, moon: readonly [number, number, number], sun: readonly [number, number, number], phase: MoonPhase): number {
+    const radius = Math.max(MINIMUM_DISC_RADIUS, (MOON_DIAMETER / 2) * this.projector.unitsPerDegree);
+    this.addCircle(x, y, radius, 24);
+    // Toward the Sun on the screen: a point a little way from the Moon along the sky toward the Sun.
+    const along = sun[0] * moon[0] + sun[1] * moon[1] + sun[2] * moon[2];
+    let towardEast = sun[0] - along * moon[0];
+    let towardNorth = sun[1] - along * moon[1];
+    let towardUp = sun[2] - along * moon[2];
+    const length = Math.hypot(towardEast, towardNorth, towardUp) || 1;
+    towardEast = moon[0] + (0.01 * towardEast) / length;
+    towardNorth = moon[1] + (0.01 * towardNorth) / length;
+    towardUp = moon[2] + (0.01 * towardUp) / length;
+    let angle = 0;
+    if (this.projector.project(towardEast, towardNorth, towardUp, this.scratch, 2)) angle = Math.atan2(this.scratch[3] - y, this.scratch[2] - x);
+    const point = (along: number, across: number): [number, number] => [x + along * Math.cos(angle) - across * Math.sin(angle), y + along * Math.sin(angle) + across * Math.cos(angle)];
+    const steps = 16;
+    // The lit limb, from one tip round the sunward side to the other.
+    for (let step = 0; step <= steps; step++) {
+      const t = -Math.PI / 2 + (step / steps) * Math.PI;
+      const [px, py] = point(radius * Math.cos(t), radius * Math.sin(t));
+      if (step === 0) this.bodies.moveTo(px, py);
+      else this.bodies.lineTo(px, py);
+    }
+    // Back along the terminator: bulging away from the Sun past half lit, toward it before.
+    const bulge = -(2 * phase.litShare - 1);
+    for (let step = steps - 1; step >= 0; step--) {
+      const t = -Math.PI / 2 + (step / steps) * Math.PI;
+      const [px, py] = point(bulge * radius * Math.cos(t), radius * Math.sin(t));
+      this.bodies.lineTo(px, py);
+    }
+    // Shading lines across the lit part, so it reads as lit rather than as an outline.
+    for (let line = 1; line < 6; line++) {
+      const across = radius * (-1 + (2 * line) / 6);
+      const t = Math.asin(across / radius);
+      const limb = radius * Math.cos(t);
+      const [ax, ay] = point(limb, across);
+      const [bx, by] = point(bulge * limb, across);
+      this.bodies.addSegment(ax, ay, bx, by);
+    }
+    return radius;
+  }
+
+  // The sky in 3D, for a VR headset: everything drawn here as points and lines on a sphere of radius
+  // 1 around the viewer's eye, in the headset picture's axes (x right, y up, the eye looking down -z),
+  // straight ahead being the direction this view faces. Stars are lines of no length, which the
+  // headset draws as dots. Built from the state of the last draw().
+  public picture3d(): SkyPicture3d {
+    const positions: number[] = [];
+    const colors: number[] = [];
+    const azimuth = this.view.azimuth * DEGREES;
+    const toPicture = ([east, north, up]: readonly [number, number, number]): [number, number, number] => [
+      east * Math.cos(azimuth) - north * Math.sin(azimuth),
+      up,
+      -(east * Math.sin(azimuth) + north * Math.cos(azimuth)),
+    ];
+    const line = (from: readonly [number, number, number], to: readonly [number, number, number], color: BeamColor, brightness: number): void => {
+      positions.push(...toPicture(from), ...toPicture(to));
+      colors.push(color.red, color.green, color.blue, brightness);
+    };
+    const path = (points: readonly (readonly [number, number, number])[], color: BeamColor, brightness: number): void => {
+      for (let index = 1; index < points.length; index++) {
+        if (this.showGround && (points[index - 1][2] < -0.002 || points[index][2] < -0.002)) continue;
+        line(points[index - 1], points[index], color, brightness);
+      }
+    };
+
+    // In the headset, lines are straight between the catalog's points (its perspective needs no arcs),
+    // and each piece's glowing ends overlap: so as few pieces as will do, and beads only at stars.
+    const chord = (points: readonly SkyPoint[]): [number, number, number][] => points.map(([ra, dec]) => this.toHorizon(ra, dec));
+    if (this.showMilkyWay) {
+      for (const ring of SKY.milkyWay) path(chord([...ring.points.filter((_, index) => index % 4 === 0), ring.points[0]]), MILKY_WAY_COLOR, 0.25 * this.skyDarkness);
+    }
+    if (this.showLines) for (const constellation of SKY.constellations) for (const each of constellation.lines) path(chord(each), LINE_COLOR, 0.45);
+    this.stars.forEach((star, index) => {
+      const at: [number, number, number] = [this.horizon[index * 3], this.horizon[index * 3 + 1], this.horizon[index * 3 + 2]];
+      if (this.showGround && at[2] < 0) return;
+      const brightness = Math.min(2.4, starIntensity(star.magnitude) * this.skyDarkness);
+      line(at, at, STAR_COLORS[starColorIndex(star.colorIndex)].color, brightness);
+    });
+    // The horizon, and the compass letters standing on it, facing the viewer.
+    const horizon = Array.from({ length: 49 }, (_, step): [number, number, number] => [Math.sin(step * 7.5 * DEGREES), Math.cos(step * 7.5 * DEGREES), 0]);
+    path(horizon, HORIZON_COLOR, 0.8);
+    COMPASS_POINTS.forEach((name, index) => {
+      const pointAzimuth = index * 45 * DEGREES;
+      const size = index % 2 === 0 ? 0.006 : 0.004;
+      const width = (name.length * 6 - 2) * size;
+      const outward = [Math.sin(pointAzimuth), Math.cos(pointAzimuth), 0];
+      const rightward = [Math.cos(pointAzimuth), -Math.sin(pointAzimuth), 0];
+      for (const stroke of glyphStrokes(name)) {
+        const points = stroke.points.map(([x, y]): [number, number, number] => {
+          const across = x * size - width / 2;
+          const height = y * size + 0.01;
+          return [outward[0] + rightward[0] * across, outward[1] + rightward[1] * across, height];
+        });
+        if (stroke.closed) points.push(points[0]);
+        for (let point = 1; point < points.length; point++) line(points[point - 1], points[point], COMPASS_COLOR, 1);
+      }
+    });
+    if (this.showSolarSystem && this.solarSystem) {
+      for (const body of this.solarSystem.bodies) {
+        const at = this.toHorizon(body.rightAscension, body.declination);
+        if (this.showGround && at[2] < 0) continue;
+        if (body.kind === "planet") {
+          line(at, at, body.color, 1.5);
+          continue;
+        }
+        // The Sun and Moon as rings, a little larger than they are so they show.
+        const ring = this.ringAround(at, body.kind === "sun" ? 0.012 : 0.011);
+        for (let point = 1; point < ring.length; point++) line(ring[point - 1], ring[point], body.color, 1.3);
+      }
+    }
+    return { positions: Float32Array.from(positions), colors: Float32Array.from(colors), spread: 1, drop: 0 };
+  }
+
+  // A small circle on the sphere around a direction, as points.
+  private ringAround(center: readonly [number, number, number], radius: number): [number, number, number][] {
+    // Two directions across the center: level, and the one perpendicular to both.
+    const level = Math.hypot(center[0], center[1]) > 1e-6 ? [center[1], -center[0], 0] : [1, 0, 0];
+    const levelLength = Math.hypot(level[0], level[1], level[2]);
+    const across = [level[0] / levelLength, level[1] / levelLength, level[2] / levelLength];
+    const upward = [center[1] * across[2] - center[2] * across[1], center[2] * across[0] - center[0] * across[2], center[0] * across[1] - center[1] * across[0]];
+    return Array.from({ length: 17 }, (_, step) => {
+      const angle = (step / 16) * 2 * Math.PI;
+      return [0, 1, 2].map((axis) => center[axis] + radius * (Math.cos(angle) * across[axis] + Math.sin(angle) * upward[axis])) as [number, number, number];
+    });
   }
 
   private drawCompass(displayList: DisplayList, scale: number): void {

@@ -2,8 +2,24 @@
 
 /* The star map's LOCATION panel (demos/star-map/src/LocationPanel.ts), opened from its corner
    button: drawn like Text Crawl's panel, in the arcade font, amber on black. */
-button.corner-link {
+/* The corner buttons side by side in one row at the top right. */
+.corner-bar {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+.corner-bar .corner-link {
+  position: static;
   cursor: pointer;
+}
+
+.corner-bar .corner-link[aria-expanded="true"] {
+  border-color: #ffc74d;
+  box-shadow: 0 0 12px rgba(255, 199, 77, 0.5);
 }
 
 .corner-panel {
@@ -28,6 +44,7 @@ button.corner-link {
 
 .corner-panel,
 .corner-panel input,
+.corner-panel select,
 .corner-panel button {
   font-family: "Vector Arcade", ui-monospace, monospace;
   letter-spacing: 0.08em;
@@ -43,6 +60,26 @@ button.corner-link {
 
 .corner-panel label span {
   color: #7ff2ff;
+}
+
+.corner-panel select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px 8px;
+  font-size: 13px;
+  background: #000;
+  border: 1px solid rgba(255, 199, 77, 0.4);
+}
+
+.corner-panel input[type="range"] {
+  padding: 0;
+  border: none;
+  accent-color: #ffc74d;
+  background: transparent;
+}
+
+.corner-panel input[type="date"] {
+  color-scheme: dark;
 }
 
 .corner-panel input {
