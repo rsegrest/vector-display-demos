@@ -4,7 +4,7 @@ import { equatorialVector, greenwichSiderealTime, julianDate, localSiderealTime,
 import { horizonScreenShare, Projector } from "../src/sim/projection.js";
 import { SKY } from "../src/sim/sky.js";
 import { formatClock, StarMapDemo } from "../src/StarMapDemo.js";
-import { moonPhaseAt, solarSystemAt } from "../src/sim/solarSystem.js";
+import { moonPhaseAt, solarSystemAt, sunsetDuring } from "../src/sim/solarSystem.js";
 
 const CHICAGO = { latitude: 41.88, longitude: -87.63 };
 
@@ -185,5 +185,24 @@ describe("time and the headset", () => {
       expect(distance).toBeGreaterThan(0.95);
       expect(distance).toBeLessThan(1.05);
     }
+  });
+});
+
+describe("sunset", () => {
+  it("finds the day's sunset: Chicago on 2026 October 31 near 5:42 PM CDT, and none at the poles in their seasons", () => {
+    // Chicago's midnight, CDT (UTC-5).
+    const chicagoDay = new Date(Date.UTC(2026, 9, 31, 5, 0));
+    const sunset = sunsetDuring(chicagoDay, CHICAGO);
+    if (sunset.time === null) throw new Error("no sunset");
+    // Published tables give 5:42 PM CDT (22:42 UT) for Chicago that day; within a few minutes.
+    const minutesAfterMidnight = (sunset.time.getTime() - chicagoDay.getTime()) / 60_000;
+    expect(Math.abs(minutesAfterMidnight - (17 * 60 + 42))).toBeLessThan(5);
+    expect(sunsetDuring(new Date(Date.UTC(2026, 5, 21)), { latitude: 90, longitude: 0 })).toEqual({ time: null, sunStaysUp: true });
+    expect(sunsetDuring(new Date(Date.UTC(2026, 5, 21)), { latitude: -90, longitude: 0 })).toEqual({ time: null, sunStaysUp: false });
+  });
+
+  it("says it in the status line in the clock's zone", () => {
+    const demo = new StarMapDemo({ place: CHICAGO, placeName: "Chicago", now: () => new Date(Date.UTC(2026, 10, 1, 1, 0)) });
+    expect(demo.sunsetText({ offsetMinutes: -300, isBrowsers: true })).toMatch(/^SUNSET 5:4\d PM$/);
   });
 });

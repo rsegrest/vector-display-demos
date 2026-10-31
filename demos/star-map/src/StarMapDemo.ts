@@ -3,7 +3,7 @@ import { DemoHud, DynamicGeometry, getDemoFont, glyphStrokes, type Demo, type De
 import { equatorialVector, localSiderealTime, skyRotation, type Place } from "./sim/astronomy.js";
 import { altitudeForHorizonAt, horizonScreenShare, MAXIMUM_FIELD_OF_VIEW, MINIMUM_FIELD_OF_VIEW, Projector, type View } from "./sim/projection.js";
 import { SKY, type SkyPoint } from "./sim/sky.js";
-import { moonPhaseAt, solarSystemAt, type MoonPhase, type SolarBody } from "./sim/solarSystem.js";
+import { moonPhaseAt, solarSystemAt, sunsetDuring, type MoonPhase, type SolarBody, type Sunset } from "./sim/solarSystem.js";
 
 export const STAR_MAP_WORLD_HEIGHT = 1000;
 // Where the horizon starts on the screen: this share of the way from the middle to the bottom edge,
@@ -88,6 +88,17 @@ export function formatClock(time: Date, zone: ClockZone): string {
   return zone.isBrowsers ? text : `${text} (APPROX. TIME THERE)`;
 }
 
+// Midnight beginning the day `time` falls in, in the zone.
+export function startOfDay(time: Date, zone: ClockZone): Date {
+  const offset = zone.offsetMinutes * 60_000;
+  return new Date(Math.floor((time.getTime() + offset) / 86_400_000) * 86_400_000 - offset);
+}
+
+function formatTimeOfDay(time: Date, zone: ClockZone): string {
+  const shifted = new Date(time.getTime() + zone.offsetMinutes * 60_000);
+  return shifted.toLocaleTimeString(undefined, { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).toUpperCase();
+}
+
 export interface StarMapOptions {
   readonly place: Place;
   // Where the place is, in words, for the overlay ("Chicago", "your location").
@@ -149,6 +160,8 @@ export class StarMapDemo implements Demo {
   private solarSystem: { bodies: SolarBody[]; moon: MoonPhase; time: number; place: Place } | null = null;
   // The bodies' places this frame, for their names on the overlay.
   private readonly bodyLabels: { name: string; x: number; y: number; radius: number; color: BeamColor }[] = [];
+  // The modeled day's sunset, worked out once per day and place.
+  private sunset: { sunset: Sunset; dayStart: number; place: Place } | null = null;
   // How bright the night sky is drawn: 1 at night, less in twilight and daylight.
   private skyDarkness = 1;
 
@@ -213,7 +226,8 @@ export class StarMapDemo implements Demo {
         getDemoFont().addText(displayList, { text: name.toUpperCase(), x: x + radius + 6 * scale, y: y - radius - 12 * scale, size: 10 * scale, intensity: 0.75 });
       }
     }
-    const clock = formatClock(this.time, this.clockZone());
+    const zone = this.clockZone();
+    const clock = `${formatClock(this.time, zone)}  ${this.sunsetText(zone)}`;
     this.hud.draw(displayList, {
       title: "STAR MAP",
       statusLines: [
@@ -275,6 +289,17 @@ export class StarMapDemo implements Demo {
     const placeMinutes = Math.round(this.place.longitude / 15) * 60;
     if (Math.abs(placeMinutes - browserMinutes) <= 60) return { offsetMinutes: browserMinutes, isBrowsers: true };
     return { offsetMinutes: placeMinutes, isBrowsers: false };
+  }
+
+  // "SUNSET 6:01 PM" for the day the clock is in, read in the clock's zone.
+  public sunsetText(zone: ClockZone): string {
+    const dayStart = startOfDay(this.time, zone);
+    if (!this.sunset || this.sunset.dayStart !== dayStart.getTime() || this.sunset.place !== this.place) {
+      this.sunset = { sunset: sunsetDuring(dayStart, this.place), dayStart: dayStart.getTime(), place: this.place };
+    }
+    const { sunset } = this.sunset;
+    if (sunset.time === null) return sunset.sunStaysUp ? "SUN DOES NOT SET" : "SUN DOES NOT RISE";
+    return `SUNSET ${formatTimeOfDay(sunset.time, zone)}`;
   }
 
   // Shows the sky at this moment; the clock then runs on from it at the current speed.

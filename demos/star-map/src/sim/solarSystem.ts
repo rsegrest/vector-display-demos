@@ -66,3 +66,19 @@ export function moonPhaseAt(time: Date): MoonPhase {
     litShare < 0.03 ? "new" : litShare > 0.97 ? "full" : litShare < 0.47 ? `${isWaxing ? "waxing" : "waning"} crescent` : litShare <= 0.53 ? `${isWaxing ? "first" : "last"} quarter` : `${isWaxing ? "waxing" : "waning"} gibbous`;
   return { litShare, isWaxing, name };
 }
+
+// When the Sun sets (its top edge reaching the horizon, with the atmosphere's usual bending) during
+// the day that starts at `dayStart` and lasts 24 hours; or, if it does not set that day, whether
+// it stays up (the midnight sun) or stays down (the polar night).
+export type Sunset = { readonly time: Date } | { readonly time: null; readonly sunStaysUp: boolean };
+
+export function sunsetDuring(dayStart: Date, place: Place): Sunset {
+  const observer = new Astronomy.Observer(place.latitude, place.longitude, 0);
+  const sunset = Astronomy.SearchRiseSet(Astronomy.Body.Sun, observer, -1, dayStart, 1);
+  if (sunset && sunset.date.getTime() - dayStart.getTime() < 86_400_000) return { time: sunset.date };
+  // No sunset in the day: up or down at midday tells which.
+  const midday = new Date(dayStart.getTime() + 43_200_000);
+  const equatorial = Astronomy.Equator(Astronomy.Body.Sun, midday, observer, true, true);
+  const horizontal = Astronomy.Horizon(midday, observer, equatorial.ra, equatorial.dec, "normal");
+  return { time: null, sunStaysUp: horizontal.altitude > 0 };
+}
