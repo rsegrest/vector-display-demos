@@ -105,6 +105,12 @@ const DEMOS: readonly DemoEntry[] = [
     description: "Chains of turning circles that redraw any shape, including one you sketch",
   },
   {
+    path: "star-map",
+    group: "simulation",
+    title: "Star Map",
+    description: "The night sky from where you are, now: look around, zoom, and speed up time",
+  },
+  {
     path: "live-earth",
     group: "simulation",
     title: "Live Earth",

@@ -29,6 +29,7 @@
     "@vector-demos/particle-life": "*",
     "@vector-demos/polytopes": "*",
     "@vector-demos/slime-mold": "*",
+    "@vector-demos/star-map": "*",
     "@vector-demos/text-crawl": "*",
     "@vector-demos/travel-globe": "*",
     "@vector-demos/type-specimen": "*",

@@ -6,7 +6,7 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 
 | Path | What it is |
 | --- | --- |
-| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`, `/meshes/`, `/docs/`, `/os/`). The demo list lives in `site/src/catalog.ts`, each demo in a group (Creative, Simulation, Artificial Life, as in Vector OS's launcher, and "Vector OS and Guide" under Simulation); the index shows the groups under amber headings and shrinks to fit narrower screens |
+| `site` | The website: the vector-font index at `/` and one route per demo (`/particle-life/`, `/lenia/`, `/travel-globe/`, `/life/`, `/boids/`, `/slime-mold/`, `/ca-terrain/`, `/biomorphs/`, `/attractors/`, `/gray-scott/`, `/polytopes/`, `/oscilloscope/`, `/text-crawl/`, `/epicycles/`, `/live-earth/`, `/star-map/`, `/meshes/`, `/docs/`, `/os/`). The demo list lives in `site/src/catalog.ts`, each demo in a group (Creative, Simulation, Artificial Life, as in Vector OS's launcher, and "Vector OS and Guide" under Simulation); the index shows the groups under amber headings and shrinks to fit narrower screens |
 | `packages/demo-kit` | Shared code: `DemoHost` (canvas, renderer, phosphor, fixed-step loop, crisp overlay pass, and a plain text layer with no glow or joint dots for the Hershey fonts), `DemoHud`, `DynamicGeometry` (per-frame lines and paths), `ContourTracer` (marching squares as chained paths, used by Lenia and Gray-Scott), beam paths (`buildPath`, `glyphStrokes`: shapes and font text as strokes for the beam to follow), `BeamSettingsStore` (the visitor's saved beam settings), the demo font, seeded random, page helpers |
 | `demos/particle-life` | Particle Life |
 | `demos/travel-globe` | Rick's travel map on a vector globe; meant to replace ricksegrest.com/globe |
@@ -21,6 +21,7 @@ Generative, artificial-life and 3D demos built on the `@vector-display` packages
 | `demos/oscilloscope` | Oscilloscope: a stereo signal drawn as an XY beam, with sound |
 | `demos/text-crawl` | Text Crawl: vector-font text receding on a plane, shattering into its strokes |
 | `demos/epicycles` | Fourier Epicycles: chains of turning circles that redraw a shape |
+| `demos/star-map` | Star Map: the night sky from your place and time, the naked-eye stars, constellations and the Milky Way from d3-celestial's data (BSD), to look around and zoom |
 | `demos/live-earth` | Live Earth: real satellites, the ISS ground track and recent earthquakes on a wireframe globe |
 | `demos/meshes` | Feature Edges: the teapot, the bunny and other meshes as line drawings, with hidden lines removed |
 | `demos/docs` | Live Guide: documentation for the `@vector-display` packages in which every example is editable and running |
@@ -294,6 +295,15 @@ URL: `shape` (1-based).
 | `A`, `-` `+` | Auto, speed |
 | `C` `G` | Show circles, show the target shape |
 | `T`, `Space`, `H`, `F` | Trails, pause, HUD, fullscreen |
+
+## Star Map
+
+The night sky from where you are, now. The 5,044 stars to magnitude 6 (about what the eye can see, from the Hipparcos catalog) are the beam's dots, brighter and bluer or redder as the real stars are; the 89 constellations are faint stick figures with their Latin names; the Milky Way is an outline; the horizon is marked with the compass points, and what is below it is hidden. The names of the brightest stars and the major constellations show when the view is wide, more as it narrows.
+
+- **Where and when.** **Location**, at the top right, uses the browser's location (it asks, only then) or a latitude and longitude typed in, remembered in this browser; `?lat=41.88&lon=-87.63` sets it in the address. Before one is chosen, the map guesses from the time zone and says so. The clock is the computer's; `,` and `.` run it faster (up to an hour a second, to watch the sky turn), and `0` returns to now.
+- **Looking around.** Drag, or use the arrow keys; the wheel or `-` `+` zooms (8 to 160 degrees). `L` lines, `K` names, `M` Milky Way, `G` an altitude and azimuth grid, `B` the ground (off shows the whole sphere).
+- **How.** Each star's right ascension and declination become altitude and azimuth through the local sidereal time (`src/sim/astronomy.ts`, checked against Meeus's worked examples); the whole catalog turns by one rotation a frame; the view is a stereographic projection, as planetarium programs use, so shapes keep their look even near the edge of a wide view (`src/sim/projection.ts`). Precession and refraction are left out: both are under half a degree.
+- **Data.** `src/data/sky.json` is built from d3-celestial's files by `tools/build_sky_data.py` (BSD 3-Clause, Copyright (c) 2015 Olaf Frohn; the license is beside the data). Not done yet: the Sun, Moon and planets (`astronomy-engine`), a time slider, a city list, a Vector OS window and VR.
 
 ## Live Earth
 

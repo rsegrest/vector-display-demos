@@ -1,0 +1,85 @@
+@import "./cornerLink.css";
+
+/* The star map's LOCATION panel (demos/star-map/src/LocationPanel.ts), opened from its corner
+   button: drawn like Text Crawl's panel, in the arcade font, amber on black. */
+button.corner-link {
+  cursor: pointer;
+}
+
+.corner-panel {
+  position: fixed;
+  top: 54px;
+  right: 14px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(340px, calc(100vw - 28px));
+  box-sizing: border-box;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.88);
+  border: 1px solid rgba(255, 199, 77, 0.55);
+  box-shadow: 0 0 14px rgba(255, 199, 77, 0.25);
+}
+
+.corner-panel[hidden] {
+  display: none;
+}
+
+.corner-panel,
+.corner-panel input,
+.corner-panel button {
+  font-family: "Vector Arcade", ui-monospace, monospace;
+  letter-spacing: 0.08em;
+  color: #ffc74d;
+}
+
+.corner-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.corner-panel label span {
+  color: #7ff2ff;
+}
+
+.corner-panel input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px 8px;
+  font-size: 15px;
+  text-align: center;
+  background: #000;
+  border: 1px solid rgba(255, 199, 77, 0.4);
+}
+
+.corner-panel input:focus {
+  outline: none;
+  border-color: #ffc74d;
+  box-shadow: 0 0 8px rgba(255, 199, 77, 0.4);
+}
+
+.corner-panel button {
+  padding: 7px 14px;
+  font-size: 13px;
+  background: #000;
+  border: 1px solid rgba(255, 199, 77, 0.7);
+  cursor: pointer;
+}
+
+.corner-panel button:hover {
+  box-shadow: 0 0 10px rgba(255, 199, 77, 0.5);
+}
+
+.corner-panel-submit {
+  align-self: center;
+}
+
+.corner-panel-message {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(255, 199, 77, 0.75);
+}

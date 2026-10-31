@@ -1,0 +1,18 @@
+{
+  "name": "@vector-demos/star-map",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Star Map: the night sky from your place and time, to look around and zoom, with constellations, star names and the Milky Way.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vector-demos/demo-kit": "*",
+    "@vector-display/core": "^0.1.0"
+  }
+}

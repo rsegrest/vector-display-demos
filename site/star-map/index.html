@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="The night sky from your place and time on a vector display: the naked-eye stars, constellations, the Milky Way and the horizon, to look around and zoom." />
+    <title>Star Map</title>
+  </head>
+  <body>
+    <canvas id="screen" tabindex="0" aria-label="The night sky from your location: stars as points of light, constellation figures as faint lines, the Milky Way's outline, and the horizon marked with compass points."></canvas>
+    <p class="visually-hidden">Location, at the top right, sets where the sky is seen from. Drag or use the arrow keys to look around; the mouse wheel or minus and plus zoom. Comma and period change how fast time runs; zero returns to now. L constellation lines, K names, M Milky Way, G grid, B ground, H toggle overlay, F fullscreen, Escape back to the menu.</p>
+    <script type="module" src="../src/pages/star-map.ts"></script>
+  </body>
+</html>
