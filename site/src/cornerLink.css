@@ -1,0 +1,26 @@
+@import "./fonts.css";
+
+/* A link in the top right corner of a full-screen demo (Fourier Epicycles' HOW IT WORKS), drawn
+   like Text Crawl's CUSTOMIZE button: the arcade font, amber, in a thin glowing frame. */
+.corner-link {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  padding: 6px 12px;
+  font-family: "Vector Arcade", ui-monospace, monospace;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: #ffc74d;
+  text-decoration: none;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 199, 77, 0.6);
+  box-shadow: 0 0 8px rgba(255, 199, 77, 0.25);
+}
+
+.corner-link:hover,
+.corner-link:focus-visible {
+  border-color: #ffc74d;
+  box-shadow: 0 0 12px rgba(255, 199, 77, 0.5);
+  outline: none;
+}

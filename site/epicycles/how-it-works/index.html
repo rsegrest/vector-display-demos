@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="How Fourier epicycles work: a chain of spinning circles, chosen by a Fourier transform, draws any closed shape." />
+    <title>Fourier Epicycles: how it works</title>
+  </head>
+  <body class="docs">
+    <a class="skip-link" href="#content">Skip to the explanation</a>
+    <header class="docs-header">
+      <p><a href="../">&larr; Back to Fourier Epicycles</a> &nbsp; <a href="../../">All demos</a></p>
+      <h1>Fourier epicycles: how it works</h1>
+      <p class="lede">
+        The demo draws a shape using nothing but spinning circles chained together. With enough of them, a chain of circles can trace a star, a heart,
+        a letter or a shape you sketch yourself.
+      </p>
+    </header>
+
+    <nav class="docs-nav" aria-label="Sections">
+      <ol>
+        <li><a href="#chain">The chain</a></li>
+        <li><a href="#why">Why circles can draw anything</a></li>
+        <li><a href="#finding">Finding the circles</a></li>
+        <li><a href="#detail">More circles, more detail</a></li>
+        <li><a href="#strokes">Letters and the jumps between strokes</a></li>
+        <li><a href="#controls">Trying it</a></li>
+        <li><a href="#name">Where the name comes from</a></li>
+      </ol>
+    </nav>
+
+    <main id="content">
+      <section id="chain">
+        <h2>The chain</h2>
+        <p>
+          The first circle spins around a fixed point. The second circle's center rides on the rim of the first, the third rides on the rim of the
+          second, and so on. Each circle spins at its own steady speed: one turn per trip around the shape, or two, or three, or one turn backwards.
+          The tip of the last circle is the pen, and the line it leaves behind is the shape.
+        </p>
+        <figure class="explainer-figure">
+          <svg viewBox="0 0 520 300" role="img" aria-labelledby="chain-caption">
+            <!-- Three circles, each centered on a point of the one before's rim, and the pen's trail. -->
+            <g class="explainer-circles">
+              <circle cx="190" cy="150" r="100" />
+              <circle cx="260.7" cy="79.3" r="45" />
+              <circle cx="304.2" cy="90.9" r="20" />
+            </g>
+            <g class="explainer-arms">
+              <line x1="190" y1="150" x2="260.7" y2="79.3" />
+              <line x1="260.7" y1="79.3" x2="304.2" y2="90.9" />
+              <line x1="304.2" y1="90.9" x2="319" y2="104.4" />
+            </g>
+            <g class="explainer-joints">
+              <circle cx="190" cy="150" r="3" />
+              <circle cx="260.7" cy="79.3" r="3" />
+              <circle cx="304.2" cy="90.9" r="3" />
+            </g>
+            <path class="explainer-trail" d="M 319 104.4 C 335 140, 330 190, 300 220 S 220 262, 180 250" />
+            <circle class="explainer-pen" cx="319" cy="104.4" r="4.5" />
+            <text x="190" y="172" text-anchor="middle">fixed center</text>
+            <text x="345" y="100">the pen</text>
+            <text x="250" y="278" text-anchor="middle">the line it leaves</text>
+          </svg>
+          <figcaption id="chain-caption">
+            A big slow circle, a middle one riding on its rim, a small fast one riding on that. The pen at the end of the chain draws the shape.
+          </figcaption>
+        </figure>
+      </section>
+
+      <section id="why">
+        <h2>Why circles can draw anything</h2>
+        <p>
+          This is Fourier's discovery. Any closed path can be built by adding up circular motions, each turning a whole number of times per trip:
+        </p>
+        <ul>
+          <li>The <strong>big, slow circles</strong> give the shape its overall size and place.</li>
+          <li>The <strong>middle ones</strong> carve in its main bumps and points.</li>
+          <li>The <strong>small, fast ones</strong> add the sharp corners and fine detail.</li>
+        </ul>
+        <p>
+          Each circle is really just an arrow that spins at a fixed speed. Adding the arrows tip to tail gives one point, and letting them all spin
+          traces the path. The circles you see on the screen are the paths those arrows' tips sweep out.
+        </p>
+      </section>
+
+      <section id="finding">
+        <h2>Finding the circles</h2>
+        <ol>
+          <li>The demo goes around the shape and takes 512 evenly spaced points.</li>
+          <li>
+            It runs a <strong>Fourier transform</strong> on them. For every spin speed, from 256 turns backwards up to 255 forwards, the transform
+            gives one circle: how big it is, and where on its rim it starts. 512 points in, 512 circles out. (The circle with speed zero does not
+            spin at all: it is the fixed offset that puts the chain in the right place.)
+          </li>
+          <li>It sorts the circles from largest to smallest, so each circle added improves the drawing as much as it can.</li>
+          <li>Each frame it moves time on a little, turns every circle by its own speed, and puts the pen at the end of the chain.</li>
+        </ol>
+        <p>The arithmetic is in <code>demos/epicycles/src/sim/fourier.ts</code>.</p>
+      </section>
+
+      <section id="detail">
+        <h2>More circles, more detail</h2>
+        <p>
+          With one circle, the pen draws a plain circle. With a handful, it draws a blobby version of the shape. As more are added, the corners
+          sharpen, until with all of them the pen follows the shape exactly. The demo counts the circles up through 1, 2, 3, 5, 8, 13, 21, 34, 55, 89,
+          144 and 255, so you can watch the shape come into focus.
+        </p>
+      </section>
+
+      <section id="strokes">
+        <h2>Letters and the jumps between strokes</h2>
+        <p>
+          A letter with more than one stroke, like a question mark and its dot, is still drawn as one continuous path. The pen travels from the end
+          of one stroke to the start of the next, and the demo hides those travels, the way a vector monitor turns its beam off between strokes. The
+          circles still have to reproduce the hidden moves, which is part of why letters need more circles than smooth shapes.
+        </p>
+      </section>
+
+      <section id="controls">
+        <h2>Trying it</h2>
+        <ul>
+          <li><strong>Draw with the pointer</strong> to make your own shape. When you let go, the demo works out its circles and traces it.</li>
+          <li><strong>[ and ]</strong>: fewer or more circles. The readout shows how many are in use.</li>
+          <li><strong>A</strong>: automatic, adding circles each time the pen completes a trip.</li>
+          <li><strong>N and B</strong>: the next or previous built-in shape (a star, a heart, letters, a question mark).</li>
+          <li><strong>0 to 9</strong>: trace that digit.</li>
+          <li><strong>C and G</strong>: show or hide the circles, and the target shape.</li>
+          <li><strong>- and +</strong> change the speed, <strong>T</strong> the length of the trails, and <strong>space</strong> pauses.</li>
+        </ul>
+      </section>
+
+      <section id="name">
+        <h2>Where the name comes from</h2>
+        <p>
+          Ancient astronomers, Ptolemy most famously, explained the looping paths of the planets across the sky with circles riding on circles, which
+          they called <em>epicycles</em>. They were more right than they knew: with enough circles, a chain like this can trace almost any path.
+        </p>
+      </section>
+    </main>
+    <script type="module" src="../../src/pages/epicyclesHowItWorks.ts"></script>
+  </body>
+</html>

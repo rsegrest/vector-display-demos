@@ -1,0 +1,54 @@
+/* What the explainer pages add to the Live Guide's styles: a line diagram drawn as the display
+   draws, thin glowing lines on black. */
+.explainer-figure {
+  max-width: 560px;
+  margin: 24px 0;
+}
+
+.explainer-figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #000;
+  border: 1px solid var(--line);
+}
+
+.explainer-figure svg text {
+  font-family: var(--reading-font);
+  font-size: 15px;
+  fill: var(--dim);
+}
+
+.explainer-circles circle {
+  fill: none;
+  stroke: #4f8fd9;
+  stroke-width: 1.2;
+  filter: drop-shadow(0 0 3px rgba(79, 143, 217, 0.8));
+}
+
+.explainer-arms line {
+  stroke: #cfe3f5;
+  stroke-width: 1.4;
+}
+
+.explainer-joints circle {
+  fill: #cfe3f5;
+}
+
+.explainer-trail {
+  fill: none;
+  stroke: #ffc74d;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px rgba(255, 199, 77, 0.9));
+}
+
+.explainer-pen {
+  fill: #ffc74d;
+  filter: drop-shadow(0 0 5px rgba(255, 199, 77, 1));
+}
+
+.explainer-figure figcaption {
+  margin-top: 8px;
+  color: var(--dim);
+  font-size: 15px;
+}

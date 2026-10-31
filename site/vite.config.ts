@@ -7,10 +7,13 @@ import { DEMO_CATALOG } from "./src/catalog.js";
 import { travelEditApi } from "../demos/travel-globe/src/server/vitePlugin.js";
 import { ARCADE_GAMES, arcadeGamesViteConfig } from "../demos/vector-os/arcadeGames.js";
 
+// Pages that belong to a demo rather than being one: explainers in the Live Guide's style.
+const EXTRA_PAGES: readonly { readonly name: string; readonly path: string }[] = [{ name: "epicycles-how-it-works", path: "epicycles/how-it-works" }];
+
 // /particle-life → /particle-life/, so routes work with or without the trailing slash.
 // The games' own pages, under /arcade/, are routes too.
 function addTrailingSlash(): Plugin {
-  const routes = new Set([...DEMO_CATALOG.map((demo) => `/${demo.path}`), ...ARCADE_GAMES.map((game) => `/arcade/${game}`)]);
+  const routes = new Set([...DEMO_CATALOG.map((demo) => `/${demo.path}`), ...EXTRA_PAGES.map((page) => `/${page.path}`), ...ARCADE_GAMES.map((game) => `/arcade/${game}`)]);
   return {
     name: "add-trailing-slash",
     configureServer(server) {
@@ -83,6 +86,7 @@ export default defineConfig({
       input: {
         index: resolve(siteRoot, "index.html"),
         ...Object.fromEntries(DEMO_CATALOG.map((demo) => [demo.path, resolve(siteRoot, demo.path, "index.html")])),
+        ...Object.fromEntries(EXTRA_PAGES.map((page) => [page.name, resolve(siteRoot, page.path, "index.html")])),
       },
     },
   },

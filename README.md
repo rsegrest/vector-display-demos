@@ -275,6 +275,8 @@ Click anywhere in the text to shatter it from that point (`sim/CrawlScene.ts` fi
 
 ## Fourier Epicycles
 
+The **How it works** link at the top right opens `epicycles/how-it-works/`, an explanation in the Live Guide's style (`site/epicycles/how-it-works/index.html`, with `site/src/explainer.css` for its diagram): the chain of circles, why circles can draw any closed shape, how the Fourier transform finds them, and what the controls show.
+
 Any closed path can be drawn by a chain of circles, each turning at a steady whole-number rate with its center riding on the rim of the one before. The Fourier transform says which circles (`sim/fourier.ts`): one radius and starting angle per turning speed. With few circles the tip traces a smooth caricature of the shape; each one added sharpens it. Left alone, the demo adds circles on every trip round, then moves to the next shape.
 
 Shapes come from three places: built-in outlines (star, heart, triangle), glyphs of the vector font (press a digit to trace it; letters and the word VECTOR are in the list), and **your own sketch**: draw on the screen with the pointer and release.
